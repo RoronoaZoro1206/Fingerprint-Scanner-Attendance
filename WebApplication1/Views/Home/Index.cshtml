@@ -1,0 +1,42 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+    var isCapturing = ViewData["Capturing"] != null && (bool)ViewData["Capturing"];
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p><strong>Fingerprint Status:</strong> @ViewData["FingerprintStatus"]</p>
+    <p><strong>Device Count:</strong> @ViewData["DeviceCount"]</p>
+    <p><strong>Image Width:</strong> @ViewData["ImageWidth"]</p>
+    <p><strong>Image Height:</strong> @ViewData["ImageHeight"]</p>
+    <p><strong>Last Error:</strong> @ViewData["LastError"]</p>
+    <form asp-action="TestCapture" method="post" style="display:inline-block;margin-right:10px;">
+        <button type="submit" class="btn btn-primary" @(isCapturing ? "disabled" : "")>Test Capture</button>
+    </form>
+    <form asp-action="Reinitialize" method="post" style="display:inline-block;margin-right:10px;">
+        <button type="submit" class="btn btn-warning">Reinitialize Device</button>
+    </form>
+    <form asp-action="CloseDevice" method="post" style="display:inline-block;">
+        <button type="submit" class="btn btn-danger">Close Device</button>
+    </form>
+    @if (isCapturing)
+    {
+        <div style="margin-top:20px;">
+            <span class="spinner-border" role="status" aria-hidden="true"></span>
+            <span>Capturing fingerprint, please wait...</span>
+        </div>
+    }
+    @if (ViewData["CaptureResult"] != null)
+    {
+        <p><strong>Test Capture Result:</strong> @ViewData["CaptureResult"]</p>
+    }
+    @if (ViewData["ReinitResult"] != null)
+    {
+        <p><strong>Reinitialize Result:</strong> @ViewData["ReinitResult"]</p>
+    }
+    @if (ViewData["CloseResult"] != null)
+    {
+        <p><strong>Close Device Result:</strong> @ViewData["CloseResult"]</p>
+    }
+</div>
