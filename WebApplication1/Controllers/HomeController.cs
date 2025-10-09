@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Fingerprint;
-using WebApplication1.Models;
+using Fingerprint_Attendance_System.Fingerprint;
+using Fingerprint_Attendance_System.Models;
 
 namespace Fingerprint_Attendance_System.Controllers;
 
