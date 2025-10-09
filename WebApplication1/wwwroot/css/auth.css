@@ -234,16 +234,16 @@
     .auth-container {
         padding: 1rem;
     }
-    
+
     .auth-card {
         padding: 2rem 1.5rem;
         border-radius: 16px;
     }
-    
+
     .auth-title {
         font-size: 1.25rem;
     }
-    
+
     .form-title {
         font-size: 1.125rem;
     }
@@ -389,3 +389,24 @@
     }
 }
 
+
+/* Register Page Styles */
+.register-card {
+    max-width: 520px;
+}
+
+.register-form {
+    gap: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 480px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
