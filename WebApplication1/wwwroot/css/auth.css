@@ -1,0 +1,391 @@
+/* Auth Page Styles */
+.auth-container {
+    min-height: 100vh;
+    background: #E8EFFE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.auth-card {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+}
+
+.auth-header {
+    margin-bottom: 1.5rem;
+}
+
+.auth-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    background-color: transparent;
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+}
+
+.auth-icon i {
+    width: 56px;
+    height: 56px;
+    color: #000000;
+    stroke-width: 1.5;
+}
+
+.auth-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #000000;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.3;
+}
+
+.auth-subtitle {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 400;
+}
+
+.login-form-container {
+    text-align: left;
+}
+
+.form-title {
+    font-size: 1.375rem;
+    font-weight: 600;
+    color: #000000;
+    margin: 0 0 1.75rem 0;
+    text-align: center;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #000000;
+    margin: 0;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    background-color: #f3f4f6;
+    color: #000000;
+    transition: all 0.2s ease;
+}
+
+.form-input::placeholder {
+    color: #9ca3af;
+}
+
+.form-input:focus {
+    outline: none;
+    background-color: #e5e7eb;
+}
+
+.password-input-container {
+    position: relative;
+}
+
+.password-input-container .form-input {
+    padding-right: 3rem;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: #6b7280;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-toggle:hover {
+    color: #000000;
+}
+
+.password-toggle i {
+    width: 20px;
+    height: 20px;
+}
+
+.sign-in-btn {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 0.5rem;
+}
+
+.sign-in-btn:hover {
+    background-color: #1f2937;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+.divider span {
+    padding: 0 1rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.biometric-btn {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: #f3f4f6;
+    color: #000000;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.biometric-btn:hover {
+    background-color: #e5e7eb;
+    color: #000000;
+}
+
+.biometric-btn i {
+    width: 20px;
+    height: 20px;
+}
+
+.register-link {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.register-link a {
+    color: #000000;
+    font-weight: 600;
+    text-decoration: none;
+    margin-left: 0.25rem;
+    transition: color 0.2s ease;
+}
+
+.register-link a:hover {
+    color: #1f2937;
+    text-decoration: underline;
+}
+
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .auth-container {
+        padding: 1rem;
+    }
+    
+    .auth-card {
+        padding: 2rem 1.5rem;
+        border-radius: 16px;
+    }
+    
+    .auth-title {
+        font-size: 1.25rem;
+    }
+    
+    .form-title {
+        font-size: 1.125rem;
+    }
+}
+
+/* Fingerprint Login Styles */
+.fingerprint-card {
+    max-width: 460px;
+    position: relative;
+}
+
+.fingerprint-card .back-to-login {
+    position: absolute;
+    top: -3.5rem;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #000000;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.fingerprint-card .back-to-login:hover {
+    color: #374151;
+    transform: translateX(-4px);
+}
+
+.fingerprint-card .back-to-login i {
+    width: 20px;
+    height: 20px;
+}
+
+.fingerprint-header {
+    margin-bottom: 2rem;
+}
+
+.fingerprint-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #000000;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.3;
+}
+
+.fingerprint-subtitle {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 400;
+}
+
+.fingerprint-scanner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2rem 0;
+}
+
+.scanner-circle {
+    width: 160px;
+    height: 160px;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.scanner-circle i {
+    width: 100px;
+    height: 100px;
+    color: #374151;
+    stroke-width: 1.8;
+}
+
+.scanner-circle.scanning {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        background-color: #f3f4f6;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        background-color: #dbeafe;
+        box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+    }
+}
+
+.scanner-instruction {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0 0 2rem 0;
+}
+
+.start-scan-btn {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.start-scan-btn:hover {
+    background-color: #1f2937;
+}
+
+.start-scan-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Responsive adjustments for fingerprint page */
+@media (max-width: 480px) {
+    .fingerprint-card .back-to-login {
+        top: -3rem;
+        font-size: 0.9rem;
+    }
+
+    .fingerprint-title {
+        font-size: 1.25rem;
+    }
+
+    .scanner-circle {
+        width: 140px;
+        height: 140px;
+    }
+
+    .scanner-circle i {
+        width: 80px;
+        height: 80px;
+    }
+}
+

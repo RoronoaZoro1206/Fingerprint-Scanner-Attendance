@@ -1,0 +1,425 @@
+/* Home Page Specific Styles */
+.home-body {
+    background-color: #f9fafb;
+}
+
+.home-container {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.home-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    max-width: 1200px;
+    width: 100%;
+    align-items: center;
+}
+
+/* Fingerprint Scanner Section */
+.scanner-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.fingerprint-container {
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fingerprint-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+.fingerprint-container.scanning {
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    animation: pulse 1.5s ease-in-out;
+}
+
+.fingerprint-container.scanning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+    animation: scan 2s ease-in-out;
+}
+
+.fingerprint-container.success {
+    background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%);
+    animation: successPulse 0.6s ease-in-out;
+}
+
+.fingerprint-container.error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+    animation: shake 0.5s ease-in-out;
+}
+
+.fingerprint-icon {
+    width: 150px;
+    height: 150px;
+    stroke-width: 2;
+    transition: all 0.3s ease;
+}
+
+.fingerprint-container.scanning .fingerprint-icon {
+    color: #2563eb;
+    animation: iconPulse 1.5s ease-in-out infinite;
+}
+
+.fingerprint-container.success .fingerprint-icon {
+    color: #059669;
+    transform: scale(1.1);
+}
+
+.fingerprint-container.error .fingerprint-icon {
+    color: #dc2626;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes scan {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes iconPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes successPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-10px);
+    }
+    75% {
+        transform: translateX(10px);
+    }
+}
+
+/* Ripple effect */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.4);
+    transform: scale(0);
+    animation: ripple 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.scanner-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #111827;
+}
+
+.scanner-instructions {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.scanner-instructions li {
+    font-size: 1rem;
+    color: #6b7280;
+    margin-bottom: 0.75rem;
+}
+
+/* Scanning Status Message */
+.scan-status-message {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.scan-status-message.show {
+    opacity: 1;
+}
+
+.scan-status-message.scanning {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.scan-status-message.success {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.scan-status-message.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Live Scan Results Section */
+.results-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.results-title-group h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #111827;
+}
+
+.results-title-group p {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.results-time {
+    text-align: right;
+}
+
+.results-time .time {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    display: block;
+}
+
+.results-time .date {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+/* Scan Record Card */
+.scan-record {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.scan-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.scan-status {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.scan-time {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.scan-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.scan-user i {
+    color: #ea580c;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.scan-user h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    color: #111827;
+}
+
+.scan-user p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.scan-class {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.scan-class i {
+    color: #ea580c;
+    width: 20px;
+    height: 20px;
+}
+
+.scan-class-info h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    color: #111827;
+}
+
+.scan-class-info p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Stats Cards at Bottom */
+.scan-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.scan-stat-card {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.scan-stat-card.success {
+    background-color: #fef3c7;
+    border-color: #fbbf24;
+}
+
+.scan-stat-card.total {
+    background-color: #fee2e2;
+    border-color: #f87171;
+}
+
+.scan-stat-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+
+.scan-stat-card.success h3 {
+    color: #d97706;
+}
+
+.scan-stat-card.total h3 {
+    color: #dc2626;
+}
+
+.scan-stat-card p {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .home-content {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .fingerprint-container {
+        width: 250px;
+        height: 250px;
+    }
+
+    .fingerprint-icon {
+        width: 120px;
+        height: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    .home-container {
+        padding: 1rem;
+    }
+
+    .results-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .results-time {
+        text-align: left;
+    }
+
+    .scan-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
