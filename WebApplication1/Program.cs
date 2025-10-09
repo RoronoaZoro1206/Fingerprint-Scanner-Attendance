@@ -1,10 +1,7 @@
-using Fingerprint_Attendance_System.Fingerprint;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddSingleton<FingerprintService>();
 
 var app = builder.Build();
 
