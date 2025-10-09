@@ -8,7 +8,7 @@ public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
 
-    public IActionResult Privacy()
+    public IActionResult Index()
     {
         return View();
     }
