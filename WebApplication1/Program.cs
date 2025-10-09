@@ -1,4 +1,4 @@
-using WebApplication1.Fingerprint;
+using Fingerprint_Attendance_System.Fingerprint;
 
 var builder = WebApplication.CreateBuilder(args);
 

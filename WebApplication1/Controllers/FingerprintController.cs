@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Fingerprint;
 using WebApplication1.Models;
 
-namespace WebApplication1.Controllers;
+namespace Fingerprint_Attendance_System.Controllers;
 
 public class FingerprintController : Controller
 {

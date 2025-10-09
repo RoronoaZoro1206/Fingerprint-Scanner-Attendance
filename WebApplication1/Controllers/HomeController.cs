@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using WebApplication1.Fingerprint;
 using WebApplication1.Models;
 
-namespace WebApplication1.Controllers;
+namespace Fingerprint_Attendance_System.Controllers;
 
 public class HomeController : Controller
 {
@@ -45,7 +45,7 @@ public class HomeController : Controller
         // Simulate waiting for animation (e.g., 3 seconds)
         await Task.Delay(3000);
         var template = _fingerprintService.CaptureFingerprintTemplate();
-        ViewData["CaptureResult"] = (template != null && template.Length > 0)
+        ViewData["CaptureResult"] = template != null && template.Length > 0
             ? $"Fingerprint captured successfully. Template size: {template.Length} bytes."
             : "Fingerprint capture failed.";
         ViewData["Capturing"] = false;
