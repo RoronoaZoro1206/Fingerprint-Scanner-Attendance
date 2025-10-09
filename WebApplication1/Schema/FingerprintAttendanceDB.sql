@@ -73,6 +73,20 @@
                              program_id     INT REFERENCES programs(program_id) ON DELETE SET NULL,
                              course_created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
+
+-- ============================================================
+-- STUDENT ID POOL (Pre-generated Student IDs by Admin)
+-- ============================================================
+
+    CREATE TABLE student_id_pool (
+                                     pool_id         SERIAL PRIMARY KEY,
+                                     student_id_code VARCHAR(20) UNIQUE NOT NULL,  -- e.g. 2025-0156
+                                     is_used         BOOLEAN NOT NULL DEFAULT FALSE,
+                                     generated_by    INT REFERENCES administration(admin_id) ON DELETE SET NULL,
+                                     generated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+                                     used_at         TIMESTAMP,
+                                     remarks         TEXT
+    );
     
     -- ============================================================
     -- STUDENTS
@@ -194,7 +208,24 @@
     -- ============================================================
     -- TRIGGERS FOR UPDATED_AT
     -- ============================================================
-    
+
+    CREATE OR REPLACE FUNCTION mark_student_id_used()
+    RETURNS TRIGGER AS $$
+    BEGIN
+    UPDATE student_id_pool
+    SET is_used = TRUE,
+        used_at = NOW()
+    WHERE student_id_code = NEW.stud_number;
+    RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trg_mark_student_id_used
+        AFTER INSERT ON students
+        FOR EACH ROW
+        EXECUTE FUNCTION mark_student_id_used();
+
+
     CREATE OR REPLACE FUNCTION update_updated_at_column()
     RETURNS TRIGGER AS $$
     BEGIN
