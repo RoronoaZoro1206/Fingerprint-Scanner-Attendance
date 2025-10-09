@@ -1,7 +1,7 @@
 ﻿using System;
 using libzkfpcsharp;
 
-namespace WebApplication1.Fingerprint;
+namespace Fingerprint_Attendance_System.Fingerprint;
 
 public class FingerprintService
 {

@@ -1,4 +1,4 @@
-namespace WebApplication1.Models;
+namespace Fingerprint_Attendance_System.Models;
 
 public class ErrorViewModel
 {
