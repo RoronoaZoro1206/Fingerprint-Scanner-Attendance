@@ -1,0 +1,22 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@ViewData["Title"] - SmartPresence</title>
+    @await Html.PartialAsync("_HeadPartial")
+    <link rel="stylesheet" href="~/css/home.css" asp-append-version="true"/>
+</head>
+<body class="home-body">
+<header>
+    @await Html.PartialAsync("_HomeNavbarPartial")
+</header>
+
+<main>
+    @RenderBody()
+</main>
+
+@await Html.PartialAsync("_LayoutScripts")
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

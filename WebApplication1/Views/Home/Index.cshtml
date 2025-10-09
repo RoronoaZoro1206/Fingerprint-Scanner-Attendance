@@ -1,42 +1,75 @@
 ﻿@{
     ViewData["Title"] = "Home Page";
-    var isCapturing = ViewData["Capturing"] != null && (bool)ViewData["Capturing"];
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-    <p><strong>Fingerprint Status:</strong> @ViewData["FingerprintStatus"]</p>
-    <p><strong>Device Count:</strong> @ViewData["DeviceCount"]</p>
-    <p><strong>Image Width:</strong> @ViewData["ImageWidth"]</p>
-    <p><strong>Image Height:</strong> @ViewData["ImageHeight"]</p>
-    <p><strong>Last Error:</strong> @ViewData["LastError"]</p>
-    <form asp-action="TestCapture" method="post" style="display:inline-block;margin-right:10px;">
-        <button type="submit" class="btn btn-primary" @(isCapturing ? "disabled" : "")>Test Capture</button>
-    </form>
-    <form asp-action="Reinitialize" method="post" style="display:inline-block;margin-right:10px;">
-        <button type="submit" class="btn btn-warning">Reinitialize Device</button>
-    </form>
-    <form asp-action="CloseDevice" method="post" style="display:inline-block;">
-        <button type="submit" class="btn btn-danger">Close Device</button>
-    </form>
-    @if (isCapturing)
-    {
-        <div style="margin-top:20px;">
-            <span class="spinner-border" role="status" aria-hidden="true"></span>
-            <span>Capturing fingerprint, please wait...</span>
+<div class="home-container">
+    <div class="home-content">
+        <!-- Left Side: Fingerprint Scanner -->
+        <div class="scanner-section">
+            <div class="fingerprint-container" id="fingerprintScanner">
+                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
+            </div>
+            
+            <h1 class="scanner-title">Scan your fingerprint to log your attendance</h1>
+            
+            <ul class="scanner-instructions">
+                <li>Place your finger on the scanner above</li>
+                <li>Touch the scanner circle to begin</li>
+            </ul>
+            
+            <div class="scan-status-message" id="scanStatusMessage"></div>
         </div>
-    }
-    @if (ViewData["CaptureResult"] != null)
-    {
-        <p><strong>Test Capture Result:</strong> @ViewData["CaptureResult"]</p>
-    }
-    @if (ViewData["ReinitResult"] != null)
-    {
-        <p><strong>Reinitialize Result:</strong> @ViewData["ReinitResult"]</p>
-    }
-    @if (ViewData["CloseResult"] != null)
-    {
-        <p><strong>Close Device Result:</strong> @ViewData["CloseResult"]</p>
-    }
+
+        <!-- Right Side: Live Scan Results -->
+        <div class="results-section">
+            <div class="results-header">
+                <div class="results-title-group">
+                    <h2>Live Scan Results</h2>
+                    <p>Recent attendance records</p>
+                </div>
+                <div class="results-time">
+                    <span class="time" id="current-time">10:22:15 AM</span>
+                    <span class="date" id="current-date">10/07/2025</span>
+                </div>
+            </div>
+
+            <!-- Recent Scan Record -->
+            <div class="scan-record">
+                <div class="scan-status-row">
+                    <span class="scan-status">TIME IN</span>
+                    <span class="scan-time">09:58:00 AM</span>
+                </div>
+                
+                <div class="scan-user">
+                    <i data-lucide="user" style="color: #ea580c;"></i>
+                    <div class="scan-class-info">
+                        <h3>Kevin Harris</h3>
+                        <p>Student</p>
+                    </div>
+                </div>
+                
+                <div class="scan-class">
+                    <i data-lucide="calendar" style="color: #ea580c;"></i>
+                    <div class="scan-class-info">
+                        <h4>ENG101 - Engineering Mathematics</h4>
+                        <p>Class</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="scan-stats">
+                <div class="scan-stat-card success">
+                    <h3>98.5%</h3>
+                    <p>Success Rate</p>
+                </div>
+                <div class="scan-stat-card total">
+                    <h3>1,247</h3>
+                    <p>Today's Scans</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+

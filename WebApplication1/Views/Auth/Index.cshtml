@@ -1,0 +1,50 @@
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">School Attendance System</h1>
+            <p class="auth-subtitle">Sign in to access your dashboard</p>
+        </div>
+
+        <div class="login-form-container">
+            <h2 class="form-title">Login</h2>
+            <form class="login-form" method="post" asp-action="Login" asp-controller="Auth">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" id="email" name="email" class="form-input" placeholder="Enter you email" required />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required />
+                        <button type="button" class="password-toggle" id="togglePassword">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="sign-in-btn">Sign In</button>
+            </form>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <a href="@Url.Action("FIngerprintLogin", "Auth")" class="biometric-btn">
+                <i data-lucide="fingerprint"></i>
+                Biometric Scan
+            </a>
+            
+            <!-- ✅ Register link -->
+            <div class="register-link">
+                <p>Don't have an account yet? 
+                    <a asp-action="Register" asp-controller="Auth">Register here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
