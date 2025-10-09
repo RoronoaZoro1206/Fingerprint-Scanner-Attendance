@@ -196,6 +196,7 @@
     -- ============================================================
     
     CREATE INDEX idx_users_role_id           ON users(role_id);
+    CREATE INDEX idx_students_stud_number    ON students(stud_number);
     CREATE INDEX idx_enroll_stud_id          ON enrollment(stud_id);
     CREATE INDEX idx_enroll_class_id         ON enrollment(class_id);
     CREATE INDEX idx_attend_class_id         ON attendance(class_id);
