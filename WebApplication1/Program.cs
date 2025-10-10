@@ -21,6 +21,7 @@ builder.Services.AddScoped<IAdministrationAuditRepository, AdministrationAuditRe
 builder.Services.AddScoped<IProgramRepository, ProgramRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<IFacultyRepository, FacultyRepository>();
+builder.Services.AddScoped<IStudentIdPoolRepository, StudentIdPoolRepository>();
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IClassRepository, ClassRepository>();
