@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Controllers;
@@ -85,7 +86,7 @@ public class AuthController : Controller
                 UserLastName = model.LastName,
                 UserEmail = model.Email,
                 UserPassword = hashedPassword,
-                RoleId = 3, // Assuming 3 is the student role ID
+                RoleType = USER_ROLES.STUDENT,
                 UserCreatedAt = DateTime.Now,
                 UserUpdatedAt = DateTime.Now,
                 IsActive = true,
