@@ -410,3 +410,41 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Error and Success Alert Styles */
+.alert {
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.alert-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.alert-success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.text-danger {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.input-error {
+    background-color: #fee2e2 !important;
+    border: 1px solid #fca5a5 !important;
+}
+
+.input-error:focus {
+    background-color: #fef2f2 !important;
+    border-color: #f87171 !important;
+}

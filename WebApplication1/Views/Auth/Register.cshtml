@@ -15,49 +15,49 @@
         <div class="login-form-container">
             <form class="login-form register-form" method="post" asp-action="Register" asp-controller="Auth">
                 <div class="form-group">
-                    <label class="form-label" for="studentId">Student ID</label>
-                    <input type="text" id="studentId" name="studentId" class="form-input" placeholder="Enter your student ID" asp-for="StudentId" required />
+                    <label class="form-label" asp-for="StudentId">Student ID</label>
+                    <input type="text" class="form-input" placeholder="Enter your student ID" asp-for="StudentId" required />
                     <span asp-validation-for="StudentId" class="text-danger"></span>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label" for="firstName">First Name</label>
-                        <input type="text" id="firstName" name="firstName" class="form-input" placeholder="First name" asp-for="FirstName" required />
+                        <label class="form-label" asp-for="FirstName">First Name</label>
+                        <input type="text" class="form-input" placeholder="First name" asp-for="FirstName" required />
                         <span asp-validation-for="FirstName" class="text-danger"></span>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="middleName">Middle Name</label>
-                        <input type="text" id="middleName" name="middleName" class="form-input" placeholder="Middle name" asp-for="MiddleName" />
+                        <label class="form-label" asp-for="MiddleName">Middle Name</label>
+                        <input type="text" class="form-input" placeholder="Middle name" asp-for="MiddleName" />
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="lastName">Last Name</label>
-                    <input type="text" id="lastName" name="lastName" class="form-input" placeholder="Enter your last name" asp-for="LastName" required />
+                    <label class="form-label" asp-for="LastName">Last Name</label>
+                    <input type="text" class="form-input" placeholder="Enter your last name" asp-for="LastName" required />
                     <span asp-validation-for="LastName" class="text-danger"></span>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="email">Email</label>
-                    <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email" asp-for="Email" required />
+                    <label class="form-label" asp-for="Email">Email</label>
+                    <input type="email" class="form-input" placeholder="Enter your email" asp-for="Email" required />
                     <span asp-validation-for="Email" class="text-danger"></span>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="password">Password</label>
+                    <label class="form-label" asp-for="Password">Password</label>
                     <div class="password-input-container">
-                        <input type="text" id="password" name="password" class="form-input" placeholder="Create a password" asp-for="Password" required />
+                        <input type="text" class="form-input" placeholder="Create a password" asp-for="Password" required />
                         <button type="button" class="password-toggle" id="togglePassword"></button>
                     </div>
                     <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="confirmPassword">Confirm Password</label>
+                    <label class="form-label" asp-for="ConfirmPassword">Confirm Password</label>
                     <div class="password-input-container">
-                        <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" placeholder="Confirm your password" asp-for="ConfirmPassword" required />
+                        <input type="password" class="form-input" placeholder="Confirm your password" asp-for="ConfirmPassword" required />
                         <button type="button" class="password-toggle" id="toggleConfirmPassword">
                             <i data-lucide="eye"></i>
                         </button>
@@ -78,4 +78,5 @@
 
 @section Scripts {
     <script src="~/js/register-toggle-password.js"></script>
+    <script src="~/js/register-ajax.js"></script>
 }

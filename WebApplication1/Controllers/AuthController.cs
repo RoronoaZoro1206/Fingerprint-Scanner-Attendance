@@ -29,6 +29,10 @@ public class AuthController : Controller
     {
         if (!ModelState.IsValid)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Json(new { success = false, errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList() });
+            }
             return View("Index", model);
         }
 
@@ -39,6 +43,10 @@ public class AuthController : Controller
 
             if (user == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
                 ModelState.AddModelError("", "Invalid email or password.");
                 return View("Index", model);
             }
@@ -46,6 +54,10 @@ public class AuthController : Controller
             // Check if account is active
             if (!user.IsActive)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Your account has been deactivated. Please contact administration." } });
+                }
                 ModelState.AddModelError("", "Your account has been deactivated. Please contact administration.");
                 return View("Index", model);
             }
@@ -55,6 +67,10 @@ public class AuthController : Controller
 
             if (!isPasswordValid)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
                 ModelState.AddModelError("", "Invalid email or password.");
                 return View("Index", model);
             }
@@ -64,6 +80,20 @@ public class AuthController : Controller
             HttpContext.Session.SetString("UserEmail", user.UserEmail);
             HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
             HttpContext.Session.SetInt32("RoleId", user.RoleId);
+
+            // Get redirect URL based on role
+            string redirectUrl = user.RoleType switch
+            {
+                USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
+                USER_ROLES.FACULTY => Url.Action("Index", "Faculty") ?? "/Faculty",
+                USER_ROLES.STUDENT => Url.Action("Index", "Student") ?? "/Student",
+                _ => Url.Action("Index", "Auth") ?? "/Auth"
+            };
+
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Json(new { success = true, redirectUrl });
+            }
 
             // Redirect based on role
             return user.RoleType switch
@@ -76,6 +106,10 @@ public class AuthController : Controller
         }
         catch (Exception ex)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Json(new { success = false, errors = new[] { $"An error occurred during login: {ex.Message}" } });
+            }
             ModelState.AddModelError("", $"An error occurred during login: {ex.Message}");
             return View("Index", model);
         }
@@ -98,6 +132,19 @@ public class AuthController : Controller
     {
         if (!ModelState.IsValid)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                var errors = new Dictionary<string, string>();
+                foreach (var key in ModelState.Keys)
+                {
+                    var error = ModelState[key]?.Errors.FirstOrDefault();
+                    if (error != null)
+                    {
+                        errors[key] = error.ErrorMessage;
+                    }
+                }
+                return Json(new { success = false, errors });
+            }
             return View(model);
         }
 
@@ -106,6 +153,10 @@ public class AuthController : Controller
             // Validate password match
             if (model.Password != model.ConfirmPassword)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "ConfirmPassword", "Passwords do not match." } } });
+                }
                 ModelState.AddModelError("ConfirmPassword", "Passwords do not match.");
                 return View(model);
             }
@@ -115,12 +166,20 @@ public class AuthController : Controller
             
             if (studentIdPool == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "StudentId", "This student ID is not valid. Please contact administration." } } });
+                }
                 ModelState.AddModelError("StudentId", "This student ID is not valid. Please contact administration.");
                 return View(model);
             }
             
             if (studentIdPool.IsUsed)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "StudentId", "This student ID has already been used to create an account." } } });
+                }
                 ModelState.AddModelError("StudentId", "This student ID has already been used to create an account.");
                 return View(model);
             }
@@ -129,6 +188,10 @@ public class AuthController : Controller
             var existingUsers = await _userRepository.GetAllAsync();
             if (existingUsers.Any(u => u.UserEmail.Equals(model.Email, StringComparison.OrdinalIgnoreCase)))
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "Email", "This email address is already registered." } } });
+                }
                 ModelState.AddModelError("Email", "This email address is already registered.");
                 return View(model);
             }
@@ -156,6 +219,10 @@ public class AuthController : Controller
 
             if (!userCreated)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "", "Failed to create user account. Please try again." } } });
+                }
                 ModelState.AddModelError("", "Failed to create user account. Please try again.");
                 return View(model);
             }
@@ -166,6 +233,10 @@ public class AuthController : Controller
 
             if (createdUser == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "", "User created but could not retrieve user information." } } });
+                }
                 ModelState.AddModelError("", "User created but could not retrieve user information.");
                 return View(model);
             }
@@ -182,6 +253,10 @@ public class AuthController : Controller
 
             if (!studentCreated)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new Dictionary<string, string> { { "", "User created but failed to create student record." } } });
+                }
                 ModelState.AddModelError("", "User created but failed to create student record.");
                 return View(model);
             }
@@ -189,12 +264,21 @@ public class AuthController : Controller
             // Mark the student ID as used
             await _studentIdPoolRepository.MarkAsUsedAsync(studentIdPool.PoolId);
     
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Json(new { success = true, message = "Registration successful! Redirecting to login...", redirectUrl = Url.Action("Index", "Auth") });
+            }
+
             // Registration successful - redirect to login
             TempData["SuccessMessage"] = "Registration successful! Please log in.";
             return RedirectToAction("Index", "Auth");
         }
         catch (Exception ex)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Json(new { success = false, errors = new Dictionary<string, string> { { "", $"An error occurred during registration: {ex.Message}" } } });
+            }
             ModelState.AddModelError("", $"An error occurred during registration: {ex.Message}");
             return View(model);
         }
