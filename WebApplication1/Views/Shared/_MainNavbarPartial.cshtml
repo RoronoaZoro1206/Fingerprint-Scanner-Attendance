@@ -1,0 +1,27 @@
+<nav class="top-navbar">
+    <div class="navbar-brand">School Attendance System</div>
+    
+    <div class="navbar-user">
+        <div class="user-info">
+            <span class="user-name">@Context.Session.GetString("UserName")</span>
+            <span class="user-role">
+                @{
+                    var roleId = Context.Session.GetInt32("RoleId");
+                    var roleName = roleId switch
+                    {
+                        1 => "Admin",
+                        2 => "Faculty",
+                        3 => "Student",
+                        _ => "User"
+                    };
+                }
+                @roleName
+            </span>
+        </div>
+        
+        <a href="@Url.Action("Logout", "Auth")" class="logout-btn">
+            <i data-lucide="log-out"></i>
+            Logout
+        </a>
+    </div>
+</nav>

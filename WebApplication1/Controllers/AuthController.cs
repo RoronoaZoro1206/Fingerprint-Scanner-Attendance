@@ -119,6 +119,12 @@ public class AuthController : Controller
     {
         return View();
     }
+
+    public IActionResult Logout()
+    {
+        HttpContext.Session.Clear();
+        return RedirectToAction("Index", "Auth");
+    }
     
     [HttpGet]
     public IActionResult Register()

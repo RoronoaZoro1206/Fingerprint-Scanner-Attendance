@@ -3,20 +3,42 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>@ViewData["Title"] - SmartPresence</title>
+    <title>@ViewData["Title"] - School Attendance System</title>
     @await Html.PartialAsync("_HeadPartial")
+    <link rel="stylesheet" href="~/css/main-layout.css" asp-append-version="true"/>
 </head>
 <body>
-<header>
-    <!-- Main Navbar-->
-</header>
-    
-<!-- Main Content -->
-<div>
-    
-</div>
+    <div class="app-container">
+        <!-- Sidebar -->
+        @{
+            var roleId = Context.Session.GetInt32("RoleId");
+            if (roleId == 1)
+            {
+                await Html.RenderPartialAsync("_AdminSidebarPartial");
+            }
+            else if (roleId == 2)
+            {
+                await Html.RenderPartialAsync("_FacultySidebarPartial");
+            }
+            else if (roleId == 3)
+            {
+                await Html.RenderPartialAsync("_StudentSidebarPartial");
+            }
+        }
 
-@await Html.PartialAsync("_LayoutScripts")
-@await RenderSectionAsync("Scripts", required: false)
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navbar -->
+            @await Html.PartialAsync("_MainNavbarPartial")
+
+            <!-- Content Section -->
+            <div class="content-section">
+                @RenderBody()
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_LayoutScripts")
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
