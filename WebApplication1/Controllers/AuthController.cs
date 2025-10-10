@@ -78,6 +78,7 @@ public class AuthController : Controller
             // Store user information in session
             HttpContext.Session.SetInt32("UserId", user.UserId);
             HttpContext.Session.SetString("UserEmail", user.UserEmail);
+            HttpContext.Session.SetString("UserEmail", user.UserProfileImage);
             HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
             HttpContext.Session.SetInt32("RoleId", user.RoleId);
 
