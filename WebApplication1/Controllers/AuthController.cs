@@ -8,11 +8,13 @@ public class AuthController : Controller
 {
     private readonly IUserRepository _userRepository;
     private readonly IStudentRepository _studentRepository;
+    private readonly IStudentIdPoolRepository _studentIdPoolRepository;
 
-    public AuthController(IUserRepository userRepository, IStudentRepository studentRepository)
+    public AuthController(IUserRepository userRepository, IStudentRepository studentRepository, IStudentIdPoolRepository studentIdPoolRepository)
     {
         _userRepository = userRepository;
         _studentRepository = studentRepository;
+        _studentIdPoolRepository = studentIdPoolRepository;
     }
 
     public IActionResult Index()
@@ -42,6 +44,36 @@ public class AuthController : Controller
 
         try
         {
+            // Validate password match
+            if (model.Password != model.ConfirmPassword)
+            {
+                ModelState.AddModelError("ConfirmPassword", "Passwords do not match.");
+                return View(model);
+            }
+
+            // Validate student ID against the pool
+            var studentIdPool = await _studentIdPoolRepository.GetByCodeAsync(model.StudentId);
+            
+            if (studentIdPool == null)
+            {
+                ModelState.AddModelError("StudentId", "This student ID is not valid. Please contact administration.");
+                return View(model);
+            }
+            
+            if (studentIdPool.IsUsed)
+            {
+                ModelState.AddModelError("StudentId", "This student ID has already been used to create an account.");
+                return View(model);
+            }
+
+            // Check if email is already in use
+            var existingUsers = await _userRepository.GetAllAsync();
+            if (existingUsers.Any(u => u.UserEmail.Equals(model.Email, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError("Email", "This email address is already registered.");
+                return View(model);
+            }
+
             // Hash the password (using BCrypt or similar in production)
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(model.Password);
 
@@ -94,6 +126,9 @@ public class AuthController : Controller
                 ModelState.AddModelError("", "User created but failed to create student record.");
                 return View(model);
             }
+
+            // Mark the student ID as used
+            await _studentIdPoolRepository.MarkAsUsedAsync(studentIdPool.PoolId);
     
             // Registration successful - redirect to login
             TempData["SuccessMessage"] = "Registration successful! Please log in.";
