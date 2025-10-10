@@ -1,4 +1,19 @@
+@{
+    var userName = Context.Session.GetString("UserName") ?? "User";
+    var userImage = Context.Session.GetString("UserProfileImage") ?? "default_profile.png";
+}
+
 <aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="user-profile">
+            <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
+            <div class="user-details">
+                <span class="user-name">@userName</span>
+                <span class="user-role">Student</span>
+            </div>
+        </div>
+    </div>
+    
     <nav class="sidebar-nav">
         <a href="@Url.Action("Index", "Student")" class="sidebar-link">
             <i data-lucide="user"></i>
