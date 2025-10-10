@@ -1,5 +1,10 @@
 <nav class="top-navbar">
-    <div class="navbar-brand">School Attendance System</div>
+    <div class="navbar-left">
+        <button class="hamburger-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+            <i data-lucide="menu"></i>
+        </button>
+        <div class="navbar-brand">School Attendance System</div>
+    </div>
     
     <a href="@Url.Action("Logout", "Auth")" class="logout-btn">
         <i data-lucide="log-out"></i>

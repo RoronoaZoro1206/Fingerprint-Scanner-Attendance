@@ -3,7 +3,8 @@
     var userImage = Context.Session.GetString("UserProfileImage") ?? "default_profile.png";
 }
 
-<aside class="sidebar">
+<!-- Desktop Sidebar -->
+<aside class="sidebar d-none d-lg-flex">
     <div class="sidebar-header">
         <div class="user-profile">
             <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
@@ -36,3 +37,43 @@
         </a>
     </nav>
 </aside>
+
+<!-- Mobile Offcanvas Sidebar -->
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+    <div class="offcanvas-header">
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div class="sidebar-header">
+            <div class="user-profile">
+                <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
+                <div class="user-details">
+                    <span class="user-name">@userName</span>
+                    <span class="user-role">Faculty</span>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="@Url.Action("Index", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="book-open"></i>
+                <span>My Classes</span>
+            </a>
+            
+            <a href="@Url.Action("Attendance", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="user-check"></i>
+                <span>Attendance</span>
+            </a>
+            
+            <a href="@Url.Action("Reports", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="bar-chart-3"></i>
+                <span>Reports</span>
+            </a>
+            
+            <a href="@Url.Action("RegisterFingerprint", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="fingerprint"></i>
+                <span>Register Fingerprint</span>
+            </a>
+        </nav>
+    </div>
+</div>
