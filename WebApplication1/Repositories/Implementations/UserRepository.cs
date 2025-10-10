@@ -59,6 +59,31 @@ public class UserRepository : IUserRepository
         };
     }
 
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        string query = "SELECT * FROM users WHERE user_email = @email;";
+        var parameters = new Dictionary<string, object> { { "@email", email } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new User
+        {
+            UserId = Convert.ToInt32(row["user_id"]),
+            UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
+            UserFirstName = row["user_first_name"].ToString() ?? "",
+            UserMiddleName = row["user_middle_name"]?.ToString(),
+            UserLastName = row["user_last_name"].ToString() ?? "",
+            UserEmail = row["user_email"].ToString() ?? "",
+            UserPassword = row["user_password"].ToString() ?? "",
+            RoleId = Convert.ToInt32(row["role_id"]),
+            UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
+            UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            IsActive = Convert.ToBoolean(row["is_active"])
+        };
+    }
+
     public async Task<bool> AddAsync(User user)
     {
         string query = @"

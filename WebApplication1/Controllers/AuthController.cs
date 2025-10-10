@@ -22,6 +22,64 @@ public class AuthController : Controller
     {
         return View();
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View("Index", model);
+        }
+
+        try
+        {
+            // Get user by email
+            var user = await _userRepository.GetByEmailAsync(model.Email);
+
+            if (user == null)
+            {
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
+            }
+
+            // Check if account is active
+            if (!user.IsActive)
+            {
+                ModelState.AddModelError("", "Your account has been deactivated. Please contact administration.");
+                return View("Index", model);
+            }
+
+            // Verify password
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.UserPassword);
+
+            if (!isPasswordValid)
+            {
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
+            }
+
+            // Store user information in session
+            HttpContext.Session.SetInt32("UserId", user.UserId);
+            HttpContext.Session.SetString("UserEmail", user.UserEmail);
+            HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
+            HttpContext.Session.SetInt32("RoleId", user.RoleId);
+
+            // Redirect based on role
+            return user.RoleType switch
+            {
+                USER_ROLES.ADMIN => RedirectToAction("Index", "Admin"),
+                USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
+                USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
+                _ => RedirectToAction("Index", "Auth")
+            };
+        }
+        catch (Exception ex)
+        {
+            ModelState.AddModelError("", $"An error occurred during login: {ex.Message}");
+            return View("Index", model);
+        }
+    }
     
     public IActionResult FingerprintLogin()
     {
