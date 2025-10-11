@@ -99,7 +99,7 @@ public class AuthController : Controller
             // Redirect based on role
             return user.RoleType switch
             {
-                USER_ROLES.ADMIN => RedirectToAction("Index", "Admin"),
+                USER_ROLES.ADMIN => RedirectToAction("Users", "Admin"),
                 USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
                 USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
                 _ => RedirectToAction("Index", "Auth")

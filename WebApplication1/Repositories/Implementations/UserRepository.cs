@@ -23,13 +23,18 @@ public class UserRepository : IUserRepository
             UserId = Convert.ToInt32(row["user_id"]),
             UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
             UserFirstName = row["user_first_name"].ToString() ?? "",
-            UserMiddleName = row["user_middle_name"]?.ToString(),
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
             UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
             UserEmail = row["user_email"].ToString() ?? "",
             UserPassword = row["user_password"].ToString() ?? "",
             RoleId = Convert.ToInt32(row["role_id"]),
             UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
             UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
             IsActive = Convert.ToBoolean(row["is_active"])
         });
     }
@@ -48,13 +53,18 @@ public class UserRepository : IUserRepository
             UserId = Convert.ToInt32(row["user_id"]),
             UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
             UserFirstName = row["user_first_name"].ToString() ?? "",
-            UserMiddleName = row["user_middle_name"]?.ToString(),
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
             UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
             UserEmail = row["user_email"].ToString() ?? "",
             UserPassword = row["user_password"].ToString() ?? "",
             RoleId = Convert.ToInt32(row["role_id"]),
             UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
             UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
             IsActive = Convert.ToBoolean(row["is_active"])
         };
     }
@@ -73,13 +83,18 @@ public class UserRepository : IUserRepository
             UserId = Convert.ToInt32(row["user_id"]),
             UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
             UserFirstName = row["user_first_name"].ToString() ?? "",
-            UserMiddleName = row["user_middle_name"]?.ToString(),
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
             UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
             UserEmail = row["user_email"].ToString() ?? "",
             UserPassword = row["user_password"].ToString() ?? "",
             RoleId = Convert.ToInt32(row["role_id"]),
             UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
             UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
             IsActive = Convert.ToBoolean(row["is_active"])
         };
     }
@@ -89,8 +104,10 @@ public class UserRepository : IUserRepository
         string query = @"
             INSERT INTO users 
             (user_profile_image, user_first_name, user_middle_name, user_last_name, 
+             user_gender, user_phone, user_address, user_birthdate,
              user_email, user_password, role_id, user_created_at, user_updated_at, is_active)
-            VALUES (@img, @fname, @mname, @lname, @email, @pass, @role, @created, @updated, @active);";
+            VALUES (@img, @fname, @mname, @lname, @gender, @phone, @address, @birthdate,
+                    @email, @pass, @role, @created, @updated, @active);";
 
         var parameters = new Dictionary<string, object>
         {
@@ -98,6 +115,10 @@ public class UserRepository : IUserRepository
             { "@fname", user.UserFirstName },
             { "@mname", user.UserMiddleName ?? (object)DBNull.Value },
             { "@lname", user.UserLastName },
+            { "@gender", user.UserGender ?? (object)DBNull.Value },
+            { "@phone", user.UserPhone ?? (object)DBNull.Value },
+            { "@address", user.UserAddress ?? (object)DBNull.Value },
+            { "@birthdate", user.UserBirthdate ?? (object)DBNull.Value },
             { "@email", user.UserEmail },
             { "@pass", user.UserPassword },
             { "@role", user.RoleId },
@@ -117,6 +138,10 @@ public class UserRepository : IUserRepository
                 user_first_name = @fname,
                 user_middle_name = @mname,
                 user_last_name = @lname,
+                user_gender = @gender,
+                user_phone = @phone,
+                user_address = @address,
+                user_birthdate = @birthdate,
                 user_email = @email,
                 user_password = @pass,
                 role_id = @role,
@@ -131,6 +156,10 @@ public class UserRepository : IUserRepository
             { "@fname", user.UserFirstName },
             { "@mname", user.UserMiddleName ?? (object)DBNull.Value },
             { "@lname", user.UserLastName },
+            { "@gender", user.UserGender ?? (object)DBNull.Value },
+            { "@phone", user.UserPhone ?? (object)DBNull.Value },
+            { "@address", user.UserAddress ?? (object)DBNull.Value },
+            { "@birthdate", user.UserBirthdate ?? (object)DBNull.Value },
             { "@email", user.UserEmail },
             { "@pass", user.UserPassword },
             { "@role", user.RoleId },

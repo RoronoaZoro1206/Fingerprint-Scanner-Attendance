@@ -13,6 +13,11 @@ public class AdminController : Controller
         return View();
     }
     
+    public IActionResult Users()
+    {
+        return View();
+    }
+    
     public IActionResult Departments()
     {
         return View();
