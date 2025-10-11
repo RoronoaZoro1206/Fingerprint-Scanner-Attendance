@@ -66,7 +66,7 @@ public class AuthController : Controller
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.UserPassword);
 
             if (!isPasswordValid)
-            {
+            {   
                 if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
                 {
                     return Json(new { success = false, errors = new[] { "Invalid email or password." } });
