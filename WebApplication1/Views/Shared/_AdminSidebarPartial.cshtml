@@ -66,9 +66,14 @@
             <span>Students</span>
         </a>
         
-        <a href="@Url.Action("RoomsAndClasses", "Admin")" class="sidebar-link">
-            <i data-lucide="door-open"></i>
-            <span>Rooms & Classes</span>
+        <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link">
+            <i data-lucide="building-2"></i>
+            <span>Rooms</span>
+        </a>
+        
+        <a href="@Url.Action("Classes", "Admin")" class="sidebar-link">
+            <i data-lucide="library-big"></i>
+            <span>Classes</span>
         </a>
         
         <a href="@Url.Action("RegisterFingerprint", "Admin")" class="sidebar-link">
@@ -155,9 +160,14 @@
                 <span>Students</span>
             </a>
             
-            <a href="@Url.Action("RoomsAndClasses", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="door-open"></i>
-                <span>Rooms & Classes</span>
+            <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="building-2"></i>
+                <span>Rooms</span>
+            </a>
+            
+            <a href="@Url.Action("Classes", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="library-big"></i>
+                <span>Classes</span>
             </a>
             
             <a href="@Url.Action("RegisterFingerprint", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
@@ -168,6 +178,11 @@
             <a href="@Url.Action("AuditLogs", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="file-text"></i>
                 <span>Audit Logs</span>
+            </a>
+            
+            <a href="@Url.Action("Logout", "Auth")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="log-out"></i>
+                <span>Logout</span>
             </a>
         </nav>
     </div>
