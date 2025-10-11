@@ -15,8 +15,13 @@ public class ClassRepository : IClassRepository
 
     public async Task<IEnumerable<Class>> GetAllAsync()
     {
-        string query = @"SELECT class_id, course_id, room_id, fac_id, class_created_at, class_updated_at 
-                         FROM classes;";
+        string query = @"
+            SELECT 
+                class_id, course_id, room_id, fac_id, term_id, 
+                class_created_at, class_updated_at
+            FROM classes
+            ORDER BY class_id;";
+
         var dt = await _db.ExecuteQueryAsync(query);
 
         return dt.AsEnumerable().Select(row => new Class
@@ -25,6 +30,7 @@ public class ClassRepository : IClassRepository
             CourseId = row["course_id"] == DBNull.Value ? null : Convert.ToInt32(row["course_id"]),
             RoomId = row["room_id"] == DBNull.Value ? null : Convert.ToInt32(row["room_id"]),
             FacId = row["fac_id"] == DBNull.Value ? null : Convert.ToInt32(row["fac_id"]),
+            TermId = row["term_id"] == DBNull.Value ? null : Convert.ToInt32(row["term_id"]),
             ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
             ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
         });
@@ -32,11 +38,16 @@ public class ClassRepository : IClassRepository
 
     public async Task<Class?> GetByIdAsync(int classId)
     {
-        string query = @"SELECT class_id, course_id, room_id, fac_id, class_created_at, class_updated_at 
-                         FROM classes WHERE class_id = @id;";
-        var parameters = new Dictionary<string, object> { { "@id", classId } };
+        string query = @"
+            SELECT 
+                class_id, course_id, room_id, fac_id, term_id, 
+                class_created_at, class_updated_at
+            FROM classes
+            WHERE class_id = @id;";
 
+        var parameters = new Dictionary<string, object> { { "@id", classId } };
         var dt = await _db.ExecuteQueryAsync(query, parameters);
+
         if (dt.Rows.Count == 0) return null;
 
         var row = dt.Rows[0];
@@ -46,6 +57,7 @@ public class ClassRepository : IClassRepository
             CourseId = row["course_id"] == DBNull.Value ? null : Convert.ToInt32(row["course_id"]),
             RoomId = row["room_id"] == DBNull.Value ? null : Convert.ToInt32(row["room_id"]),
             FacId = row["fac_id"] == DBNull.Value ? null : Convert.ToInt32(row["fac_id"]),
+            TermId = row["term_id"] == DBNull.Value ? null : Convert.ToInt32(row["term_id"]),
             ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
             ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
         };
@@ -53,13 +65,18 @@ public class ClassRepository : IClassRepository
 
     public async Task<bool> AddAsync(Class cls)
     {
-        string query = @"INSERT INTO classes (course_id, room_id, fac_id, class_created_at, class_updated_at)
-                         VALUES (@course, @room, @fac, @created, @updated);";
+        string query = @"
+            INSERT INTO classes 
+                (course_id, room_id, fac_id, term_id, class_created_at, class_updated_at)
+            VALUES 
+                (@course, @room, @fac, @term, @created, @updated);";
+
         var parameters = new Dictionary<string, object>
         {
             { "@course", cls.CourseId ?? (object)DBNull.Value },
             { "@room", cls.RoomId ?? (object)DBNull.Value },
             { "@fac", cls.FacId ?? (object)DBNull.Value },
+            { "@term", cls.TermId ?? (object)DBNull.Value },
             { "@created", cls.ClassCreatedAt },
             { "@updated", cls.ClassUpdatedAt }
         };
@@ -69,17 +86,22 @@ public class ClassRepository : IClassRepository
 
     public async Task<bool> UpdateAsync(Class cls)
     {
-        string query = @"UPDATE classes 
-                         SET course_id = @course, room_id = @room, fac_id = @fac, 
-                             class_created_at = @created, class_updated_at = @updated 
-                         WHERE class_id = @id;";
+        string query = @"
+            UPDATE classes SET
+                course_id = @course,
+                room_id = @room,
+                fac_id = @fac,
+                term_id = @term,
+                class_updated_at = @updated
+            WHERE class_id = @id;";
+
         var parameters = new Dictionary<string, object>
         {
             { "@id", cls.ClassId },
             { "@course", cls.CourseId ?? (object)DBNull.Value },
             { "@room", cls.RoomId ?? (object)DBNull.Value },
             { "@fac", cls.FacId ?? (object)DBNull.Value },
-            { "@created", cls.ClassCreatedAt },
+            { "@term", cls.TermId ?? (object)DBNull.Value },
             { "@updated", cls.ClassUpdatedAt }
         };
 
@@ -90,7 +112,6 @@ public class ClassRepository : IClassRepository
     {
         string query = "DELETE FROM classes WHERE class_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", classId } };
-
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
     }
 
