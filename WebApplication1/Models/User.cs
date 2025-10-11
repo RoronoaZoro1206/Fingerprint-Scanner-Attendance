@@ -9,6 +9,10 @@ namespace Fingerprint_Attendance_System.Models
         public string UserFirstName { get; set; } = string.Empty;
         public string? UserMiddleName { get; set; }
         public string UserLastName { get; set; } = string.Empty;
+        public string? UserGender { get; set; } 
+        public string? UserPhone { get; set; }
+        public string? UserAddress { get; set; }
+        public DateTime? UserBirthdate { get; set; }
         public string UserEmail { get; set; } = string.Empty;
         public string UserPassword { get; set; } = string.Empty;
         public int RoleId { get; set; }
@@ -20,10 +24,12 @@ namespace Fingerprint_Attendance_System.Models
             set => RoleId = (int)value;
         }
 
-        public DateTime UserCreatedAt { get; set; }
-        public DateTime UserUpdatedAt { get; set; }
-        public bool IsActive { get; set; }
+        public DateTime UserCreatedAt { get; set; } = DateTime.Now;
+        public DateTime UserUpdatedAt { get; set; } = DateTime.Now;
+        public DateTime? UserLastLogin { get; set; }
+        public bool IsActive { get; set; } = true;
 
+        // Navigation property
         public UserRole? Role { get; set; }
     }
 }

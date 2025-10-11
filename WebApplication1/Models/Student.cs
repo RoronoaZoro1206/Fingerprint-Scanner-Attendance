@@ -7,10 +7,12 @@ namespace Fingerprint_Attendance_System.Models
         public string StudNumber { get; set; } = string.Empty;
         public int? ProgramId { get; set; }
         public int? StudYearLevel { get; set; }
-        public string? StudSection { get; set; }
-        public DateTime StudCreatedAt { get; set; }
+        public int? SectionId { get; set; }
+        public DateTime StudCreatedAt { get; set; } = DateTime.Now;
 
+        // Navigation properties
         public User? User { get; set; }
         public ProgramModel? Program { get; set; }
+        public Section? Section { get; set; }
     }
 }
