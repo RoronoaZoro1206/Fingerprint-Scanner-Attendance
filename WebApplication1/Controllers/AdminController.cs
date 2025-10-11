@@ -6,9 +6,19 @@ namespace Fingerprint_Attendance_System.Controllers;
 
 public class AdminController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
+    private readonly ILogger<AdminController> _logger;
 
     public IActionResult Index()
+    {
+        return View();
+    }
+    
+    public IActionResult Departments()
+    {
+        return View();
+    }
+    
+    public IActionResult Programs()
     {
         return View();
     }
