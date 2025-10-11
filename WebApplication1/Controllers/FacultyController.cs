@@ -6,7 +6,7 @@ namespace Fingerprint_Attendance_System.Controllers;
 
 public class FacultyController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
+    private readonly ILogger<FacultyController> _logger;
 
     public IActionResult Index()
     {
