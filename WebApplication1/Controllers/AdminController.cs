@@ -42,6 +42,11 @@ public class AdminController : Controller
     {
         return View();
     }
+    
+    public IActionResult Classes()
+    {
+        return View();
+    }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()

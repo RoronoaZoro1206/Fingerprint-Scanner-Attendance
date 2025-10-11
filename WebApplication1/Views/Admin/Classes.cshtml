@@ -1,0 +1,195 @@
+@{
+    ViewData["Title"] = "Classes";
+    Layout = "~/Views/Shared/_MainLayout.cshtml";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Manage Classes</h1>
+    <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-print" id="btnPrint">
+            <i data-lucide="printer" class="icon-sm"></i>
+            Print
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-outline dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i data-lucide="download" class="icon-sm"></i>
+                Export
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportExcel">
+                        <i data-lucide="file-spreadsheet" class="icon-sm"></i>
+                        Excel
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportCSV">
+                        <i data-lucide="file-text" class="icon-sm"></i>
+                        CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportPDF">
+                        <i data-lucide="file" class="icon-sm"></i>
+                        PDF
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <button type="button" class="btn btn-add" id="btnAddClass">
+            <i data-lucide="plus" class="icon-sm"></i>
+            Add Class
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="classesTable" class="table table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Course</th>
+                        <th>Room</th>
+                        <th>Faculty</th>
+                        <th>Academic Term</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Class Modal -->
+<div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addClassModalLabel">Add New Class</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addClassForm">
+                    <div class="mb-3">
+                        <label for="addCourseId" class="form-label">Course <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addCourseId" name="CourseId" required>
+                            <option value="">Select Course</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addRoomId" class="form-label">Room <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addRoomId" name="RoomId" required>
+                            <option value="">Select Room</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addFacId" class="form-label">Faculty <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addFacId" name="FacId" required>
+                            <option value="">Select Faculty</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addTermId" class="form-label">Academic Term <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addTermId" name="TermId" required>
+                            <option value="">Select Academic Term</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSaveClass">
+                    <i data-lucide="save" class="icon-sm"></i>
+                    Save Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Class Modal -->
+<div class="modal fade" id="editClassModal" tabindex="-1" aria-labelledby="editClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editClassModalLabel">Edit Class</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editClassForm">
+                    <input type="hidden" id="editClassId" name="ClassId">
+                    <div class="mb-3">
+                        <label for="editCourseId" class="form-label">Course <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editCourseId" name="CourseId" required>
+                            <option value="">Select Course</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRoomId" class="form-label">Room <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editRoomId" name="RoomId" required>
+                            <option value="">Select Room</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editFacId" class="form-label">Faculty <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editFacId" name="FacId" required>
+                            <option value="">Select Faculty</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTermId" class="form-label">Academic Term <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editTermId" name="TermId" required>
+                            <option value="">Select Academic Term</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnUpdateClass">
+                    <i data-lucide="save" class="icon-sm"></i>
+                    Update Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteClassModal" tabindex="-1" aria-labelledby="deleteClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3">
+                    <div class="delete-icon-wrapper">
+                        <i data-lucide="alert-triangle" class="delete-icon"></i>
+                    </div>
+                </div>
+                <h5 class="modal-title mb-2" id="deleteClassModalLabel">Delete Class?</h5>
+                <p class="text-muted mb-0">Are you sure you want to delete this class?</p>
+                <p class="text-muted">This action cannot be undone.</p>
+                <input type="hidden" id="deleteClassId">
+            </div>
+            <div class="modal-footer border-0 justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger px-4" id="btnConfirmDelete">
+                    <i data-lucide="trash-2" class="icon-sm"></i>
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/class.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/class.css" asp-append-version="true"/>

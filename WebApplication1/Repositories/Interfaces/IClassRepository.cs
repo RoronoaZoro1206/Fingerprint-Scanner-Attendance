@@ -4,6 +4,7 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces;
 public interface IClassRepository
 {
     Task<IEnumerable<Class>> GetAllAsync();
+    Task<IEnumerable<Class>> GetAllWithDetailsAsync();
     Task<Class?> GetByIdAsync(int classId);
     Task<bool> AddAsync(Class cls);
     Task<bool> UpdateAsync(Class cls);

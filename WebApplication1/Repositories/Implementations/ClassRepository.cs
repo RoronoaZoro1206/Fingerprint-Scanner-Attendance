@@ -36,6 +36,57 @@ public class ClassRepository : IClassRepository
         });
     }
 
+    public async Task<IEnumerable<Class>> GetAllWithDetailsAsync()
+    {
+        string query = @"
+            SELECT 
+                c.class_id, c.course_id, c.room_id, c.fac_id, c.term_id,
+                c.class_created_at, c.class_updated_at,
+                co.course_name,
+                r.room_code as room_name,
+                CONCAT(u.user_first_name, ' ', u.user_last_name) as faculty_name,
+                t.term_name
+            FROM classes c
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN faculties f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN academic_terms t ON c.term_id = t.term_id
+            ORDER BY c.class_id;";
+
+        var dt = await _db.ExecuteQueryAsync(query);
+
+        return dt.AsEnumerable().Select(row => new Class
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseId = row["course_id"] == DBNull.Value ? null : Convert.ToInt32(row["course_id"]),
+            RoomId = row["room_id"] == DBNull.Value ? null : Convert.ToInt32(row["room_id"]),
+            FacId = row["fac_id"] == DBNull.Value ? null : Convert.ToInt32(row["fac_id"]),
+            TermId = row["term_id"] == DBNull.Value ? null : Convert.ToInt32(row["term_id"]),
+            ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
+            ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"]),
+            Course = row["course_name"] == DBNull.Value ? null : new Course 
+            { 
+                CourseName = row["course_name"].ToString() ?? "N/A" 
+            },
+            Room = row["room_name"] == DBNull.Value ? null : new Room 
+            { 
+                RoomCode = row["room_name"].ToString() ?? "N/A" 
+            },
+            Faculty = row["faculty_name"] == DBNull.Value ? null : new Faculty 
+            { 
+                User = new User 
+                { 
+                    UserFirstName = row["faculty_name"].ToString() ?? "N/A" 
+                } 
+            },
+            Term = row["term_name"] == DBNull.Value ? null : new AcademicTerm 
+            { 
+                TermName = row["term_name"].ToString() ?? "N/A" 
+            }
+        });
+    }
+
     public async Task<Class?> GetByIdAsync(int classId)
     {
         string query = @"
