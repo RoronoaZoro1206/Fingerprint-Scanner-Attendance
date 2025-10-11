@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toast Notification System - Demo</title>
+    
+    <!-- Toastify CSS -->
+    <link rel="stylesheet" href="lib/toastify/toastify.css">
+    <link rel="stylesheet" href="css/toast.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #444;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-error {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #78350f;
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .code-block {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #1f2937;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Toast Notification System</h1>
+        <p class="subtitle">Modern, clean, and reusable toast notifications for your application</p>
+        
+        <!-- Basic Toast Types -->
+        <div class="section">
+            <h2>Basic Toast Types</h2>
+            <div class="button-grid">
+                <button class="btn-success" onclick="Toast.success('Operation completed successfully!')">
+                    Success Toast
+                </button>
+                <button class="btn-error" onclick="Toast.error('Something went wrong!')">
+                    Error Toast
+                </button>
+                <button class="btn-warning" onclick="Toast.warning('Please review your input.')">
+                    Warning Toast
+                </button>
+                <button class="btn-info" onclick="Toast.info('New updates available.')">
+                    Info Toast
+                </button>
+            </div>
+            <div class="code-block">
+Toast.success("Operation completed successfully!");<br>
+Toast.error("Something went wrong!");<br>
+Toast.warning("Please review your input.");<br>
+Toast.info("New updates available.");
+            </div>
+        </div>
+        
+        <!-- CRUD Operations -->
+        <div class="section">
+            <h2>CRUD Operations</h2>
+            <div class="button-grid">
+                <button class="btn-success" onclick="Toast.created('Department')">
+                    Create Success
+                </button>
+                <button class="btn-success" onclick="Toast.updated('Student')">
+                    Update Success
+                </button>
+                <button class="btn-success" onclick="Toast.deleted('Record')">
+                    Delete Success
+                </button>
+                <button class="btn-success" onclick="Toast.saved('Changes')">
+                    Save Success
+                </button>
+                <button class="btn-error" onclick="Toast.createError('Department')">
+                    Create Error
+                </button>
+                <button class="btn-error" onclick="Toast.updateError('Student')">
+                    Update Error
+                </button>
+                <button class="btn-error" onclick="Toast.deleteError('Record')">
+                    Delete Error
+                </button>
+                <button class="btn-error" onclick="Toast.loadError('Data')">
+                    Load Error
+                </button>
+            </div>
+            <div class="code-block">
+Toast.created("Department");  // "Department created successfully!"<br>
+Toast.updated("Student");     // "Student updated successfully!"<br>
+Toast.deleted("Record");      // "Record deleted successfully!"<br>
+Toast.createError("Department"); // "Failed to create department."
+            </div>
+        </div>
+        
+        <!-- Positions -->
+        <div class="section">
+            <h2>Toast Positions</h2>
+            <div class="button-grid">
+                <button class="btn-info" onclick="Toast.topLeft('Top Left', 'success')">
+                    Top Left
+                </button>
+                <button class="btn-info" onclick="Toast.topRight('Top Right', 'info')">
+                    Top Right
+                </button>
+                <button class="btn-info" onclick="Toast.bottomLeft('Bottom Left', 'warning')">
+                    Bottom Left
+                </button>
+                <button class="btn-info" onclick="Toast.bottomRight('Bottom Right', 'error')">
+                    Bottom Right
+                </button>
+                <button class="btn-info" onclick="Toast.center('Center', 'info')">
+                    Center
+                </button>
+            </div>
+            <div class="code-block">
+Toast.topLeft("Message", "success");<br>
+Toast.topRight("Message", "info");<br>
+Toast.center("Message", "info");
+            </div>
+        </div>
+        
+        <!-- Custom Duration -->
+        <div class="section">
+            <h2>Custom Duration</h2>
+            <div class="button-grid">
+                <button class="btn-secondary" onclick="showToast('Quick message (1s)', 'info', { duration: 1000 })">
+                    1 Second
+                </button>
+                <button class="btn-secondary" onclick="showToast('Normal message (3s)', 'info', { duration: 3000 })">
+                    3 Seconds (Default)
+                </button>
+                <button class="btn-secondary" onclick="showToast('Long message (10s)', 'warning', { duration: 10000 })">
+                    10 Seconds
+                </button>
+                <button class="btn-secondary" onclick="showToast('Click X to close', 'info', { duration: -1 })">
+                    Persistent (Manual Close)
+                </button>
+            </div>
+            <div class="code-block">
+showToast("Quick message", "info", { duration: 1000 });<br>
+showToast("Persistent", "info", { duration: -1 });
+            </div>
+        </div>
+        
+        <!-- Custom Styling -->
+        <div class="section">
+            <h2>Custom Styling</h2>
+            <div class="button-grid">
+                <button class="btn-secondary" onclick="showToast('Custom color toast', 'success', { backgroundColor: '#6366f1' })">
+                    Custom Color
+                </button>
+                <button class="btn-secondary" onclick="showToast('Large text toast', 'info', { style: { fontSize: '18px', fontWeight: 'bold' } })">
+                    Large Text
+                </button>
+                <button class="btn-secondary" onclick="showToast('No icon toast', 'success', { showIcon: false })">
+                    Without Icon
+                </button>
+            </div>
+            <div class="code-block">
+showToast("Custom color", "success", { backgroundColor: "#6366f1" });<br>
+showToast("Large text", "info", { style: { fontSize: "18px" } });<br>
+showToast("No icon", "success", { showIcon: false });
+            </div>
+        </div>
+        
+        <!-- Real-World Scenarios -->
+        <div class="section">
+            <h2>Real-World Scenarios</h2>
+            <div class="button-grid">
+                <button class="btn-success" onclick="simulateFormSubmit()">
+                    Simulate Form Submit
+                </button>
+                <button class="btn-success" onclick="simulateLogin()">
+                    Simulate Login
+                </button>
+                <button class="btn-warning" onclick="simulateValidation()">
+                    Simulate Validation
+                </button>
+                <button class="btn-error" onclick="simulateError()">
+                    Simulate Error
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="lib/toastify/toastify.js"></script>
+    <script src="js/toast.js"></script>
+    
+    <script>
+        // Real-world scenario simulations
+        function simulateFormSubmit() {
+            Toast.info("Submitting form...");
+            setTimeout(() => {
+                Toast.success("Form submitted successfully!");
+            }, 1500);
+        }
+        
+        function simulateLogin() {
+            Toast.info("Logging in...");
+            setTimeout(() => {
+                Toast.success("Login successful! Redirecting...");
+            }, 1500);
+        }
+        
+        function simulateValidation() {
+            Toast.warning("Please fill in all required fields.");
+        }
+        
+        function simulateError() {
+            Toast.info("Processing request...");
+            setTimeout(() => {
+                Toast.error("Network error. Please try again.");
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

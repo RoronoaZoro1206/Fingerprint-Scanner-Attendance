@@ -1,0 +1,111 @@
+/**
+ * Custom Toast Notification Styles
+ * Enhances Toastify.js with modern, clean animations
+ */
+
+/* Base toast styling */
+.modern-toast {
+    animation: slideInRight 0.3s ease-out;
+}
+
+/* Toast type specific styles */
+.toast-success {
+    border-left: 4px solid #10b981;
+}
+
+.toast-error {
+    border-left: 4px solid #ef4444;
+}
+
+.toast-warning {
+    border-left: 4px solid #f59e0b;
+    color: #78350f !important;
+}
+
+.toast-info {
+    border-left: 4px solid #3b82f6;
+}
+
+/* Animation keyframes */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInTop {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInBottom {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Close button styling */
+.toastify .toast-close {
+    opacity: 0.7;
+    font-weight: bold;
+    font-size: 18px;
+    transition: opacity 0.2s ease;
+}
+
+.toastify .toast-close:hover {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .toastify {
+        max-width: 90% !important;
+        margin: 0 auto;
+    }
+    
+    .modern-toast {
+        font-size: 13px !important;
+        padding: 10px 16px !important;
+    }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+    .toast-warning {
+        color: #451a03 !important;
+    }
+}
+
+/* Hover effect */
+.toastify:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
