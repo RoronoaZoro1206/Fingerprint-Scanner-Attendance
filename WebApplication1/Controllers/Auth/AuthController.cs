@@ -86,8 +86,8 @@ public class AuthController : Controller
             string redirectUrl = user.RoleType switch
             {
                 USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
-                USER_ROLES.FACULTY => Url.Action("Index", "Faculty") ?? "/Faculty",
-                USER_ROLES.STUDENT => Url.Action("Index", "Student") ?? "/Student",
+                USER_ROLES.FACULTY => Url.Action("Index", "AdminFaculty") ?? "/Faculty",
+                USER_ROLES.STUDENT => Url.Action("Index", "AdminStudent") ?? "/Student",
                 _ => Url.Action("Index", "Auth") ?? "/Auth"
             };
 
@@ -100,8 +100,8 @@ public class AuthController : Controller
             return user.RoleType switch
             {
                 USER_ROLES.ADMIN => RedirectToAction("Users", "Admin"),
-                USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
-                USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
+                USER_ROLES.FACULTY => RedirectToAction("Index", "AdminFaculty"),
+                USER_ROLES.STUDENT => RedirectToAction("Index", "AdminStudent"),
                 _ => RedirectToAction("Index", "Auth")
             };
         }

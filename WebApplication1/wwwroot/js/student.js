@@ -69,7 +69,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     studentsTable = $('#studentsTable').DataTable({
         ajax: {
-            url: '/Student/GetAll',
+            url: '/AdminStudent/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -177,7 +177,7 @@ function initializeDataTable() {
 
 function loadUsers() {
     $.ajax({
-        url: '/Student/GetUsers',
+        url: '/AdminStudent/GetUsers',
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -190,7 +190,7 @@ function loadUsers() {
 
 function loadPrograms() {
     $.ajax({
-        url: '/Student/GetPrograms',
+        url: '/AdminStudent/GetPrograms',
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -203,7 +203,7 @@ function loadPrograms() {
 
 function loadSections() {
     $.ajax({
-        url: '/Student/GetSections',
+        url: '/AdminStudent/GetSections',
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -252,7 +252,7 @@ function searchStudentIds(searchTerm, $dropdown) {
     $dropdown.addClass('show');
 
     $.ajax({
-        url: '/Student/SearchAvailableStudentIds',
+        url: '/AdminStudent/SearchAvailableStudentIds',
         type: 'GET',
         data: { search: searchTerm },
         success: function (response) {
@@ -330,7 +330,7 @@ function showAddModal() {
 
 function showEditModal(studId) {
     $.ajax({
-        url: `/Student/GetById/${studId}`,
+        url: `/AdminStudent/GetById/${studId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -379,7 +379,7 @@ function saveStudent() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Student/Create',
+        url: '/AdminStudent/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(studentData),
@@ -424,7 +424,7 @@ function updateStudent() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Student/Update',
+        url: '/AdminStudent/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(studentData),
@@ -460,7 +460,7 @@ function confirmDeleteStudent() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Student/Delete/${studId}`,
+        url: `/AdminStudent/Delete/${studId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

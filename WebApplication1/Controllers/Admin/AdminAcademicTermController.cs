@@ -4,12 +4,12 @@ using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
-public class AcademicTermController : Controller
+public class AdminAcademicTermController : Controller
 {
-    private readonly ILogger<AcademicTermController> _logger;
+    private readonly ILogger<AdminAcademicTermController> _logger;
     private readonly IAcademicTermRepository _academicTermRepository;
 
-    public AcademicTermController(ILogger<AcademicTermController> logger, IAcademicTermRepository academicTermRepository)
+    public AdminAcademicTermController(ILogger<AdminAcademicTermController> logger, IAcademicTermRepository academicTermRepository)
     {
         _logger = logger;
         _academicTermRepository = academicTermRepository;

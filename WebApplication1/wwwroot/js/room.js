@@ -67,7 +67,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     roomsTable = $('#roomsTable').DataTable({
         ajax: {
-            url: '/Room/GetAll',
+            url: '/AdminRoom/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -202,7 +202,7 @@ function showAddModal() {
  */
 function showEditModal(roomId) {
     $.ajax({
-        url: `/Room/GetById/${roomId}`,
+        url: `/AdminRoom/GetById/${roomId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -253,7 +253,7 @@ function saveRoom() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Room/Create',
+        url: '/AdminRoom/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(roomData),
@@ -316,7 +316,7 @@ function updateRoom() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Room/Update',
+        url: '/AdminRoom/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(roomData),
@@ -373,7 +373,7 @@ function confirmDeleteRoom() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Room/Delete/${roomId}`,
+        url: `/AdminRoom/Delete/${roomId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

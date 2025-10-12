@@ -5,15 +5,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class ClassScheduleController : Controller
+public class AdminClassScheduleController : Controller
 {
-    private readonly ILogger<ClassScheduleController> _logger;
+    private readonly ILogger<AdminClassScheduleController> _logger;
     private readonly IClassScheduleRepository _classScheduleRepository;
     private readonly IClassRepository _classRepository;
     private readonly ICourseRepository _courseRepository;
 
-    public ClassScheduleController(
-        ILogger<ClassScheduleController> logger,
+    public AdminClassScheduleController(
+        ILogger<AdminClassScheduleController> logger,
         IClassScheduleRepository classScheduleRepository,
         IClassRepository classRepository,
         ICourseRepository courseRepository)

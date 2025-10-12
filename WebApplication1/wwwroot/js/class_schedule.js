@@ -58,7 +58,7 @@ $(document).ready(function () {
 });
 
 async function loadClasses() {
-    const response = await $.ajax({ url: '/ClassSchedule/GetClasses', type: 'GET' });
+    const response = await $.ajax({ url: '/AdminClassSchedule/GetClasses', type: 'GET' });
     if (response.success) {
         classesData = response.data;
         populateClassDropdowns();
@@ -66,7 +66,7 @@ async function loadClasses() {
 }
 
 async function loadSchedulesData() {
-    const response = await $.ajax({ url: '/ClassSchedule/GetAll', dataSrc: 'data' });
+    const response = await $.ajax({ url: '/AdminClassSchedule/GetAll', dataSrc: 'data' });
     schedulesData = response.data || [];
 }
 
@@ -295,7 +295,7 @@ function saveSchedules() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/ClassSchedule/CreateMultiple',
+        url: '/AdminClassSchedule/CreateMultiple',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(schedules),
@@ -339,7 +339,7 @@ function updateSchedule() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/ClassSchedule/Update',
+        url: '/AdminClassSchedule/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(scheduleData),
@@ -373,7 +373,7 @@ function confirmDelete() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/ClassSchedule/Delete/${schedId}`,
+        url: `/AdminClassSchedule/Delete/${schedId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

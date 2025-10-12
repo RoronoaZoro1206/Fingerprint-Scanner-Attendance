@@ -78,7 +78,7 @@ $(document).ready(function () {
 async function loadCourses() {
     try {
         const response = await $.ajax({
-            url: '/Class/GetCourses',
+            url: '/AdminClass/GetCourses',
             type: 'GET'
         });
 
@@ -97,7 +97,7 @@ async function loadCourses() {
 async function loadRooms() {
     try {
         const response = await $.ajax({
-            url: '/Class/GetRooms',
+            url: '/AdminClass/GetRooms',
             type: 'GET'
         });
 
@@ -116,7 +116,7 @@ async function loadRooms() {
 async function loadFaculties() {
     try {
         const response = await $.ajax({
-            url: '/Class/GetFaculties',
+            url: '/AdminClass/GetFaculties',
             type: 'GET'
         });
 
@@ -135,7 +135,7 @@ async function loadFaculties() {
 async function loadTerms() {
     try {
         const response = await $.ajax({
-            url: '/Class/GetTerms',
+            url: '/AdminClass/GetTerms',
             type: 'GET'
         });
 
@@ -222,7 +222,7 @@ function populateTermDropdowns() {
 function initializeDataTable() {
     classesTable = $('#classesTable').DataTable({
         ajax: {
-            url: '/Class/GetAll',
+            url: '/AdminClass/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -355,7 +355,7 @@ function showAddModal() {
  */
 function showEditModal(classId) {
     $.ajax({
-        url: `/Class/GetById/${classId}`,
+        url: `/AdminClass/GetById/${classId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -409,7 +409,7 @@ function saveClass() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Class/Create',
+        url: '/AdminClass/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(classData),
@@ -473,7 +473,7 @@ function updateClass() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Class/Update',
+        url: '/AdminClass/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(classData),
@@ -526,7 +526,7 @@ function confirmDeleteClass() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Class/Delete/${classId}`,
+        url: `/AdminClass/Delete/${classId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

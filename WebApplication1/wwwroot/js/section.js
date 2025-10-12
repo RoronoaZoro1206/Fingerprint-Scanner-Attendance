@@ -70,7 +70,7 @@ $(document).ready(function () {
 async function loadPrograms() {
     try {
         const response = await $.ajax({
-            url: '/Section/GetPrograms',
+            url: '/AdminSection/GetPrograms',
             type: 'GET'
         });
 
@@ -121,7 +121,7 @@ function getYearLevelText(yearLevel) {
 function initializeDataTable() {
     sectionsTable = $('#sectionsTable').DataTable({
         ajax: {
-            url: '/Section/GetAll',
+            url: '/AdminSection/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -260,7 +260,7 @@ function showAddModal() {
  */
 function showEditModal(sectionId) {
     $.ajax({
-        url: `/Section/GetById/${sectionId}`,
+        url: `/AdminSection/GetById/${sectionId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -314,7 +314,7 @@ function saveSection() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Section/Create',
+        url: '/AdminSection/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(sectionData),
@@ -379,7 +379,7 @@ function updateSection() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Section/Update',
+        url: '/AdminSection/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(sectionData),
@@ -436,7 +436,7 @@ function confirmDeleteSection() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Section/Delete/${sectionId}`,
+        url: `/AdminSection/Delete/${sectionId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class CourseController : Controller
+public class AdminCourseController : Controller
 {
-    private readonly ILogger<CourseController> _logger;
+    private readonly ILogger<AdminCourseController> _logger;
     private readonly ICourseRepository _courseRepository;
     private readonly IProgramRepository _programRepository;
 
-    public CourseController(ILogger<CourseController> logger, ICourseRepository courseRepository, IProgramRepository programRepository)
+    public AdminCourseController(ILogger<AdminCourseController> logger, ICourseRepository courseRepository, IProgramRepository programRepository)
     {
         _logger = logger;
         _courseRepository = courseRepository;

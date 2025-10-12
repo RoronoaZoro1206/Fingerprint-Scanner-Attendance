@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class StudentIdPoolController : Controller
+public class AdminStudentIdPoolController : Controller
 {
-    private readonly ILogger<StudentIdPoolController> _logger;
+    private readonly ILogger<AdminStudentIdPoolController> _logger;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
 
-    public StudentIdPoolController(
-        ILogger<StudentIdPoolController> logger,
+    public AdminStudentIdPoolController(
+        ILogger<AdminStudentIdPoolController> logger,
         IStudentIdPoolRepository studentIdPoolRepository)
     {
         _logger = logger;

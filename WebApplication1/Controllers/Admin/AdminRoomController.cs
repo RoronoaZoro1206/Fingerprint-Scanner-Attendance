@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class RoomController : Controller
+public class AdminRoomController : Controller
 {
-    private readonly ILogger<RoomController> _logger;
+    private readonly ILogger<AdminRoomController> _logger;
     private readonly IRoomRepository _roomRepository;
 
-    public RoomController(ILogger<RoomController> logger, IRoomRepository roomRepository)
+    public AdminRoomController(ILogger<AdminRoomController> logger, IRoomRepository roomRepository)
     {
         _logger = logger;
         _roomRepository = roomRepository;

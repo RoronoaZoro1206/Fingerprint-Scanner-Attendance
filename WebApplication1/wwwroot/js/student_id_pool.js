@@ -66,7 +66,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     studentIdPoolTable = $('#studentIdPoolTable').DataTable({
         ajax: {
-            url: '/StudentIdPool/GetAll',
+            url: '/AdminStudentIdPool/GetAll',
             dataSrc: 'data',
             error: function () {
                 Toast.error('Failed to load student ID pool data.');
@@ -243,7 +243,7 @@ function generateStudentIds() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Generating...');
 
     $.ajax({
-        url: '/StudentIdPool/Generate',
+        url: '/AdminStudentIdPool/Generate',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(requestData),
@@ -270,7 +270,7 @@ function generateStudentIds() {
 
 function showEditRemarksModal(poolId) {
     $.ajax({
-        url: `/StudentIdPool/GetById/${poolId}`,
+        url: `/AdminStudentIdPool/GetById/${poolId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -308,7 +308,7 @@ function updateRemarks() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/StudentIdPool/UpdateRemarks',
+        url: '/AdminStudentIdPool/UpdateRemarks',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(requestData),
@@ -345,7 +345,7 @@ function confirmDelete() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/StudentIdPool/Delete/${poolId}`,
+        url: `/AdminStudentIdPool/Delete/${poolId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {
