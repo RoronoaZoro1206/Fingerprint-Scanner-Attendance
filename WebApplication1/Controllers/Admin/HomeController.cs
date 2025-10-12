@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using Fingerprint_Attendance_System.Models;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Fingerprint_Attendance_System.Controllers;
+namespace Fingerprint_Attendance_System.Controllers.Admin;
 
 public class HomeController : Controller
 {

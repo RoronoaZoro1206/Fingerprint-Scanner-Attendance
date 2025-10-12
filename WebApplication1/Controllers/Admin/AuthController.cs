@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Mvc;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Fingerprint_Attendance_System.Controllers;
+namespace Fingerprint_Attendance_System.Controllers.Admin;
 
 public class AuthController : Controller
 {
