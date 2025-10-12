@@ -5,6 +5,7 @@ public interface IClassRepository
 {
     Task<IEnumerable<Class>> GetAllAsync();
     Task<IEnumerable<Class>> GetAllWithDetailsAsync();
+    Task<IEnumerable<Class>> GetClassesByFacultyIdAsync(int facId);
     Task<Class?> GetByIdAsync(int classId);
     Task<bool> AddAsync(Class cls);
     Task<bool> UpdateAsync(Class cls);

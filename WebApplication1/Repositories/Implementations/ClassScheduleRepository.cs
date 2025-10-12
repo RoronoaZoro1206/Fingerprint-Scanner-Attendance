@@ -49,6 +49,25 @@ public class ClassScheduleRepository : IClassScheduleRepository
         };
     }
 
+    public async Task<IEnumerable<ClassSchedule>> GetByClassIdAsync(int classId)
+    {
+        string query = @"SELECT sched_id, class_id, sched_day_of_week, sched_start_time, sched_end_time 
+                         FROM class_schedules WHERE class_id = @classId 
+                         ORDER BY sched_day_of_week, sched_start_time;";
+        var parameters = new Dictionary<string, object> { { "@classId", classId } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new ClassSchedule
+        {
+            SchedId = Convert.ToInt32(row["sched_id"]),
+            ClassId = Convert.ToInt32(row["class_id"]),
+            SchedDayOfWeek = row["sched_day_of_week"].ToString() ?? "",
+            SchedStartTime = (TimeSpan)row["sched_start_time"],
+            SchedEndTime = (TimeSpan)row["sched_end_time"]
+        });
+    }
+
     public async Task<bool> AddAsync(ClassSchedule sched)
     {
         string query = @"INSERT INTO class_schedules (class_id, sched_day_of_week, sched_start_time, sched_end_time)

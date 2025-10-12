@@ -31,7 +31,7 @@ public class EnrollmentRepository : IEnrollmentRepository
     public async Task<Enrollment?> GetByIdAsync(int enrollId)
     {
         string query = @"SELECT enroll_id, stud_id, class_id, enroll_at 
-                         FROM enrollments WHERE enroll_id = @id;";
+                         FROM enrollment WHERE enroll_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", enrollId } };
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -45,6 +45,23 @@ public class EnrollmentRepository : IEnrollmentRepository
             ClassId = Convert.ToInt32(row["class_id"]),
             EnrollAt = Convert.ToDateTime(row["enroll_at"])
         };
+    }
+
+    public async Task<IEnumerable<Enrollment>> GetByClassIdAsync(int classId)
+    {
+        string query = @"SELECT enroll_id, stud_id, class_id, enroll_at 
+                         FROM enrollment WHERE class_id = @classId;";
+        var parameters = new Dictionary<string, object> { { "@classId", classId } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new Enrollment
+        {
+            EnrollId = Convert.ToInt32(row["enroll_id"]),
+            StudId = Convert.ToInt32(row["stud_id"]),
+            ClassId = Convert.ToInt32(row["class_id"]),
+            EnrollAt = Convert.ToDateTime(row["enroll_at"])
+        });
     }
 
     public async Task<bool> AddAsync(Enrollment enroll)

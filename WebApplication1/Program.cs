@@ -10,11 +10,11 @@ var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 // Build connection string from environment variables
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST")  ;
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ;
 var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ;
 var dbName = Environment.GetEnvironmentVariable("DB_NAME") ;
-var dbUser = Environment.GetEnvironmentVariable("DB_USER")  ;
-var dbPass = Environment.GetEnvironmentVariable("DB_PASS")  ;
+var dbUser = Environment.GetEnvironmentVariable("DB_USER") ;
+var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ;
 
 var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
 
