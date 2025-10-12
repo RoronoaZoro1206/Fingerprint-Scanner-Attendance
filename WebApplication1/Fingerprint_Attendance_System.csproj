@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+		<PackageReference Include="DotNetEnv" Version="3.1.1" />
 		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.9" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
@@ -24,8 +25,13 @@
 
 	<ItemGroup>
 	  <Reference Include="libzkfpcsharp">
-	    <HintPath>..\..\..\..\..\Downloads\ZKFinger SDK 5.0.0.30 (32)\C#\lib\x64\libzkfpcsharp.dll</HintPath>
+	    <HintPath>..\..\..\Downloads\ZKFinger SDK 5.0.0.30 (32)\C#\lib\x64\libzkfpcsharp.dll</HintPath>
 	  </Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Areas\" />
+	  <Folder Include="Services\" />
 	</ItemGroup>
 
 </Project>
