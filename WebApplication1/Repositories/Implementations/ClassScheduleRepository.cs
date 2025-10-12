@@ -15,7 +15,7 @@ public class ClassScheduleRepository : IClassScheduleRepository
 
     public async Task<IEnumerable<ClassSchedule>> GetAllAsync()
     {
-        string query = @"SELECT sched_id, class_id, sched_dayofweek, sched_starttime, sched_endtime 
+        string query = @"SELECT sched_id, class_id, sched_day_of_week, sched_start_time, sched_end_time 
                          FROM class_schedules;";
         var dt = await _db.ExecuteQueryAsync(query);
 
@@ -23,15 +23,15 @@ public class ClassScheduleRepository : IClassScheduleRepository
         {
             SchedId = Convert.ToInt32(row["sched_id"]),
             ClassId = Convert.ToInt32(row["class_id"]),
-            SchedDayOfWeek = row["sched_dayofweek"].ToString() ?? "",
-            SchedStartTime = (TimeSpan)row["sched_starttime"],
-            SchedEndTime = (TimeSpan)row["sched_endtime"]
+            SchedDayOfWeek = row["sched_day_of_week"].ToString() ?? "",
+            SchedStartTime = (TimeSpan)row["sched_start_time"],
+            SchedEndTime = (TimeSpan)row["sched_end_time"]
         });
     }
 
     public async Task<ClassSchedule?> GetByIdAsync(int schedId)
     {
-        string query = @"SELECT sched_id, class_id, sched_dayofweek, sched_starttime, sched_endtime 
+        string query = @"SELECT sched_id, class_id, sched_day_of_week, sched_start_time, sched_end_time 
                          FROM class_schedules WHERE sched_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", schedId } };
 
@@ -43,15 +43,15 @@ public class ClassScheduleRepository : IClassScheduleRepository
         {
             SchedId = Convert.ToInt32(row["sched_id"]),
             ClassId = Convert.ToInt32(row["class_id"]),
-            SchedDayOfWeek = row["sched_dayofweek"].ToString() ?? "",
-            SchedStartTime = (TimeSpan)row["sched_starttime"],
-            SchedEndTime = (TimeSpan)row["sched_endtime"]
+            SchedDayOfWeek = row["sched_day_of_week"].ToString() ?? "",
+            SchedStartTime = (TimeSpan)row["sched_start_time"],
+            SchedEndTime = (TimeSpan)row["sched_end_time"]
         };
     }
 
     public async Task<bool> AddAsync(ClassSchedule sched)
     {
-        string query = @"INSERT INTO class_schedules (class_id, sched_dayofweek, sched_starttime, sched_endtime)
+        string query = @"INSERT INTO class_schedules (class_id, sched_day_of_week, sched_start_time, sched_end_time)
                          VALUES (@class, @day, @start, @end);";
         var parameters = new Dictionary<string, object>
         {
@@ -67,8 +67,8 @@ public class ClassScheduleRepository : IClassScheduleRepository
     public async Task<bool> UpdateAsync(ClassSchedule sched)
     {
         string query = @"UPDATE class_schedules 
-                         SET class_id = @class, sched_dayofweek = @day, 
-                             sched_starttime = @start, sched_endtime = @end 
+                         SET class_id = @class, sched_day_of_week = @day, 
+                             sched_start_time = @start, sched_end_time = @end 
                          WHERE sched_id = @id;";
         var parameters = new Dictionary<string, object>
         {
