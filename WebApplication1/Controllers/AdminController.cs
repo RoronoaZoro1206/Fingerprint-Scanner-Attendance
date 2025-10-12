@@ -43,6 +43,11 @@ public class AdminController : Controller
         return View();
     }
     
+    public IActionResult Students()
+    {
+        return View();
+    }
+    
     public IActionResult Sections()
     {
         return View();
