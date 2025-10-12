@@ -16,7 +16,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<IEnumerable<Faculty>> GetAllAsync()
         {
-            string query = "SELECT * FROM faculties ORDER BY fac_id;";
+            string query = "SELECT * FROM faculty ORDER BY fac_id;";
             var dt = await _db.ExecuteQueryAsync(query);
 
             return dt.AsEnumerable().Select(row => new Faculty
@@ -31,7 +31,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<Faculty?> GetByIdAsync(int facId)
         {
-            string query = "SELECT * FROM faculties WHERE fac_id = @id;";
+            string query = "SELECT * FROM faculty WHERE fac_id = @id;";
             var parameters = new Dictionary<string, object> { { "@id", facId } };
 
             var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -50,7 +50,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<Faculty?> GetByUserIdAsync(int userId)
         {
-            string query = "SELECT * FROM faculties WHERE user_id = @user LIMIT 1;";
+            string query = "SELECT * FROM faculty WHERE user_id = @user LIMIT 1;";
             var parameters = new Dictionary<string, object> { { "@user", userId } };
 
             var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -69,7 +69,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<IEnumerable<Faculty>> GetByDepartmentAsync(int deptId)
         {
-            string query = "SELECT * FROM faculties WHERE dept_id = @dept ORDER BY fac_id;";
+            string query = "SELECT * FROM faculty WHERE dept_id = @dept ORDER BY fac_id;";
             var parameters = new Dictionary<string, object> { { "@dept", deptId } };
 
             var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -86,7 +86,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<bool> AddAsync(Faculty faculty)
         {
             string query = @"
-                INSERT INTO faculties (user_id, dept_id, fac_rank, fac_created_at)
+                INSERT INTO faculty (user_id, dept_id, fac_rank, fac_created_at)
                 VALUES (@user, @dept, @rank, @created);";
 
             var parameters = new Dictionary<string, object>
@@ -103,7 +103,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<bool> UpdateAsync(Faculty faculty)
         {
             string query = @"
-                UPDATE faculties
+                UPDATE faculty
                 SET dept_id = @dept,
                     fac_rank = @rank
                 WHERE fac_id = @id;";
@@ -120,14 +120,14 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<bool> DeleteAsync(int facId)
         {
-            string query = "DELETE FROM faculties WHERE fac_id = @id;";
+            string query = "DELETE FROM faculty WHERE fac_id = @id;";
             var parameters = new Dictionary<string, object> { { "@id", facId } };
             return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
         }
 
         public async Task<bool> ExistsAsync(int facId)
         {
-            string query = "SELECT COUNT(*) FROM faculties WHERE fac_id = @id;";
+            string query = "SELECT COUNT(*) FROM faculty WHERE fac_id = @id;";
             var parameters = new Dictionary<string, object> { { "@id", facId } };
             var result = await _db.ExecuteScalarAsync(query, parameters);
             return Convert.ToInt32(result) > 0;

@@ -136,7 +136,7 @@ function initializeDataTable() {
         columns: [
             {
                 data: 'fullName',
-                width: '25%',
+                width: '30%',
                 render: function (data, type, row) {
                     if (type === 'display') {
                         const profileImage = row.userProfileImage || 'default_profile.png';
@@ -154,11 +154,11 @@ function initializeDataTable() {
             },
             {
                 data: 'userEmail',
-                width: '20%'
+                width: '25%'
             },
             {
                 data: 'userPhone',
-                width: '15%',
+                width: '25%',
                 render: function (data, type, row) {
                     return data || '-';
                 }

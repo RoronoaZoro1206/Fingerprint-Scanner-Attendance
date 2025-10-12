@@ -38,6 +38,11 @@ public class AdminController : Controller
         return View();
     }
     
+    public IActionResult Faculty()
+    {
+        return View();
+    }
+    
     public IActionResult Sections()
     {
         return View();
