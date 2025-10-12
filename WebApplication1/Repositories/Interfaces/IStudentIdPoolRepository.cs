@@ -4,6 +4,7 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces;
 public interface IStudentIdPoolRepository
 {
     Task<IEnumerable<StudentIdPool>> GetAllAsync();
+    Task<IEnumerable<StudentIdPool>> GetAvailableAsync();
     Task<StudentIdPool?> GetByIdAsync(int poolId);
     Task<StudentIdPool?> GetByCodeAsync(string studentIdCode);
     Task<bool> AddAsync(StudentIdPool pool);

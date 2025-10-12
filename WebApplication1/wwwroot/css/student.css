@@ -358,6 +358,71 @@ div.dt-buttons {
     border-color: #dc2626;
 }
 
+/* Student ID Search Dropdown */
+.student-id-search-wrapper {
+    position: relative;
+}
+
+.student-id-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.student-id-dropdown.show {
+    display: block;
+}
+
+.student-id-dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    color: #374151;
+}
+
+.student-id-dropdown-item:hover {
+    background-color: #f3f4f6;
+}
+
+.student-id-dropdown-item.active {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.student-id-dropdown-empty {
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.student-id-dropdown-loading {
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.student-id-search-wrapper input:focus {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.student-id-search-wrapper input:focus + .student-id-dropdown.show {
+    border-top: 1px solid #3b82f6;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .page-header {

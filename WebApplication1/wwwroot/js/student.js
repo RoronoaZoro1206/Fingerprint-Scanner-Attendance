@@ -6,12 +6,19 @@ let studentsTable;
 let usersData = [];
 let programsData = [];
 let sectionsData = [];
+let searchTimeout = null;
 
 $(document).ready(function () {
     initializeDataTable();
     loadUsers();
     loadPrograms();
     loadSections();
+
+    // Setup student ID search for add modal
+    setupStudentIdSearch('#addStudNumber', '#addStudNumberDropdown');
+
+    // Setup student ID search for edit modal
+    setupStudentIdSearch('#editStudNumber', '#editStudNumberDropdown');
 
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
@@ -158,7 +165,7 @@ function initializeDataTable() {
             if (searchInput.parent().find('.search-icon').length === 0) {
                 searchInput.wrap('<div class="search-input-wrapper"></div>');
                 searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-                setTimeout(function() {
+                setTimeout(function () {
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
                     }
@@ -207,6 +214,82 @@ function loadSections() {
     });
 }
 
+function setupStudentIdSearch(inputSelector, dropdownSelector) {
+    const $input = $(inputSelector);
+    const $dropdown = $(dropdownSelector);
+
+    // Search on input
+    $input.on('input', function () {
+        const searchTerm = $(this).val().trim();
+
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Debounce search
+        searchTimeout = setTimeout(function () {
+            searchStudentIds(searchTerm, $dropdown);
+        }, 300);
+    });
+
+    // Show dropdown on focus
+    $input.on('focus', function () {
+        const searchTerm = $(this).val().trim();
+        searchStudentIds(searchTerm, $dropdown);
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('.student-id-search-wrapper').length) {
+            $dropdown.removeClass('show');
+        }
+    });
+}
+
+function searchStudentIds(searchTerm, $dropdown) {
+    $dropdown.html('<div class="student-id-dropdown-loading">Searching...</div>');
+    $dropdown.addClass('show');
+
+    $.ajax({
+        url: '/Student/SearchAvailableStudentIds',
+        type: 'GET',
+        data: { search: searchTerm },
+        success: function (response) {
+            if (response.success) {
+                displayStudentIdResults(response.data, $dropdown);
+            } else {
+                $dropdown.html('<div class="student-id-dropdown-empty">Error loading student IDs</div>');
+            }
+        },
+        error: function () {
+            $dropdown.html('<div class="student-id-dropdown-empty">Error loading student IDs</div>');
+        }
+    });
+}
+
+function displayStudentIdResults(results, $dropdown) {
+    $dropdown.empty();
+
+    if (results.length === 0) {
+        $dropdown.html('<div class="student-id-dropdown-empty">No available student IDs found</div>');
+    } else {
+        results.forEach(function (item) {
+            const $item = $('<div class="student-id-dropdown-item"></div>')
+                .text(item.studentIdCode)
+                .on('click', function () {
+                    // Get the input associated with this dropdown
+                    const $input = $dropdown.siblings('input');
+                    $input.val(item.studentIdCode);
+                    $dropdown.removeClass('show');
+                });
+            $dropdown.append($item);
+        });
+    }
+
+    $dropdown.addClass('show');
+}
+
 function populateUserDropdown() {
     const $select = $('#addUserId');
     $select.find('option:not(:first)').remove();
@@ -241,6 +324,7 @@ function populateSectionDropdowns() {
 
 function showAddModal() {
     $('#addStudentForm')[0].reset();
+    $('#addStudNumberDropdown').removeClass('show').empty();
     $('#addStudentModal').modal('show');
 }
 
@@ -258,6 +342,7 @@ function showEditModal(studId) {
                 $('#editProgramId').val(student.programId || '');
                 $('#editStudYearLevel').val(student.studYearLevel || '');
                 $('#editSectionId').val(student.sectionId || '');
+                $('#editStudNumberDropdown').removeClass('show').empty();
                 $('#editStudentModal').modal('show');
             } else {
                 Toast.error(response.message || 'Failed to load student data.');
@@ -276,9 +361,15 @@ function saveStudent() {
         return;
     }
 
+    const studNumber = $('#addStudNumber').val();
+    if (!studNumber) {
+        Toast.warning('Please select a student ID from the available pool.');
+        return;
+    }
+
     const studentData = {
         UserId: parseInt($('#addUserId').val()),
-        StudNumber: $('#addStudNumber').val().trim(),
+        StudNumber: studNumber,
         ProgramId: $('#addProgramId').val() ? parseInt($('#addProgramId').val()) : null,
         StudYearLevel: $('#addStudYearLevel').val() ? parseInt($('#addStudYearLevel').val()) : null,
         SectionId: $('#addSectionId').val() ? parseInt($('#addSectionId').val()) : null

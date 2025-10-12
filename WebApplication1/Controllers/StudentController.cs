@@ -12,19 +12,22 @@ public class StudentController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IProgramRepository _programRepository;
     private readonly ISectionRepository _sectionRepository;
+    private readonly IStudentIdPoolRepository _studentIdPoolRepository;
 
     public StudentController(
         ILogger<StudentController> logger,
         IStudentRepository studentRepository,
         IUserRepository userRepository,
         IProgramRepository programRepository,
-        ISectionRepository sectionRepository)
+        ISectionRepository sectionRepository,
+        IStudentIdPoolRepository studentIdPoolRepository)
     {
         _logger = logger;
         _studentRepository = studentRepository;
         _userRepository = userRepository;
         _programRepository = programRepository;
         _sectionRepository = sectionRepository;
+        _studentIdPoolRepository = studentIdPoolRepository;
     }
 
     // GET: Student/Index
@@ -183,6 +186,37 @@ public class StudentController : Controller
         }
     }
 
+    // GET: Student/SearchAvailableStudentIds?search=2025
+    [HttpGet]
+    public async Task<IActionResult> SearchAvailableStudentIds(string search = "")
+    {
+        try
+        {
+            var availableIds = await _studentIdPoolRepository.GetAvailableAsync();
+            
+            // Filter by search term if provided
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                availableIds = availableIds.Where(id => 
+                    id.StudentIdCode.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            // Limit to 5 results
+            var idList = availableIds.Take(5).Select(id => new
+            {
+                poolId = id.PoolId,
+                studentIdCode = id.StudentIdCode
+            });
+            
+            return Json(new { success = true, data = idList });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching available student IDs");
+            return Json(new { success = false, message = "Failed to search available student IDs" });
+        }
+    }
+
     // POST: Student/Create
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Student student)
@@ -199,6 +233,13 @@ public class StudentController : Controller
 
             if (result)
             {
+                // Mark the student ID as used in the pool (if it exists)
+                var poolEntry = await _studentIdPoolRepository.GetByCodeAsync(student.StudNumber);
+                if (poolEntry != null)
+                {
+                    await _studentIdPoolRepository.MarkAsUsedAsync(poolEntry.PoolId);
+                }
+
                 return Json(new { success = true, message = "Student created successfully" });
             }
             return Json(new { success = false, message = "Failed to create student" });

@@ -84,7 +84,12 @@
                     </div>
                     <div class="mb-3">
                         <label for="addStudNumber" class="form-label">Student Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="addStudNumber" name="StudNumber" required maxlength="20" placeholder="e.g., 2025-0156">
+                        <div class="student-id-search-wrapper">
+                            <input type="text" class="form-control" id="addStudNumber" name="StudNumber" 
+                                   placeholder="Search student ID..." autocomplete="off" required>
+                            <div class="student-id-dropdown" id="addStudNumberDropdown"></div>
+                        </div>
+                        <div class="form-text">Type to search available student IDs (max 10 results)</div>
                     </div>
                     <div class="mb-3">
                         <label for="addProgramId" class="form-label">Program</label>
@@ -140,7 +145,12 @@
                     </div>
                     <div class="mb-3">
                         <label for="editStudNumber" class="form-label">Student Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="editStudNumber" name="StudNumber" required maxlength="20">
+                        <div class="student-id-search-wrapper">
+                            <input type="text" class="form-control" id="editStudNumber" name="StudNumber" 
+                                   placeholder="Search student ID..." autocomplete="off" required>
+                            <div class="student-id-dropdown" id="editStudNumberDropdown"></div>
+                        </div>
+                        <div class="form-text">Type to search available student IDs (max 10 results)</div>
                     </div>
                     <div class="mb-3">
                         <label for="editProgramId" class="form-label">Program</label>

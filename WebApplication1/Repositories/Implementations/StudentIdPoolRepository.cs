@@ -31,6 +31,23 @@ public class StudentIdPoolRepository : IStudentIdPoolRepository
         });
     }
 
+    public async Task<IEnumerable<StudentIdPool>> GetAvailableAsync()
+    {
+        string query = "SELECT * FROM student_id_pool WHERE is_used = FALSE ORDER BY student_id_code;";
+        var dt = await _db.ExecuteQueryAsync(query);
+
+        return dt.AsEnumerable().Select(row => new StudentIdPool
+        {
+            PoolId = Convert.ToInt32(row["pool_id"]),
+            StudentIdCode = row["student_id_code"].ToString() ?? "",
+            IsUsed = Convert.ToBoolean(row["is_used"]),
+            GeneratedBy = row["generated_by"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["generated_by"]),
+            GeneratedAt = Convert.ToDateTime(row["generated_at"]),
+            UsedAt = row["used_at"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(row["used_at"]),
+            Remarks = row["remarks"]?.ToString()
+        });
+    }
+
     public async Task<StudentIdPool?> GetByIdAsync(int poolId)
     {
         string query = "SELECT * FROM student_id_pool WHERE pool_id = @id;";
