@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class SectionController : Controller
+public class AdminSectionController : Controller
 {
-    private readonly ILogger<SectionController> _logger;
+    private readonly ILogger<AdminSectionController> _logger;
     private readonly ISectionRepository _sectionRepository;
     private readonly IProgramRepository _programRepository;
 
-    public SectionController(ILogger<SectionController> logger, ISectionRepository sectionRepository, IProgramRepository programRepository)
+    public AdminSectionController(ILogger<AdminSectionController> logger, ISectionRepository sectionRepository, IProgramRepository programRepository)
     {
         _logger = logger;
         _sectionRepository = sectionRepository;

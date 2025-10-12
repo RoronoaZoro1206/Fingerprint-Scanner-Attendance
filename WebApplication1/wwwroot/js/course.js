@@ -70,7 +70,7 @@ $(document).ready(function () {
 async function loadPrograms() {
     try {
         const response = await $.ajax({
-            url: '/Course/GetPrograms',
+            url: '/AdminCourse/GetPrograms',
             type: 'GET'
         });
 
@@ -108,7 +108,7 @@ function populateProgramDropdowns() {
 function initializeDataTable() {
     coursesTable = $('#coursesTable').DataTable({
         ajax: {
-            url: '/Course/GetAll',
+            url: '/AdminCourse/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -249,7 +249,7 @@ function showAddModal() {
  */
 function showEditModal(courseId) {
     $.ajax({
-        url: `/Course/GetById/${courseId}`,
+        url: `/AdminCourse/GetById/${courseId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -319,7 +319,7 @@ function saveCourse() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Course/Create',
+        url: '/AdminCourse/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(courseData),
@@ -398,7 +398,7 @@ function updateCourse() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Course/Update',
+        url: '/AdminCourse/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(courseData),
@@ -455,7 +455,7 @@ function confirmDeleteCourse() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Course/Delete/${courseId}`,
+        url: `/AdminCourse/Delete/${courseId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

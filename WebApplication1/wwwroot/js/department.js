@@ -67,7 +67,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     departmentsTable = $('#departmentsTable').DataTable({
         ajax: {
-            url: '/Department/GetAll',
+            url: '/AdminDepartment/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -206,7 +206,7 @@ function showAddModal() {
  */
 function showEditModal(deptId) {
     $.ajax({
-        url: `/Department/GetById/${deptId}`,
+        url: `/AdminDepartment/GetById/${deptId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -265,7 +265,7 @@ function saveDepartment() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Department/Create',
+        url: '/AdminDepartment/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(departmentData),
@@ -335,7 +335,7 @@ function updateDepartment() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Department/Update',
+        url: '/AdminDepartment/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(departmentData),
@@ -392,7 +392,7 @@ function confirmDeleteDepartment() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Department/Delete/${deptId}`,
+        url: `/AdminDepartment/Delete/${deptId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

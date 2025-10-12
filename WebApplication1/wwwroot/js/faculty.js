@@ -73,7 +73,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     facultiesTable = $('#facultiesTable').DataTable({
         ajax: {
-            url: '/Faculty/GetAll',
+            url: '/AdminFaculty/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -211,7 +211,7 @@ function initializeDataTable() {
  */
 function loadUsers() {
     $.ajax({
-        url: '/Faculty/GetUsers',
+        url: '/AdminFaculty/GetUsers',
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -230,7 +230,7 @@ function loadUsers() {
  */
 function loadDepartments() {
     $.ajax({
-        url: '/Faculty/GetDepartments',
+        url: '/AdminFaculty/GetDepartments',
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -286,7 +286,7 @@ function showAddModal() {
  */
 function showEditModal(facId) {
     $.ajax({
-        url: `/Faculty/GetById/${facId}`,
+        url: `/AdminFaculty/GetById/${facId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -341,7 +341,7 @@ function saveFaculty() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Faculty/Create',
+        url: '/AdminFaculty/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(facultyData),
@@ -400,7 +400,7 @@ function updateFaculty() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Faculty/Update',
+        url: '/AdminFaculty/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(facultyData),
@@ -457,7 +457,7 @@ function confirmDeleteFaculty() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Faculty/Delete/${facId}`,
+        url: `/AdminFaculty/Delete/${facId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

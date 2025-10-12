@@ -70,7 +70,7 @@ $(document).ready(function () {
 async function loadRoles() {
     try {
         const response = await $.ajax({
-            url: '/User/GetRoles',
+            url: '/AdminUser/GetRoles',
             type: 'GET'
         });
 
@@ -126,7 +126,7 @@ function getStatusBadge(isActive) {
 function initializeDataTable() {
     usersTable = $('#usersTable').DataTable({
         ajax: {
-            url: '/User/GetAll',
+            url: '/AdminUser/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -287,7 +287,7 @@ function showAddModal() {
  */
 function showEditModal(userId) {
     $.ajax({
-        url: `/User/GetById/${userId}`,
+        url: `/AdminUser/GetById/${userId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -358,7 +358,7 @@ function saveUser() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/User/Create',
+        url: '/AdminUser/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(userData),
@@ -434,7 +434,7 @@ function updateUser() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/User/Update',
+        url: '/AdminUser/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(userData),
@@ -487,7 +487,7 @@ function confirmDeleteUser() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/User/Delete/${userId}`,
+        url: `/AdminUser/Delete/${userId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

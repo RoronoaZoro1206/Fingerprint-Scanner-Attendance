@@ -83,7 +83,7 @@ function formatDateForInput(dateString) {
 function initializeDataTable() {
     termsTable = $('#termsTable').DataTable({
         ajax: {
-            url: '/AcademicTerm/GetAll',
+            url: '/AdminAcademicTerm/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -242,7 +242,7 @@ function showAddModal() {
  */
 function showEditModal(termId) {
     $.ajax({
-        url: `/AcademicTerm/GetById/${termId}`,
+        url: `/AdminAcademicTerm/GetById/${termId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -304,7 +304,7 @@ function saveTerm() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/AcademicTerm/Create',
+        url: '/AdminAcademicTerm/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(termData),
@@ -376,7 +376,7 @@ function updateTerm() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/AcademicTerm/Update',
+        url: '/AdminAcademicTerm/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(termData),
@@ -415,7 +415,7 @@ function setActiveTerm(termId) {
     }
 
     $.ajax({
-        url: `/AcademicTerm/SetActive/${termId}`,
+        url: `/AdminAcademicTerm/SetActive/${termId}`,
         type: 'POST',
         success: function (response) {
             if (response.success) {
@@ -459,7 +459,7 @@ function confirmDeleteTerm() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/AcademicTerm/Delete/${termId}`,
+        url: `/AdminAcademicTerm/Delete/${termId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

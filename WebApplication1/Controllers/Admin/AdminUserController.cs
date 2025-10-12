@@ -5,14 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class UserController : Controller
+public class AdminUserController : Controller
 {
-    private readonly ILogger<UserController> _logger;
+    private readonly ILogger<AdminUserController> _logger;
     private readonly IUserRepository _userRepository;
     private readonly IUserRoleRepository _userRoleRepository;
 
-    public UserController(
-        ILogger<UserController> logger,
+    public AdminUserController(
+        ILogger<AdminUserController> logger,
         IUserRepository userRepository,
         IUserRoleRepository userRoleRepository)
     {

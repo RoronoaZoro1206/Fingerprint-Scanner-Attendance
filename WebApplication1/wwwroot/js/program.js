@@ -67,7 +67,7 @@ $(document).ready(function () {
 function initializeDataTable() {
     programsTable = $('#programsTable').DataTable({
         ajax: {
-            url: '/Program/GetAll',
+            url: '/AdminProgram/GetAll',
             dataSrc: 'data',
             error: function (xhr, error, thrown) {
                 console.error('DataTables error:', error);
@@ -206,7 +206,7 @@ function showAddModal() {
  */
 function showEditModal(programId) {
     $.ajax({
-        url: `/Program/GetById/${programId}`,
+        url: `/AdminProgram/GetById/${programId}`,
         type: 'GET',
         success: function (response) {
             if (response.success) {
@@ -265,7 +265,7 @@ function saveProgram() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
 
     $.ajax({
-        url: '/Program/Create',
+        url: '/AdminProgram/Create',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(programData),
@@ -335,7 +335,7 @@ function updateProgram() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
 
     $.ajax({
-        url: '/Program/Update',
+        url: '/AdminProgram/Update',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(programData),
@@ -392,7 +392,7 @@ function confirmDeleteProgram() {
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
 
     $.ajax({
-        url: `/Program/Delete/${programId}`,
+        url: `/AdminProgram/Delete/${programId}`,
         type: 'DELETE',
         success: function (response) {
             if (response.success) {

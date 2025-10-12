@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
-public class ProgramController : Controller
+public class AdminProgramController : Controller
 {
-    private readonly ILogger<ProgramController> _logger;
+    private readonly ILogger<AdminProgramController> _logger;
     private readonly IProgramRepository _programRepository;
 
-    public ProgramController(ILogger<ProgramController> logger, IProgramRepository programRepository)
+    public AdminProgramController(ILogger<AdminProgramController> logger, IProgramRepository programRepository)
     {
         _logger = logger;
         _programRepository = programRepository;
