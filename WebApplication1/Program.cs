@@ -11,10 +11,10 @@ Env.Load();
 
 // Build connection string from environment variables
 var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5433";
 var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "FingerprintAttendanceDB";
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
-var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
+var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? "!*Lawrence1206";
 
 var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
 
