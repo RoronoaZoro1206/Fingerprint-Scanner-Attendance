@@ -115,12 +115,26 @@ public class ClassScheduleController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ClassSchedule schedule)
+    public async Task<IActionResult> Create([FromBody] ClassScheduleDto dto)
     {
         try
         {
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid data provided" });
+
+            if (!TimeSpan.TryParse(dto.SchedStartTime, out var startTime))
+                return Json(new { success = false, message = "Invalid start time format" });
+
+            if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
+                return Json(new { success = false, message = "Invalid end time format" });
+
+            var schedule = new ClassSchedule
+            {
+                ClassId = dto.ClassId,
+                SchedDayOfWeek = dto.SchedDayOfWeek,
+                SchedStartTime = startTime,
+                SchedEndTime = endTime
+            };
 
             var result = await _classScheduleRepository.AddAsync(schedule);
             if (result)
@@ -135,13 +149,100 @@ public class ClassScheduleController : Controller
         }
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateMultiple([FromBody] List<ClassScheduleDto> scheduleDtos)
+    {
+        try
+        {
+            if (scheduleDtos == null || !scheduleDtos.Any())
+                return Json(new { success = false, message = "No schedules provided" });
+
+            _logger.LogInformation($"Received {scheduleDtos.Count} schedules to create");
+
+            int successCount = 0;
+            int failCount = 0;
+
+            foreach (var dto in scheduleDtos)
+            {
+                _logger.LogInformation($"Processing schedule: ClassId={dto.ClassId}, Day={dto.SchedDayOfWeek}, Start={dto.SchedStartTime}, End={dto.SchedEndTime}");
+
+                if (!TimeSpan.TryParse(dto.SchedStartTime, out var startTime))
+                {
+                    _logger.LogWarning($"Invalid start time format: {dto.SchedStartTime}");
+                    failCount++;
+                    continue;
+                }
+
+                if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
+                {
+                    _logger.LogWarning($"Invalid end time format: {dto.SchedEndTime}");
+                    failCount++;
+                    continue;
+                }
+
+                var schedule = new ClassSchedule
+                {
+                    ClassId = dto.ClassId,
+                    SchedDayOfWeek = dto.SchedDayOfWeek,
+                    SchedStartTime = startTime,
+                    SchedEndTime = endTime
+                };
+
+                var result = await _classScheduleRepository.AddAsync(schedule);
+                if (result)
+                {
+                    successCount++;
+                    _logger.LogInformation($"Successfully created schedule for ClassId={dto.ClassId}");
+                }
+                else
+                {
+                    failCount++;
+                    _logger.LogWarning($"Failed to create schedule for ClassId={dto.ClassId}");
+                }
+            }
+
+            if (successCount > 0)
+                return Json(new { success = true, message = $"Created {successCount} schedule(s) successfully" });
+            
+            return Json(new { success = false, message = "Failed to create schedules" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating multiple schedules: {Message}", ex.Message);
+            return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+        }
+    }
+
+    public class ClassScheduleDto
+    {
+        public int ClassId { get; set; }
+        public string SchedDayOfWeek { get; set; } = string.Empty;
+        public string SchedStartTime { get; set; } = string.Empty;
+        public string SchedEndTime { get; set; } = string.Empty;
+    }
+
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] ClassSchedule schedule)
+    public async Task<IActionResult> Update([FromBody] ClassScheduleUpdateDto dto)
     {
         try
         {
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid data provided" });
+
+            if (!TimeSpan.TryParse(dto.SchedStartTime, out var startTime))
+                return Json(new { success = false, message = "Invalid start time format" });
+
+            if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
+                return Json(new { success = false, message = "Invalid end time format" });
+
+            var schedule = new ClassSchedule
+            {
+                SchedId = dto.SchedId,
+                ClassId = dto.ClassId,
+                SchedDayOfWeek = dto.SchedDayOfWeek,
+                SchedStartTime = startTime,
+                SchedEndTime = endTime
+            };
 
             var result = await _classScheduleRepository.UpdateAsync(schedule);
             if (result)
@@ -154,6 +255,11 @@ public class ClassScheduleController : Controller
             _logger.LogError(ex, "Error updating schedule");
             return Json(new { success = false, message = "An error occurred while updating schedule" });
         }
+    }
+
+    public class ClassScheduleUpdateDto : ClassScheduleDto
+    {
+        public int SchedId { get; set; }
     }
 
     [HttpDelete]

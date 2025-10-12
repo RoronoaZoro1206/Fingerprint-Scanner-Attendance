@@ -105,6 +105,7 @@
 
 .table {
     margin-bottom: 0;
+    width: 100% !important;
 }
 
 .table thead th {
@@ -118,6 +119,22 @@
     padding: 16px;
 }
 
+.table thead th:nth-child(1) {
+    width: 50px;
+}
+
+.table thead th:nth-child(2) {
+    width: auto;
+}
+
+.table thead th:nth-child(3) {
+    width: 200px;
+}
+
+.table thead th:nth-child(4) {
+    width: 100px;
+}
+
 .table tbody td {
     padding: 16px;
     vertical-align: middle;
@@ -127,6 +144,32 @@
 
 .table tbody tr:hover {
     background-color: #f9fafb;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.dataTables_wrapper {
+    width: 100%;
+}
+
+.table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 16px;
+}
+
+.left-controls {
+    display: flex;
+    align-items: center;
+}
+
+.right-controls {
+    display: flex;
+    align-items: center;
 }
 
 .action-buttons {
@@ -191,13 +234,15 @@
     margin-bottom: 8px;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
     border-radius: 8px;
     border: 1px solid #d1d5db;
     padding: 10px 12px;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus,
+.form-select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
@@ -210,6 +255,56 @@
 .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_filter {
     margin-bottom: 16px;
+}
+
+.dataTables_wrapper .dataTables_info {
+    padding-top: 16px;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.dataTables_wrapper .dataTables_paginate {
+    padding-top: 16px;
+    text-align: center;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 6px 12px;
+    margin: 0 2px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: #fff;
+    color: #374151;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background-color: #000;
+    border-color: #000;
+    color: #fff;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background-color: #333;
+    border-color: #333;
+    color: #fff;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
+    background-color: #fff;
+    border-color: #d1d5db;
 }
 
 .dataTables_wrapper .dataTables_length {
@@ -354,6 +449,54 @@ div.dt-buttons {
 #deleteScheduleModal .btn-danger:hover {
     background-color: #dc2626;
     border-color: #dc2626;
+}
+
+/* Expandable Row Styles */
+td.dt-control {
+    cursor: pointer;
+    text-align: center;
+}
+
+.expand-icon {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s;
+}
+
+.child-table {
+    width: 100%;
+    margin: 10px 0;
+    border-collapse: collapse;
+}
+
+.child-table thead th {
+    background-color: #f9fafb;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.child-table tbody td {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.child-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Schedule Entry Styles */
+.schedule-entry {
+    padding: 10px;
+    background-color: #f9fafb;
+    border-radius: 8px;
+}
+
+.schedule-entry .row {
+    align-items: center;
 }
 
 @media (max-width: 768px) {
