@@ -2,6 +2,7 @@ using DotNetEnv;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Repositories.Implementations;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,7 +51,26 @@ builder.Services.AddScoped<IFingerprintTemplateRepository, FingerprintTemplateRe
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
 
+// Add SuperAdminInitializer service
+builder.Services.AddScoped<SuperAdminInitializer>();
+
 var app = builder.Build();
+
+// Initialize super admin account
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var initializer = services.GetRequiredService<SuperAdminInitializer>();
+        await initializer.InitializeAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while initializing super admin account.");
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
