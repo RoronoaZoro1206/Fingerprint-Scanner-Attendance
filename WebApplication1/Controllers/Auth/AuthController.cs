@@ -3,7 +3,7 @@ using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Fingerprint_Attendance_System.Controllers.Admin;
+namespace Fingerprint_Attendance_System.Controllers.Auth;
 
 public class AuthController : Controller
 {
