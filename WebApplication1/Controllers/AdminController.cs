@@ -43,12 +43,17 @@ public class AdminController : Controller
         return View();
     }
     
-    public IActionResult Students()
+    public IActionResult StudentId()
     {
         return View();
     }
     
     public IActionResult Sections()
+    {
+        return View();
+    }
+    
+    public IActionResult Students()
     {
         return View();
     }
