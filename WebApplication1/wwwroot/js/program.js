@@ -21,24 +21,24 @@ $(document).ready(function () {
     $('#btnConfirmDelete').on('click', confirmDeleteProgram);
 
     // Export button handlers
-    $('#btnPrint').on('click', function(e) {
+    $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        programsTable.button('.buttons-print').trigger();
+        printPrograms();
     });
 
-    $('#btnExportExcel').on('click', function(e) {
+    $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        programsTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
-    $('#btnExportCSV').on('click', function(e) {
+    $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        programsTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
-    $('#btnExportPDF').on('click', function(e) {
+    $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        programsTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     // Reinitialize icons when dropdown is shown
@@ -75,15 +75,15 @@ function initializeDataTable() {
             }
         },
         columns: [
-            { 
+            {
                 data: 'programCode',
                 width: '15%'
             },
-            { 
+            {
                 data: 'programName',
                 width: '25%'
             },
-            { 
+            {
                 data: 'programDesc',
                 width: '45%',
                 render: function (data, type, row) {
@@ -113,8 +113,8 @@ function initializeDataTable() {
         pageLength: 10,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            '<"row"<"col-sm-12"tr>>' +
+            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
         buttons: [
             {
                 extend: 'excel',
@@ -173,17 +173,17 @@ function initializeDataTable() {
         initComplete: function () {
             // Add search icon to the search input
             const searchInput = $('.dataTables_filter input');
-            
+
             // Check if icon hasn't been added yet
             if (searchInput.parent().find('.search-icon').length === 0) {
                 // Wrap input in a container
                 searchInput.wrap('<div class="search-input-wrapper"></div>');
-                
+
                 // Add search icon before the input
                 searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-                
+
                 // Reinitialize Lucide icons
-                setTimeout(function() {
+                setTimeout(function () {
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
                     }
@@ -232,7 +232,7 @@ function showEditModal(programId) {
  */
 function saveProgram() {
     const form = $('#addProgramForm')[0];
-    
+
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -300,7 +300,7 @@ function saveProgram() {
  */
 function updateProgram() {
     const form = $('#editProgramForm')[0];
-    
+
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -371,7 +371,7 @@ function updateProgram() {
 function deleteProgram(programId) {
     // Store the program ID
     $('#deleteProgramId').val(programId);
-    
+
     // Show the confirmation modal
     $('#deleteProgramModal').modal('show');
 }
@@ -381,7 +381,7 @@ function deleteProgram(programId) {
  */
 function confirmDeleteProgram() {
     const programId = $('#deleteProgramId').val();
-    
+
     if (!programId) {
         Toast.error('Invalid program ID.');
         return;
@@ -418,4 +418,135 @@ function confirmDeleteProgram() {
             }
         }
     });
+}
+
+// Export Functions
+function getProgramsData() {
+    const data = [];
+    programsTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Code': rowData.programCode,
+            'Name': rowData.programName,
+            'Description': rowData.programDesc || 'No description'
+        });
+    });
+    return data;
+}
+
+function printPrograms() {
+    const printWindow = window.open('', '_blank');
+    const data = getProgramsData();
+
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Programs</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Programs</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row.Code}</td>
+            <td>${row.Name}</td>
+            <td>${row.Description}</td>
+        </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getProgramsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `programs_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getProgramsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `programs_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printPrograms();
 }

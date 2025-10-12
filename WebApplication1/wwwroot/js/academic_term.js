@@ -21,24 +21,24 @@ $(document).ready(function () {
     $('#btnConfirmDelete').on('click', confirmDeleteTerm);
 
     // Export button handlers
-    $('#btnPrint').on('click', function(e) {
+    $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        termsTable.button('.buttons-print').trigger();
+        printTerms();
     });
 
-    $('#btnExportExcel').on('click', function(e) {
+    $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        termsTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
-    $('#btnExportCSV').on('click', function(e) {
+    $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        termsTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
-    $('#btnExportPDF').on('click', function(e) {
+    $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        termsTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     // Reinitialize icons when dropdown is shown
@@ -91,25 +91,25 @@ function initializeDataTable() {
             }
         },
         columns: [
-            { 
+            {
                 data: 'termName',
                 width: '30%'
             },
-            { 
+            {
                 data: 'startDate',
                 width: '20%',
                 render: function (data, type, row) {
                     return formatDate(data);
                 }
             },
-            { 
+            {
                 data: 'endDate',
                 width: '20%',
                 render: function (data, type, row) {
                     return formatDate(data);
                 }
             },
-            { 
+            {
                 data: 'isActive',
                 width: '15%',
                 render: function (data, type, row) {
@@ -126,11 +126,11 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    const setActiveBtn = !row.isActive ? 
+                    const setActiveBtn = !row.isActive ?
                         `<button class="btn-action btn-activate" onclick="setActiveTerm(${row.termId})" title="Set as Active">
                             <i data-lucide="check-circle" class="icon-sm" style="color: #10b981;"></i>
                         </button>` : '';
-                    
+
                     return `
                         <div class="action-buttons">
                             ${setActiveBtn}
@@ -149,8 +149,8 @@ function initializeDataTable() {
         pageLength: 10,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            '<"row"<"col-sm-12"tr>>' +
+            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
         buttons: [
             {
                 extend: 'excel',
@@ -209,17 +209,17 @@ function initializeDataTable() {
         initComplete: function () {
             // Add search icon to the search input
             const searchInput = $('.dataTables_filter input');
-            
+
             // Check if icon hasn't been added yet
             if (searchInput.parent().find('.search-icon').length === 0) {
                 // Wrap input in a container
                 searchInput.wrap('<div class="search-input-wrapper"></div>');
-                
+
                 // Add search icon before the input
                 searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-                
+
                 // Reinitialize Lucide icons
-                setTimeout(function() {
+                setTimeout(function () {
                     if (typeof lucide !== 'undefined') {
                         lucide.createIcons();
                     }
@@ -269,7 +269,7 @@ function showEditModal(termId) {
  */
 function saveTerm() {
     const form = $('#addTermForm')[0];
-    
+
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -339,7 +339,7 @@ function saveTerm() {
  */
 function updateTerm() {
     const form = $('#editTermForm')[0];
-    
+
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -438,7 +438,7 @@ function setActiveTerm(termId) {
 function deleteTerm(termId) {
     // Store the term ID
     $('#deleteTermId').val(termId);
-    
+
     // Show the confirmation modal
     $('#deleteTermModal').modal('show');
 }
@@ -448,7 +448,7 @@ function deleteTerm(termId) {
  */
 function confirmDeleteTerm() {
     const termId = $('#deleteTermId').val();
-    
+
     if (!termId) {
         Toast.error('Invalid term ID.');
         return;
@@ -485,4 +485,138 @@ function confirmDeleteTerm() {
             }
         }
     });
+}
+
+// Export Functions
+function getTermsData() {
+    const data = [];
+    termsTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Term Name': rowData.termName,
+            'Start Date': formatDate(rowData.startDate),
+            'End Date': formatDate(rowData.endDate),
+            'Status': rowData.isActive ? 'Active' : 'Inactive'
+        });
+    });
+    return data;
+}
+
+function printTerms() {
+    const printWindow = window.open('', '_blank');
+    const data = getTermsData();
+
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Academic Terms</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Academic Terms</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Term Name</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row['Term Name']}</td>
+            <td>${row['Start Date']}</td>
+            <td>${row['End Date']}</td>
+            <td>${row.Status}</td>
+        </tr>`;
+    });
+
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getTermsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `academic_terms_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getTermsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `academic_terms_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printTerms();
 }
