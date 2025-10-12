@@ -1,8 +1,24 @@
+using DotNetEnv;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Repositories.Implementations;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Load .env file
+Env.Load();
+
+// Build connection string from environment variables
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "FingerprintAttendanceDB";
+var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
+var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? "";
+
+var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
+
+// Override the connection string in configuration
+builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
