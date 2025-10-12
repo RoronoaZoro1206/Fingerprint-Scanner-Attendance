@@ -49,7 +49,7 @@ public class ClassRepository : IClassRepository
             FROM classes c
             LEFT JOIN courses co ON c.course_id = co.course_id
             LEFT JOIN rooms r ON c.room_id = r.room_id
-            LEFT JOIN faculties f ON c.fac_id = f.fac_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
             LEFT JOIN users u ON f.user_id = u.user_id
             LEFT JOIN academic_terms t ON c.term_id = t.term_id
             ORDER BY c.class_id;";
@@ -75,10 +75,11 @@ public class ClassRepository : IClassRepository
             },
             Faculty = row["faculty_name"] == DBNull.Value ? null : new Faculty 
             { 
-                User = new User 
-                { 
-                    UserFirstName = row["faculty_name"].ToString() ?? "N/A" 
-                } 
+                User = new User
+                {
+                    UserFirstName = row["faculty_name"].ToString()?.Split(' ').FirstOrDefault() ?? "N/A",
+                    UserLastName = row["faculty_name"].ToString()?.Split(' ').Skip(1).FirstOrDefault() ?? ""
+                }
             },
             Term = row["term_name"] == DBNull.Value ? null : new AcademicTerm 
             { 

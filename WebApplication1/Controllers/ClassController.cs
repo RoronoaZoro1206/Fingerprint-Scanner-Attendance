@@ -13,6 +13,7 @@ public class ClassController : Controller
     private readonly IRoomRepository _roomRepository;
     private readonly IFacultyRepository _facultyRepository;
     private readonly IAcademicTermRepository _academicTermRepository;
+    private readonly IUserRepository _userRepository;
 
     public ClassController(
         ILogger<ClassController> logger, 
@@ -20,7 +21,8 @@ public class ClassController : Controller
         ICourseRepository courseRepository,
         IRoomRepository roomRepository,
         IFacultyRepository facultyRepository,
-        IAcademicTermRepository academicTermRepository)
+        IAcademicTermRepository academicTermRepository,
+        IUserRepository userRepository)
     {
         _logger = logger;
         _classRepository = classRepository;
@@ -28,6 +30,7 @@ public class ClassController : Controller
         _roomRepository = roomRepository;
         _facultyRepository = facultyRepository;
         _academicTermRepository = academicTermRepository;
+        _userRepository = userRepository;
     }
 
     // GET: Class/Index
@@ -125,7 +128,18 @@ public class ClassController : Controller
         try
         {
             var faculties = await _facultyRepository.GetAllAsync();
-            return Json(new { success = true, data = faculties });
+            var allUsers = await _userRepository.GetAllAsync();
+            var userDict = allUsers.ToDictionary(u => u.UserId);
+
+            var facultyList = faculties.Select(f => new
+            {
+                facId = f.FacId,
+                facName = userDict.ContainsKey(f.UserId) 
+                    ? $"{userDict[f.UserId].UserFirstName} {userDict[f.UserId].UserLastName}".Trim()
+                    : "Unknown"
+            });
+
+            return Json(new { success = true, data = facultyList });
         }
         catch (Exception ex)
         {

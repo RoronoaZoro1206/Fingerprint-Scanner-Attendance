@@ -31,22 +31,22 @@ $(document).ready(function () {
 
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        studentsTable.button('.buttons-print').trigger();
+        printStudents();
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        studentsTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        studentsTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        studentsTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     $('#exportDropdown').on('shown.bs.dropdown', function () {
@@ -481,4 +481,148 @@ function confirmDeleteStudent() {
             }
         }
     });
+}
+
+
+// Export Functions
+function getStudentsData() {
+    const data = [];
+    studentsTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        const yearLevel = rowData.studYearLevel ? 
+            rowData.studYearLevel + (rowData.studYearLevel == 1 ? 'st' : rowData.studYearLevel == 2 ? 'nd' : rowData.studYearLevel == 3 ? 'rd' : 'th') + ' Year' : 
+            'N/A';
+        data.push({
+            'Student Number': rowData.studNumber,
+            'Name': rowData.studName,
+            'Email': rowData.userEmail,
+            'Program': rowData.programName || 'No Program',
+            'Year Level': yearLevel,
+            'Section': rowData.sectionName || 'No Section'
+        });
+    });
+    return data;
+}
+
+function printStudents() {
+    const printWindow = window.open('', '_blank');
+    const data = getStudentsData();
+    
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Students</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Students</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student Number</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Program</th>
+                        <th>Year Level</th>
+                        <th>Section</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row['Student Number']}</td>
+            <td>${row.Name}</td>
+            <td>${row.Email}</td>
+            <td>${row.Program}</td>
+            <td>${row['Year Level']}</td>
+            <td>${row.Section}</td>
+        </tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getStudentsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `students_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getStudentsData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `students_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printStudents();
 }

@@ -19,22 +19,22 @@ $(document).ready(function () {
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        studentIdPoolTable.button('.buttons-print').trigger();
+        printStudentIdPool();
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        studentIdPoolTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        studentIdPoolTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        studentIdPoolTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     // Reinitialize icons when dropdown is shown
@@ -366,4 +366,142 @@ function confirmDelete() {
             }
         }
     });
+}
+
+
+// Export Functions
+function getStudentIdPoolData() {
+    const data = [];
+    studentIdPoolTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Student ID': rowData.studentIdCode,
+            'Status': rowData.isUsed ? 'Used' : 'Available',
+            'Generated At': rowData.generatedAt ? new Date(rowData.generatedAt).toLocaleString() : 'N/A',
+            'Used At': rowData.usedAt ? new Date(rowData.usedAt).toLocaleString() : 'Not used',
+            'Remarks': rowData.remarks || 'No remarks'
+        });
+    });
+    return data;
+}
+
+function printStudentIdPool() {
+    const printWindow = window.open('', '_blank');
+    const data = getStudentIdPoolData();
+    
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Student ID Pool</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Student ID Pool</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Status</th>
+                        <th>Generated At</th>
+                        <th>Used At</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row['Student ID']}</td>
+            <td>${row.Status}</td>
+            <td>${row['Generated At']}</td>
+            <td>${row['Used At']}</td>
+            <td>${row.Remarks}</td>
+        </tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getStudentIdPoolData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `student_id_pool_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getStudentIdPoolData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `student_id_pool_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printStudentIdPool();
 }

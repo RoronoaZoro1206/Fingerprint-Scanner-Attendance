@@ -29,22 +29,22 @@ $(document).ready(function () {
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        facultiesTable.button('.buttons-print').trigger();
+        printFaculties();
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        facultiesTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        facultiesTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        facultiesTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     // Reinitialize icons when dropdown is shown
@@ -483,4 +483,139 @@ function confirmDeleteFaculty() {
             }
         }
     });
+}
+
+
+// Export Functions
+function getFacultiesData() {
+    const data = [];
+    facultiesTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Name': rowData.facName,
+            'Email': rowData.userEmail,
+            'Department': rowData.deptName || 'No Department',
+            'Rank': rowData.facRank || 'Not Specified'
+        });
+    });
+    return data;
+}
+
+function printFaculties() {
+    const printWindow = window.open('', '_blank');
+    const data = getFacultiesData();
+    
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Faculty</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Faculty</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Department</th>
+                        <th>Rank</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row.Name}</td>
+            <td>${row.Email}</td>
+            <td>${row.Department}</td>
+            <td>${row.Rank}</td>
+        </tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getFacultiesData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `faculty_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getFacultiesData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `faculty_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printFaculties();
 }

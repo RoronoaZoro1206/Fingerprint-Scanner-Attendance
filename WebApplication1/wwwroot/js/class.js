@@ -34,22 +34,22 @@ $(document).ready(function () {
     // Export button handlers
     $('#btnPrint').on('click', function(e) {
         e.preventDefault();
-        classesTable.button('.buttons-print').trigger();
+        printClasses();
     });
 
     $('#btnExportExcel').on('click', function(e) {
         e.preventDefault();
-        classesTable.button('.buttons-excel').trigger();
+        exportToExcel();
     });
 
     $('#btnExportCSV').on('click', function(e) {
         e.preventDefault();
-        classesTable.button('.buttons-csv').trigger();
+        exportToCSV();
     });
 
     $('#btnExportPDF').on('click', function(e) {
         e.preventDefault();
-        classesTable.button('.buttons-pdf').trigger();
+        exportToPDF();
     });
 
     // Reinitialize icons when dropdown is shown
@@ -552,4 +552,139 @@ function confirmDeleteClass() {
             }
         }
     });
+}
+
+
+// Export Functions
+function getClassesData() {
+    const data = [];
+    classesTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Course': rowData.courseName,
+            'Room': rowData.roomName,
+            'Faculty': rowData.facultyName,
+            'Term': rowData.termName
+        });
+    });
+    return data;
+}
+
+function printClasses() {
+    const printWindow = window.open('', '_blank');
+    const data = getClassesData();
+    
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Classes</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Classes</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Course</th>
+                        <th>Room</th>
+                        <th>Faculty</th>
+                        <th>Term</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    data.forEach(row => {
+        html += `<tr>
+            <td>${row.Course}</td>
+            <td>${row.Room}</td>
+            <td>${row.Faculty}</td>
+            <td>${row.Term}</td>
+        </tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getClassesData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `classes_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getClassesData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `classes_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printClasses();
 }
