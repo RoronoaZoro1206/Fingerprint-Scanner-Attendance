@@ -5,6 +5,7 @@ public interface IClassScheduleRepository
 {
     Task<IEnumerable<ClassSchedule>> GetAllAsync();
     Task<ClassSchedule?> GetByIdAsync(int schedId);
+    Task<IEnumerable<ClassSchedule>> GetByClassIdAsync(int classId);
     Task<bool> AddAsync(ClassSchedule sched);
     Task<bool> UpdateAsync(ClassSchedule sched);
     Task<bool> DeleteAsync(int schedId);
