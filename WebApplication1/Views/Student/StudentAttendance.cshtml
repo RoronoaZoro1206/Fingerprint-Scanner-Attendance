@@ -1,0 +1,53 @@
+@{
+    ViewData["Title"] = "My Attendance Record";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Attendance Record</h1>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid" id="statsGrid">
+    <!-- Stats will be loaded here -->
+</div>
+
+<!-- Recent Attendance History -->
+<div class="attendance-history-section">
+    <h2 class="section-title">Recent Attendance History</h2>
+    
+    <div class="table-container">
+        <table class="attendance-table" id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Course</th>
+                    <th>Status</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <!-- Attendance records will be loaded here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-container">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2">Loading attendance records...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state-container" style="display: none;">
+        <i data-lucide="calendar-x" class="empty-icon"></i>
+        <h3>No Attendance Records</h3>
+        <p>You don't have any attendance records yet.</p>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/student_attendance.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/student_attendance.css" asp-append-version="true"/>
