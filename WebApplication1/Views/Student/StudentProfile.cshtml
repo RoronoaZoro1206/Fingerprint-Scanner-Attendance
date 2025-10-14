@@ -1,0 +1,121 @@
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Profile</h1>
+</div>
+
+<div class="profile-container">
+    <!-- Profile Card -->
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-avatar-section">
+                <div class="profile-avatar">
+                    <img id="profileImage" src="/images/profile/default_profile.png" alt="Profile Picture">
+                </div>
+                <div class="profile-basic-info">
+                    <h2 id="profileName" class="profile-name">Loading...</h2>
+                    <p id="profileEmail" class="profile-email">Loading...</p>
+                    <span id="profileStudentNumber" class="profile-student-number"></span>
+                </div>
+            </div>
+        </div>
+
+        <form id="profileForm">
+            <!-- Personal Information Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i data-lucide="user" class="section-icon"></i>
+                    Personal Information
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="middleName" class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="middleName">
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="lastName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gender" class="form-label">Gender</label>
+                        <select class="form-select" id="gender">
+                            <option value="">Select Gender...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="birthdate" class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="birthdate">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="address" class="form-label">Address</label>
+                    <textarea class="form-control" id="address" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Academic Information Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i data-lucide="graduation-cap" class="section-icon"></i>
+                    Academic Information
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="program" class="form-label">Program <span class="text-danger">*</span></label>
+                        <select class="form-select" id="program" required>
+                            <option value="">Select Program...</option>
+                        </select>
+                        <small class="form-text">Required for class enrollment</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="yearLevel" class="form-label">Year Level</label>
+                        <select class="form-select" id="yearLevel">
+                            <option value="">Select Year Level...</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="section" class="form-label">Section</label>
+                        <select class="form-select" id="section">
+                            <option value="">Select Section...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="loadProfile()">
+                    <i data-lucide="rotate-ccw" class="icon-sm"></i>
+                    Reset
+                </button>
+                <button type="submit" class="btn btn-primary" id="btnSaveProfile">
+                    <i data-lucide="save" class="icon-sm"></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/student_profile.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/student_profile.css" asp-append-version="true"/>

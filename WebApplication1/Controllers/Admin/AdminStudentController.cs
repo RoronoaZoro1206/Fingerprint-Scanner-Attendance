@@ -219,7 +219,7 @@ public class AdminStudentController : Controller
 
     // POST: Student/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Student student)
+    public async Task<IActionResult> Create([FromBody] Models.Student student)
     {
         try
         {
@@ -253,7 +253,7 @@ public class AdminStudentController : Controller
 
     // PUT: Student/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Student student)
+    public async Task<IActionResult> Update([FromBody] Models.Student student)
     {
         try
         {

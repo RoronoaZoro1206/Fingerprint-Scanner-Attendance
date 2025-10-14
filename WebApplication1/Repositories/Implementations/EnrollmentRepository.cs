@@ -16,7 +16,7 @@ public class EnrollmentRepository : IEnrollmentRepository
     public async Task<IEnumerable<Enrollment>> GetAllAsync()
     {
         string query = @"SELECT enroll_id, stud_id, class_id, enroll_at 
-                         FROM enrollments;";
+                         FROM enrollment;";
         var dt = await _db.ExecuteQueryAsync(query);
 
         return dt.AsEnumerable().Select(row => new Enrollment
@@ -64,9 +64,26 @@ public class EnrollmentRepository : IEnrollmentRepository
         });
     }
 
+    public async Task<IEnumerable<Enrollment>> GetByStudentIdAsync(int studId)
+    {
+        string query = @"SELECT enroll_id, stud_id, class_id, enroll_at 
+                         FROM enrollment WHERE stud_id = @studId;";
+        var parameters = new Dictionary<string, object> { { "@studId", studId } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new Enrollment
+        {
+            EnrollId = Convert.ToInt32(row["enroll_id"]),
+            StudId = Convert.ToInt32(row["stud_id"]),
+            ClassId = Convert.ToInt32(row["class_id"]),
+            EnrollAt = Convert.ToDateTime(row["enroll_at"])
+        });
+    }
+
     public async Task<bool> AddAsync(Enrollment enroll)
     {
-        string query = @"INSERT INTO enrollments (stud_id, class_id, enroll_at)
+        string query = @"INSERT INTO enrollment (stud_id, class_id, enroll_at)
                          VALUES (@stud, @class, @at);";
         var parameters = new Dictionary<string, object>
         {
@@ -80,7 +97,7 @@ public class EnrollmentRepository : IEnrollmentRepository
 
     public async Task<bool> UpdateAsync(Enrollment enroll)
     {
-        string query = @"UPDATE enrollments 
+        string query = @"UPDATE enrollment 
                          SET stud_id = @stud, class_id = @class, enroll_at = @at 
                          WHERE enroll_id = @id;";
         var parameters = new Dictionary<string, object>
@@ -96,7 +113,7 @@ public class EnrollmentRepository : IEnrollmentRepository
 
     public async Task<bool> DeleteAsync(int enrollId)
     {
-        string query = "DELETE FROM enrollments WHERE enroll_id = @id;";
+        string query = "DELETE FROM enrollment WHERE enroll_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", enrollId } };
 
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
@@ -104,7 +121,7 @@ public class EnrollmentRepository : IEnrollmentRepository
 
     public async Task<bool> ExistsAsync(int enrollId)
     {
-        string query = "SELECT COUNT(*) FROM enrollments WHERE enroll_id = @id;";
+        string query = "SELECT COUNT(*) FROM enrollment WHERE enroll_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", enrollId } };
         return await _db.RecordExistsAsync(query, parameters);
     }

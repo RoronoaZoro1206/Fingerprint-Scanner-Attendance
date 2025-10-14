@@ -87,7 +87,7 @@ public class AuthController : Controller
             {
                 USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
                 USER_ROLES.FACULTY => Url.Action("MyClasses", "Faculty") ?? "/Faculty",
-                USER_ROLES.STUDENT => Url.Action("Index", "AdminStudent") ?? "/Student",
+                USER_ROLES.STUDENT => Url.Action("Index", "StudentProfile") ?? "/Student",
                 _ => Url.Action("Index", "Auth") ?? "/Auth"
             };
 
@@ -249,7 +249,7 @@ public class AuthController : Controller
             }
 
             // Create student record
-            var student = new Student
+            var student = new Models.Student
             {
                 UserId = createdUser.UserId,
                 StudNumber = model.StudentId,
