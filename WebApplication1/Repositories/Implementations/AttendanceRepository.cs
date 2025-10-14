@@ -15,16 +15,17 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<IEnumerable<Attendance>> GetAllAsync()
     {
-        string query = @"SELECT attend_id, class_id, stud_id, attend_scantime, attend_type, attend_status, 
-                         attend_remark, attend_created_at FROM attendances;";
+        string query = @"SELECT attend_id, class_id, stud_id, attend_date, attend_scan_time, attend_type, attend_status, 
+                         attend_remark, attend_created_at FROM attendance;";
         var dt = await _db.ExecuteQueryAsync(query);
 
         return dt.AsEnumerable().Select(row => new Attendance
         {
             AttendId = Convert.ToInt32(row["attend_id"]),
-            ClassId = Convert.ToInt32(row["class_id"]),
-            StudId = Convert.ToInt32(row["stud_id"]),
-            AttendScanTime = Convert.ToDateTime(row["attend_scantime"]),
+            ClassId = row["class_id"] != DBNull.Value ? Convert.ToInt32(row["class_id"]) : (int?)null,
+            StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : (int?)null,
+            AttendDate = Convert.ToDateTime(row["attend_date"]),
+            AttendScanTime = Convert.ToDateTime(row["attend_scan_time"]),
             AttendType = Enum.Parse<ScanType>(row["attend_type"].ToString() ?? "In", true),
             AttendStatus = Enum.Parse<AttendanceStatus>(row["attend_status"].ToString() ?? "Pending", true),
             AttendRemark = row["attend_remark"]?.ToString(),
@@ -34,8 +35,8 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<Attendance?> GetByIdAsync(int attendId)
     {
-        string query = @"SELECT attend_id, class_id, stud_id, attend_scantime, attend_type, attend_status, 
-                         attend_remark, attend_created_at FROM attendances WHERE attend_id = @id;";
+        string query = @"SELECT attend_id, class_id, stud_id, attend_date, attend_scan_time, attend_type, attend_status, 
+                         attend_remark, attend_created_at FROM attendance WHERE attend_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", attendId } };
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -45,9 +46,10 @@ public class AttendanceRepository : IAttendanceRepository
         return new Attendance
         {
             AttendId = Convert.ToInt32(row["attend_id"]),
-            ClassId = Convert.ToInt32(row["class_id"]),
-            StudId = Convert.ToInt32(row["stud_id"]),
-            AttendScanTime = Convert.ToDateTime(row["attend_scantime"]),
+            ClassId = row["class_id"] != DBNull.Value ? Convert.ToInt32(row["class_id"]) : (int?)null,
+            StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : (int?)null,
+            AttendDate = Convert.ToDateTime(row["attend_date"]),
+            AttendScanTime = Convert.ToDateTime(row["attend_scan_time"]),
             AttendType = Enum.Parse<ScanType>(row["attend_type"].ToString() ?? "In", true),
             AttendStatus = Enum.Parse<AttendanceStatus>(row["attend_status"].ToString() ?? "Pending", true),
             AttendRemark = row["attend_remark"]?.ToString(),
@@ -57,15 +59,16 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<bool> AddAsync(Attendance attendance)
     {
-        string query = @"INSERT INTO attendances (class_id, stud_id, attend_scantime, attend_type, attend_status, attend_remark, attend_created_at)
-                         VALUES (@class, @stud, @scantime, @type, @status, @remark, @created);";
+        string query = @"INSERT INTO attendance (class_id, stud_id, attend_date, attend_scan_time, attend_type, attend_status, attend_remark, attend_created_at)
+                         VALUES (@class, @stud, @date, @scantime, @type, @status, @remark, @created);";
         var parameters = new Dictionary<string, object>
         {
-            { "@class", attendance.ClassId },
-            { "@stud", attendance.StudId },
+            { "@class", attendance.ClassId ?? (object)DBNull.Value },
+            { "@stud", attendance.StudId ?? (object)DBNull.Value },
+            { "@date", attendance.AttendDate },
             { "@scantime", attendance.AttendScanTime },
-            { "@type", attendance.AttendType.ToString() },
-            { "@status", attendance.AttendStatus.ToString() },
+            { "@type", attendance.AttendType.ToString().ToLower() },
+            { "@status", attendance.AttendStatus.ToString().ToLower() },
             { "@remark", attendance.AttendRemark ?? (object)DBNull.Value },
             { "@created", attendance.AttendCreatedAt }
         };
@@ -75,19 +78,20 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<bool> UpdateAsync(Attendance attendance)
     {
-        string query = @"UPDATE attendances 
-                         SET class_id = @class, stud_id = @stud, attend_scantime = @scantime,
+        string query = @"UPDATE attendance 
+                         SET class_id = @class, stud_id = @stud, attend_date = @date, attend_scan_time = @scantime,
                              attend_type = @type, attend_status = @status, attend_remark = @remark,
                              attend_created_at = @created
                          WHERE attend_id = @id;";
         var parameters = new Dictionary<string, object>
         {
             { "@id", attendance.AttendId },
-            { "@class", attendance.ClassId },
-            { "@stud", attendance.StudId },
+            { "@class", attendance.ClassId ?? (object)DBNull.Value },
+            { "@stud", attendance.StudId ?? (object)DBNull.Value },
+            { "@date", attendance.AttendDate },
             { "@scantime", attendance.AttendScanTime },
-            { "@type", attendance.AttendType.ToString() },
-            { "@status", attendance.AttendStatus.ToString() },
+            { "@type", attendance.AttendType.ToString().ToLower() },
+            { "@status", attendance.AttendStatus.ToString().ToLower() },
             { "@remark", attendance.AttendRemark ?? (object)DBNull.Value },
             { "@created", attendance.AttendCreatedAt }
         };
@@ -97,7 +101,7 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<bool> DeleteAsync(int attendId)
     {
-        string query = "DELETE FROM attendances WHERE attend_id = @id;";
+        string query = "DELETE FROM attendance WHERE attend_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", attendId } };
 
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
@@ -105,7 +109,7 @@ public class AttendanceRepository : IAttendanceRepository
 
     public async Task<bool> ExistsAsync(int attendId)
     {
-        string query = "SELECT COUNT(*) FROM attendances WHERE attend_id = @id;";
+        string query = "SELECT COUNT(*) FROM attendance WHERE attend_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", attendId } };
         return await _db.RecordExistsAsync(query, parameters);
     }

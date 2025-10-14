@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "My Enrolled Classes";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Enrolled Classes</h1>
+</div>
+
+<div id="classesContainer" class="classes-grid">
+    <!-- Classes will be loaded here -->
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" class="loading-container">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2">Loading your classes...</p>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="empty-state-container" style="display: none;">
+    <i data-lucide="book-open" class="empty-icon"></i>
+    <h3>No Classes Yet</h3>
+    <p>You haven't enrolled in any classes yet.</p>
+    <a href="/StudentEnrollment/Enrollment" class="btn btn-primary mt-3">
+        <i data-lucide="plus-circle" class="icon-sm"></i>
+        Enroll in Classes
+    </a>
+</div>
+
+@section Scripts {
+    <script src="~/js/student_class.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/student_class.css" asp-append-version="true"/>
