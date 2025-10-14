@@ -87,7 +87,7 @@ public class AuthController : Controller
             {
                 USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
                 USER_ROLES.FACULTY => Url.Action("MyClasses", "Faculty") ?? "/Faculty",
-                USER_ROLES.STUDENT => Url.Action("Index", "StudentProfile") ?? "/Student",
+                USER_ROLES.STUDENT => Url.Action("Index", "Student") ?? "/Student",
                 _ => Url.Action("Index", "Auth") ?? "/Auth"
             };
 

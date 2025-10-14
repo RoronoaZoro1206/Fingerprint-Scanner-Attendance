@@ -71,4 +71,34 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Handle mobile offcanvas link clicks
+    // For links with data-bs-dismiss="offcanvas", we need to manually navigate after closing
+    const offcanvasLinks = document.querySelectorAll('.offcanvas [data-bs-dismiss="offcanvas"]');
+    offcanvasLinks.forEach(link => {
+        link.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            
+            // Only handle if it's a valid navigation link (not # or javascript:)
+            if (href && href !== '#' && !href.startsWith('javascript:')) {
+                e.preventDefault(); // Prevent default navigation
+                
+                // Get the offcanvas instance
+                const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+                
+                if (offcanvas) {
+                    // Close the offcanvas
+                    offcanvas.hide();
+                    
+                    // Navigate after offcanvas is hidden
+                    offcanvasElement.addEventListener('hidden.bs.offcanvas', function () {
+                        window.location.href = href;
+                    }, { once: true }); // Use once: true to ensure it only fires once
+                } else {
+                    // If no offcanvas instance, just navigate
+                    window.location.href = href;
+                }
+            }
+        });
+    });
 });

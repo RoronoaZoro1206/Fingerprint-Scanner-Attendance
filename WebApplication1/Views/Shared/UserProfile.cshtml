@@ -1,0 +1,129 @@
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Profile</h1>
+</div>
+
+<div class="profile-container">
+    <!-- Profile Picture Section -->
+    <div class="profile-picture-section">
+        <div class="profile-picture-wrapper">
+            <img src="~/images/profile/default_profile.png" alt="Profile Picture" id="profilePicturePreview" class="profile-picture-large" />
+            <button type="button" class="btn-change-picture" id="btnChangePicture">
+                <i data-lucide="camera" class="icon-sm"></i>
+                Change Photo
+            </button>
+            <input type="file" id="profilePictureInput" accept="image/*" style="display: none;" />
+        </div>
+    </div>
+
+    <!-- Profile Information Form -->
+    <div class="profile-form-section">
+        <form id="profileForm">
+            <div class="form-section">
+                <h3 class="form-section-title">Personal Information</h3>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="firstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="firstName" required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="middleName" class="form-label">Middle Name</label>
+                        <input type="text" class="form-control" id="middleName" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="lastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="lastName" required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="gender" class="form-label">Gender</label>
+                        <select class="form-select" id="gender">
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="birthdate" class="form-label">Birthdate</label>
+                        <input type="date" class="form-control" id="birthdate" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="address" class="form-label">Address</label>
+                    <textarea class="form-control" id="address" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">Account Information</h3>
+                
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" required readonly />
+                    <small class="form-text text-muted">Email cannot be changed</small>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="btnCancel">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btnSave">
+                    <i data-lucide="save" class="icon-sm"></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="currentPassword" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="newPassword" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnChangePassword">Change Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/user_profile.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/user_profile.css" asp-append-version="true"/>

@@ -6,13 +6,13 @@
 <!-- Desktop Sidebar -->
 <aside class="sidebar d-none d-lg-flex">
     <div class="sidebar-header">
-        <div class="user-profile">
+        <a href="@Url.Action("Profile", "UserProfile")" class="user-profile">
             <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
             <div class="user-details">
                 <span class="user-name">@userName</span>
                 <span class="user-role">Student</span>
             </div>
-        </div>
+        </a>
     </div>
     
     <nav class="sidebar-nav">
@@ -55,37 +55,37 @@
     </div>
     <div class="offcanvas-body p-0">
         <div class="sidebar-header">
-            <div class="user-profile">
+            <a href="@Url.Action("Profile", "UserProfile")" class="user-profile" data-bs-dismiss="offcanvas">
                 <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
                 <div class="user-details">
                     <span class="user-name">@userName</span>
                     <span class="user-role">Student</span>
                 </div>
-            </div>
+            </a>
         </div>
         
         <nav class="sidebar-nav">
-            <a href="@Url.Action("Index", "AdminStudent")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("Index", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="user"></i>
                 <span>Profile</span>
             </a>
             
-            <a href="@Url.Action("MyClasses", "AdminStudent")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("StudentClasses", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="book-open"></i>
                 <span>My Classes</span>
             </a>
             
-            <a href="@Url.Action("Enrollment", "AdminStudent")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("StudentEnrollment", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="clipboard-list"></i>
                 <span>Enrollment</span>
             </a>
             
-            <a href="@Url.Action("MyAttendance", "AdminStudent")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("StudentAttendance", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="calendar-check"></i>
                 <span>My Attendance</span>
             </a>
             
-            <a href="@Url.Action("RegisterFingerprint", "AdminStudent")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("RegisterFingerprint", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="fingerprint"></i>
                 <span>Register Fingerprint</span>
             </a>

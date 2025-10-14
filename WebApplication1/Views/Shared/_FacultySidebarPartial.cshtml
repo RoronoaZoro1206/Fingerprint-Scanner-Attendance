@@ -6,13 +6,13 @@
 <!-- Desktop Sidebar -->
 <aside class="sidebar d-none d-lg-flex">
     <div class="sidebar-header">
-        <div class="user-profile">
+        <a href="@Url.Action("Profile", "UserProfile")" class="user-profile">
             <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
             <div class="user-details">
                 <span class="user-name">@userName</span>
                 <span class="user-role">Faculty</span>
             </div>
-        </div>
+        </a>
     </div>
     
     <nav class="sidebar-nav">
@@ -50,13 +50,13 @@
     </div>
     <div class="offcanvas-body p-0">
         <div class="sidebar-header">
-            <div class="user-profile">
+            <a href="@Url.Action("Profile", "UserProfile")" class="user-profile" data-bs-dismiss="offcanvas">
                 <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
                 <div class="user-details">
                     <span class="user-name">@userName</span>
                     <span class="user-role">Faculty</span>
                 </div>
-            </div>
+            </a>
         </div>
         
         <nav class="sidebar-nav">
