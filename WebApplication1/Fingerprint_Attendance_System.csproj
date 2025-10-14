@@ -25,14 +25,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Reference Include="libzkfpcsharp">
-	    <HintPath>..\..\..\Downloads\ZKFinger SDK 5.0.0.30 (32)\C#\lib\x64\libzkfpcsharp.dll</HintPath>
-	  </Reference>
+	  <Folder Include="Areas\" />
+	  <Folder Include="Services\" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Areas\" />
-	  <Folder Include="Services\" />
+	  <Reference Include="libzkfpcsharp">
+	    <HintPath>..\..\..\..\..\Downloads\SDK WINDOWS\ZKFingerSDK_Windows_Standard\ZKFinger Standard SDK 5.3.0.33\C#\lib\x64\libzkfpcsharp.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 
 </Project>
