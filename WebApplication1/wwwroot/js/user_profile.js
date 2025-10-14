@@ -62,6 +62,11 @@ function populateForm(data) {
     if (data.profileImage) {
         $('#profilePicturePreview').attr('src', `/images/profile/${data.profileImage}`);
     }
+
+    // Update header display
+    const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
+    $('#profileDisplayName').text(fullName || 'User');
+    $('#profileDisplayEmail').text(data.email || '');
 }
 
 /**
@@ -180,6 +185,9 @@ function handleProfileSubmit(e) {
                 originalData = { ...originalData, ...formData };
                 // Update sidebar name
                 $('.sidebar .user-name').text(`${formData.firstName} ${formData.lastName}`);
+                // Update header display
+                const fullName = `${formData.firstName} ${formData.middleName || ''} ${formData.lastName}`.trim();
+                $('#profileDisplayName').text(fullName);
             } else {
                 Toast.error(response.message);
             }

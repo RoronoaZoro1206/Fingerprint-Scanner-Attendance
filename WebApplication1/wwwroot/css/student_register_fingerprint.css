@@ -1,0 +1,494 @@
+/* Register Fingerprint Page */
+
+.register-fingerprint-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Page Header */
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem 0;
+}
+
+.page-description {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Status Cards Row */
+.status-cards-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.status-icon.online {
+    background: #d1fae5;
+}
+
+.status-icon.online svg {
+    width: 24px;
+    height: 24px;
+    color: #059669;
+}
+
+.status-icon.pending {
+    background: #fef3c7;
+}
+
+.status-icon.pending svg {
+    width: 24px;
+    height: 24px;
+    color: #d97706;
+}
+
+.status-icon.offline {
+    background: #fee2e2;
+}
+
+.status-icon.offline svg {
+    width: 24px;
+    height: 24px;
+    color: #dc2626;
+}
+
+.status-info {
+    flex: 1;
+}
+
+.status-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin: 0 0 0.25rem 0;
+}
+
+.status-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.status-value.online {
+    color: #059669;
+}
+
+.status-value.pending {
+    color: #d97706;
+}
+
+.status-value.registered {
+    color: #059669;
+}
+
+.status-value.offline {
+    color: #dc2626;
+}
+
+/* Scanner Card */
+.scanner-card {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Top Blue Bar */
+.scanner-card::before {
+    content: '';
+    width: 100%;
+    height: 80px;
+    background: #EEF3FF;
+    display: block;
+}
+
+/* User Icon Badge */
+.user-icon-badge {
+    width: 40px;
+    height: 40px;
+    background: #eff6ff;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -60px;
+    margin-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.user-icon-badge svg {
+    width: 20px;
+    height: 20px;
+    color: #3b82f6;
+}
+
+/* Scanner Box */
+.scanner-box {
+    width: calc(100% - 4rem);
+    max-width: 600px;
+    padding: 3rem 2rem;
+    margin: 0 2rem 2rem;
+    border: 1px solid #F3F3F5;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+/* Fingerprint Scanner */
+.fingerprint-scanner {
+    width: 300px;
+    height: 300px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fingerprint-scanner:hover {
+    transform: scale(1.02);
+}
+
+.fingerprint-scanner.scanning {
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    animation: pulse 1.5s ease-in-out;
+}
+
+.fingerprint-scanner.scanning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+    animation: scan 2s ease-in-out;
+}
+
+.fingerprint-scanner.success {
+    background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%);
+    animation: successPulse 0.6s ease-in-out;
+}
+
+.fingerprint-scanner.error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+    animation: shake 0.5s ease-in-out;
+}
+
+.fingerprint-icon {
+    width: 150px;
+    height: 150px;
+    color: #6b7280;
+    stroke-width: 2;
+    transition: all 0.3s ease;
+}
+
+.fingerprint-scanner.scanning .fingerprint-icon {
+    color: #2563eb;
+    animation: iconPulse 1.5s ease-in-out infinite;
+}
+
+.fingerprint-scanner.success .fingerprint-icon {
+    color: #059669;
+}
+
+.fingerprint-scanner.error .fingerprint-icon {
+    color: #dc2626;
+}
+
+/* Animations */
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+@keyframes scan {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+@keyframes iconPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes successPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-10px);
+    }
+
+    75% {
+        transform: translateX(10px);
+    }
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.4);
+    transform: scale(0);
+    animation: ripple 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Scan Button */
+.btn-scan {
+    width: 100%;
+    max-width: 500px;
+    padding: 0.875rem 1.5rem;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 0;
+}
+
+.btn-scan:hover {
+    background: #4b5563;
+}
+
+.btn-scan:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    width: calc(100% - 4rem);
+    max-width: 600px;
+    padding: 0 2rem 2rem;
+}
+
+.btn-register,
+.btn-cancel {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-register svg,
+.btn-cancel svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-register {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-register:hover {
+    background: #4b5563;
+}
+
+.btn-register:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    background: white;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+}
+
+/* Info Cards Row */
+.info-cards-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.info-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    background: #f0fdf4;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.info-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #16a34a;
+}
+
+.info-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.info-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 1rem 0;
+}
+
+.tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tips-list li {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.8;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+
+    .status-cards-row,
+    .info-cards-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+
+    .status-cards-row,
+    .info-cards-row {
+        grid-template-columns: 1fr;
+    }
+
+    .scanner-card {
+        padding: 2rem 1.5rem;
+    }
+
+    .fingerprint-scanner {
+        width: 260px;
+        height: 260px;
+    }
+
+    .fingerprint-icon {
+        width: 130px;
+        height: 130px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+}

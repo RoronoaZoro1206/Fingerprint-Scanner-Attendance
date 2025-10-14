@@ -2,123 +2,105 @@
     ViewData["Title"] = "My Profile";
 }
 
-<div class="page-header">
-    <h1 class="page-title">My Profile</h1>
-</div>
-
-<div class="profile-container">
-    <!-- Profile Picture Section -->
-    <div class="profile-picture-section">
-        <div class="profile-picture-wrapper">
-            <img src="~/images/profile/default_profile.png" alt="Profile Picture" id="profilePicturePreview" class="profile-picture-large" />
-            <button type="button" class="btn-change-picture" id="btnChangePicture">
-                <i data-lucide="camera" class="icon-sm"></i>
-                Change Photo
-            </button>
-            <input type="file" id="profilePictureInput" accept="image/*" style="display: none;" />
+<div class="profile-page">
+    <!-- Profile Header Card -->
+    <div class="profile-header-card">
+        <div class="profile-header-content">
+            <div class="profile-picture-container">
+                <div class="profile-picture-wrapper">
+                    <img src="~/images/profile/default_profile.png" alt="Profile Picture" id="profilePicturePreview" class="profile-picture" />
+                    <button type="button" class="btn-change-photo" id="btnChangePicture">
+                        <i data-lucide="camera"></i>
+                    </button>
+                    <input type="file" id="profilePictureInput" accept="image/*" style="display: none;" />
+                </div>
+            </div>
+            <div class="profile-header-info">
+                <h1 class="profile-name" id="profileDisplayName">Loading...</h1>
+                <p class="profile-email" id="profileDisplayEmail">Loading...</p>
+            </div>
         </div>
     </div>
 
-    <!-- Profile Information Form -->
-    <div class="profile-form-section">
+    <!-- Profile Form Card -->
+    <div class="profile-form-card">
         <form id="profileForm">
+            <!-- Personal Information Section -->
             <div class="form-section">
-                <h3 class="form-section-title">Personal Information</h3>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="firstName" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="firstName" required />
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="middleName" class="form-label">Middle Name</label>
-                        <input type="text" class="form-control" id="middleName" />
-                    </div>
+                <div class="section-header">
+                    <h2 class="section-title">Personal Information</h2>
+                    <p class="section-description">Update your personal details</p>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="lastName" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="lastName" required />
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="firstName" class="form-label">First Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" id="firstName" placeholder="Enter first name" required />
                     </div>
-                    <div class="col-md-6 mb-3">
+                    
+                    <div class="form-group">
+                        <label for="middleName" class="form-label">Middle Name</label>
+                        <input type="text" class="form-input" id="middleName" placeholder="Enter middle name" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lastName" class="form-label">Last Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" id="lastName" placeholder="Enter last name" required />
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="gender" class="form-label">Gender</label>
-                        <select class="form-select" id="gender">
-                            <option value="">Select Gender</option>
+                        <select class="form-input" id="gender">
+                            <option value="">Select gender</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
+                    
+                    <div class="form-group">
                         <label for="birthdate" class="form-label">Birthdate</label>
-                        <input type="date" class="form-control" id="birthdate" />
+                        <input type="date" class="form-input" id="birthdate" />
                     </div>
-                    <div class="col-md-6 mb-3">
+                    
+                    <div class="form-group">
                         <label for="phone" class="form-label">Phone Number</label>
-                        <input type="tel" class="form-control" id="phone" />
+                        <input type="tel" class="form-input" id="phone" placeholder="Enter phone number" />
                     </div>
                 </div>
 
-                <div class="mb-3">
+                <div class="form-group">
                     <label for="address" class="form-label">Address</label>
-                    <textarea class="form-control" id="address" rows="3"></textarea>
+                    <textarea class="form-input" id="address" rows="3" placeholder="Enter your address"></textarea>
                 </div>
             </div>
 
+            <!-- Account Information Section -->
             <div class="form-section">
-                <h3 class="form-section-title">Account Information</h3>
+                <div class="section-header">
+                    <h2 class="section-title">Account Information</h2>
+                    <p class="section-description">Your account details</p>
+                </div>
                 
-                <div class="mb-3">
+                <div class="form-group">
                     <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="email" required readonly />
-                    <small class="form-text text-muted">Email cannot be changed</small>
+                    <input type="email" class="form-input" id="email" readonly />
+                    <p class="form-hint">Email address cannot be changed</p>
                 </div>
             </div>
 
+            <!-- Form Actions -->
             <div class="form-actions">
-                <button type="button" class="btn btn-secondary" id="btnCancel">Cancel</button>
+                <button type="button" class="btn btn-secondary" id="btnCancel">
+                    <i data-lucide="x"></i>
+                    Cancel
+                </button>
                 <button type="submit" class="btn btn-primary" id="btnSave">
-                    <i data-lucide="save" class="icon-sm"></i>
+                    <i data-lucide="check"></i>
                     Save Changes
                 </button>
             </div>
         </form>
-    </div>
-</div>
-
-<!-- Change Password Modal -->
-<div class="modal fade" id="changePasswordModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Change Password</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="changePasswordForm">
-                    <div class="mb-3">
-                        <label for="currentPassword" class="form-label">Current Password</label>
-                        <input type="password" class="form-control" id="currentPassword" required />
-                    </div>
-                    <div class="mb-3">
-                        <label for="newPassword" class="form-label">New Password</label>
-                        <input type="password" class="form-control" id="newPassword" required />
-                    </div>
-                    <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
-                        <input type="password" class="form-control" id="confirmPassword" required />
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btnChangePassword">Change Password</button>
-            </div>
-        </div>
     </div>
 </div>
 

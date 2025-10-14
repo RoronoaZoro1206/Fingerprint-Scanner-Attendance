@@ -49,6 +49,11 @@ public class StudentController : Controller
         return View();
     }
     
+    public IActionResult StudentRegisterFingerprint()
+    {
+        return View();
+    }
+    
     public IActionResult StudentAttendance()
     {
         return View();
