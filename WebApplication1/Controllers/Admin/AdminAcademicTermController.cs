@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -8,11 +9,16 @@ public class AdminAcademicTermController : Controller
 {
     private readonly ILogger<AdminAcademicTermController> _logger;
     private readonly IAcademicTermRepository _academicTermRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminAcademicTermController(ILogger<AdminAcademicTermController> logger, IAcademicTermRepository academicTermRepository)
+    public AdminAcademicTermController(
+        ILogger<AdminAcademicTermController> logger, 
+        IAcademicTermRepository academicTermRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _academicTermRepository = academicTermRepository;
+        _auditService = auditService;
     }
 
     // GET: AcademicTerm/Index
@@ -78,6 +84,9 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Academic Term", 
+                    $"Created academic term: {term.TermName} ({term.StartDate:yyyy-MM-dd} to {term.EndDate:yyyy-MM-dd})");
                 return Json(new { success = true, message = "Academic term created successfully" });
             }
             return Json(new { success = false, message = "Failed to create academic term" });
@@ -110,6 +119,9 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Academic Term", 
+                    $"Updated academic term: {term.TermName} ({term.StartDate:yyyy-MM-dd} to {term.EndDate:yyyy-MM-dd})");
                 return Json(new { success = true, message = "Academic term updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update academic term" });
@@ -127,10 +139,14 @@ public class AdminAcademicTermController : Controller
     {
         try
         {
+            var term = await _academicTermRepository.GetByIdAsync(id);
             var result = await _academicTermRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Academic Term", 
+                    $"Deleted academic term: {term?.TermName}");
                 return Json(new { success = true, message = "Academic term deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete academic term" });
@@ -148,10 +164,14 @@ public class AdminAcademicTermController : Controller
     {
         try
         {
+            var term = await _academicTermRepository.GetByIdAsync(id);
             var result = await _academicTermRepository.SetActiveTermAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Set Active Academic Term", 
+                    $"Set active academic term to: {term?.TermName}");
                 return Json(new { success = true, message = "Active term set successfully" });
             }
             return Json(new { success = false, message = "Failed to set active term" });

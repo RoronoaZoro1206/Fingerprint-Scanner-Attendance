@@ -19,6 +19,7 @@ $(document).ready(function () {
     $('#btnSaveTerm').on('click', saveTerm);
     $('#btnUpdateTerm').on('click', updateTerm);
     $('#btnConfirmDelete').on('click', confirmDeleteTerm);
+    $('#btnConfirmSetActive').on('click', confirmSetActiveTerm);
 
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
@@ -49,7 +50,7 @@ $(document).ready(function () {
     });
 
     // Modal events - reinitialize icons when modal is shown
-    $('#addTermModal, #editTermModal, #deleteTermModal').on('shown.bs.modal', function () {
+    $('#addTermModal, #editTermModal, #deleteTermModal, #setActiveModal').on('shown.bs.modal', function () {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
@@ -407,12 +408,30 @@ function updateTerm() {
 }
 
 /**
- * Set Active Term
+ * Show Set Active Confirmation Modal
  */
 function setActiveTerm(termId) {
-    if (!confirm('Set this as the active academic term? This will deactivate the current active term.')) {
+    // Store the term ID
+    $('#setActiveTermId').val(termId);
+
+    // Show the confirmation modal
+    $('#setActiveModal').modal('show');
+}
+
+/**
+ * Confirm and Set Active Term
+ */
+function confirmSetActiveTerm() {
+    const termId = $('#setActiveTermId').val();
+
+    if (!termId) {
+        Toast.error('Invalid term ID.');
         return;
     }
+
+    // Disable button to prevent double submission
+    const $btn = $('#btnConfirmSetActive');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Setting...');
 
     $.ajax({
         url: `/AdminAcademicTerm/SetActive/${termId}`,
@@ -420,6 +439,7 @@ function setActiveTerm(termId) {
         success: function (response) {
             if (response.success) {
                 Toast.success('Active term set successfully!');
+                $('#setActiveModal').modal('hide');
                 termsTable.ajax.reload(null, false);
             } else {
                 Toast.error(response.message || 'Failed to set active term.');
@@ -428,6 +448,12 @@ function setActiveTerm(termId) {
         error: function (xhr) {
             console.error('Error:', xhr);
             Toast.error('Failed to set active term.');
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html('<i data-lucide="check-circle" class="icon-sm"></i> Set Active');
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
     });
 }
