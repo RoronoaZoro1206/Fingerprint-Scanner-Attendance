@@ -71,7 +71,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        string query = "SELECT * FROM users WHERE user_email = @email;";
+        string query = "SELECT * FROM users WHERE LOWER(user_email) = LOWER(@email);";
         var parameters = new Dictionary<string, object> { { "@email", email } };
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
