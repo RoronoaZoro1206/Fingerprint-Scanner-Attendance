@@ -41,16 +41,15 @@ function initializeDataTable() {
             {
                 data: null,
                 orderable: false,
+                searchable: false,
                 render: function(data, type, row) {
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-view" onclick="viewAudit(${row.audId})">
-                                <i data-lucide="eye"></i>
-                                View
+                            <button class="btn-action btn-view" onclick="viewAudit(${row.audId})" title="View Details">
+                                <i data-lucide="eye" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteAudit(${row.audId})">
-                                <i data-lucide="trash-2"></i>
-                                Delete
+                            <button class="btn-action btn-delete" onclick="deleteAudit(${row.audId})" title="Delete">
+                                <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
                     `;

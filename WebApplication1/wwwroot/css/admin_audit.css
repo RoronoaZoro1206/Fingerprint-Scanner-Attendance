@@ -83,51 +83,32 @@
     font-size: 0.9rem;
 }
 
-/* Action Buttons - Match other admin pages */
+/* Action Buttons - Match other admin pages (icon-only style) */
 .action-buttons {
     display: flex;
     gap: 0.5rem;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 .btn-action {
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
+    background: transparent;
     border: none;
-    font-size: 0.875rem;
-    font-weight: 500;
+    padding: 0.5rem;
     cursor: pointer;
+    border-radius: 6px;
     transition: all 0.2s;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
 }
 
-.btn-action i {
-    width: 16px;
-    height: 16px;
+.btn-action:hover {
+    background-color: #f3f4f6;
 }
 
-.btn-view {
-    background: #3b82f6;
-    color: white;
-    border: 1px solid #3b82f6;
-}
-
-.btn-view:hover {
-    background: #2563eb;
-    border-color: #2563eb;
-}
-
-.btn-delete {
-    background: #ef4444;
-    color: white;
-    border: 1px solid #ef4444;
-}
-
-.btn-delete:hover {
-    background: #dc2626;
-    border-color: #dc2626;
+.btn-action .icon-sm {
+    width: 18px;
+    height: 18px;
 }
 
 /* Badge Styles */
