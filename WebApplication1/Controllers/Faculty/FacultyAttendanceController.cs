@@ -43,7 +43,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
         // GET: FacultyAttendance/GetClassAttendance
         [HttpGet]
-        public async Task<IActionResult> GetClassAttendance(int classId)
+        public async Task<IActionResult> GetClassAttendance(int classId, string? date = null)
         {
             try
             {
@@ -80,10 +80,10 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 var studentDict = allStudents.ToDictionary(s => s.StudId);
                 var userDict = allUsers.ToDictionary(u => u.UserId);
 
-                // Get today's attendance
-                var today = DateTime.Today;
+                // Get attendance for the specified date (or today if not specified)
+                var targetDate = string.IsNullOrEmpty(date) ? DateTime.Today : DateTime.Parse(date);
                 var todayAttendance = allAttendance
-                    .Where(a => a.ClassId == classId && a.AttendDate.Date == today)
+                    .Where(a => a.ClassId == classId && a.AttendDate.Date == targetDate)
                     .GroupBy(a => a.StudId)
                     .ToDictionary(g => g.Key, g => g.OrderBy(a => a.AttendScanTime).ToList());
 
@@ -121,6 +121,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                         studId = student.StudId,
                         studentNumber = student.StudNumber,
                         name = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown",
+                        profileImage = user?.UserProfileImage ?? "default_profile.png",
                         timeIn = timeIn,
                         timeOut = timeOut,
                         status = status,
@@ -135,7 +136,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     {
                         courseCode = course?.CourseCode ?? "N/A",
                         courseName = course?.CourseName ?? "N/A",
-                        date = DateTime.Now.ToString("M/d/yyyy"),
+                        date = targetDate.ToString("M/d/yyyy"),
                         students = studentsData
                     }
                 });
@@ -172,28 +173,58 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     return Json(new { success = false, message = "Class not found or access denied" });
                 }
 
-                // Get today's attendance for this student
-                var today = DateTime.Today;
+                // Get attendance for the specified date
+                var targetDate = string.IsNullOrEmpty(request.Date) ? DateTime.Today : DateTime.Parse(request.Date);
+                var now = DateTime.Now;
                 var allAttendance = await _attendanceRepository.GetAllAsync();
-                var attendance = allAttendance
-                    .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == today)
-                    .OrderByDescending(a => a.AttendScanTime)
-                    .FirstOrDefault();
+                var attendanceRecords = allAttendance
+                    .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == targetDate)
+                    .ToList();
 
-                if (attendance == null)
+                bool result = false;
+                int updatedCount = 0;
+
+                if (!attendanceRecords.Any())
                 {
-                    return Json(new { success = false, message = "Attendance record not found" });
+                    // Create new attendance record if none exist
+                    var newAttendance = new Attendance
+                    {
+                        ClassId = request.ClassId,
+                        StudId = request.StudId,
+                        AttendDate = targetDate,
+                        AttendScanTime = now,
+                        AttendType = ScanType.In,
+                        AttendStatus = Enum.Parse<AttendanceStatus>(request.Status),
+                        AttendRemark = request.Remarks,
+                        AttendCreatedAt = now
+                    };
+
+                    result = await _attendanceRepository.AddAsync(newAttendance);
+                    if (result) updatedCount = 1;
                 }
+                else
+                {
+                    // Update all existing attendance records (both In and Out) with the same status and remark
+                    foreach (var attendance in attendanceRecords)
+                    {
+                        attendance.AttendStatus = Enum.Parse<AttendanceStatus>(request.Status);
+                        attendance.AttendRemark = request.Remarks;
 
-                // Update attendance
-                attendance.AttendStatus = Enum.Parse<AttendanceStatus>(request.Status);
-                attendance.AttendRemark = request.Remarks;
-
-                var result = await _attendanceRepository.UpdateAsync(attendance);
+                        var updateResult = await _attendanceRepository.UpdateAsync(attendance);
+                        if (updateResult)
+                        {
+                            updatedCount++;
+                        }
+                    }
+                    result = updatedCount > 0;
+                }
 
                 if (result)
                 {
-                    return Json(new { success = true, message = "Attendance updated successfully" });
+                    var message = updatedCount > 1 
+                        ? $"Attendance updated successfully ({updatedCount} records)" 
+                        : "Attendance updated successfully";
+                    return Json(new { success = true, message = message });
                 }
 
                 return Json(new { success = false, message = "Failed to update attendance" });
@@ -201,7 +232,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating attendance");
-                return Json(new { success = false, message = "Failed to update attendance" });
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
 
@@ -230,11 +261,11 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     return Json(new { success = false, message = "Class not found or access denied" });
                 }
 
-                // Get today's attendance for this student
-                var today = DateTime.Today;
+                // Get attendance for the specified date
+                var targetDate = string.IsNullOrEmpty(request.Date) ? DateTime.Today : DateTime.Parse(request.Date);
                 var allAttendance = await _attendanceRepository.GetAllAsync();
                 var attendanceRecords = allAttendance
-                    .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == today)
+                    .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == targetDate)
                     .ToList();
 
                 if (!attendanceRecords.Any())
@@ -301,41 +332,63 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 var allAttendance = await _attendanceRepository.GetAllAsync();
                 var todayAttendance = allAttendance
                     .Where(a => a.ClassId == request.ClassId && a.AttendDate.Date == today)
-                    .ToList();
+                    .GroupBy(a => a.StudId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
-                var existingStudentIds = todayAttendance.Select(a => a.StudId).ToHashSet();
-
-                int markedCount = 0;
+                int createdCount = 0;
+                int updatedCount = 0;
 
                 // Mark all students as present
                 foreach (var enrollment in enrollments)
                 {
-                    // Skip if already has attendance today
-                    if (existingStudentIds.Contains(enrollment.StudId))
-                        continue;
-
-                    var attendance = new Attendance
+                    if (todayAttendance.ContainsKey(enrollment.StudId))
                     {
-                        ClassId = request.ClassId,
-                        StudId = enrollment.StudId,
-                        AttendDate = today,
-                        AttendScanTime = now,
-                        AttendType = ScanType.In,
-                        AttendStatus = AttendanceStatus.Present,
-                        AttendCreatedAt = now
-                    };
-
-                    var result = await _attendanceRepository.AddAsync(attendance);
-                    if (result)
+                        // Update existing attendance records (both In and Out) to Present
+                        var studentRecords = todayAttendance[enrollment.StudId];
+                        foreach (var record in studentRecords)
+                        {
+                            record.AttendStatus = AttendanceStatus.Present;
+                            record.AttendRemark = "Marked present by faculty";
+                            
+                            var updateResult = await _attendanceRepository.UpdateAsync(record);
+                            if (updateResult)
+                            {
+                                updatedCount++;
+                            }
+                        }
+                    }
+                    else
                     {
-                        markedCount++;
+                        // Create new attendance record if none exists
+                        var attendance = new Attendance
+                        {
+                            ClassId = request.ClassId,
+                            StudId = enrollment.StudId,
+                            AttendDate = today,
+                            AttendScanTime = now,
+                            AttendType = ScanType.In,
+                            AttendStatus = AttendanceStatus.Present,
+                            AttendRemark = "Marked present by faculty",
+                            AttendCreatedAt = now
+                        };
+
+                        var result = await _attendanceRepository.AddAsync(attendance);
+                        if (result)
+                        {
+                            createdCount++;
+                        }
                     }
                 }
+
+                var totalAffected = createdCount + updatedCount;
+                var message = totalAffected > 0
+                    ? $"Marked all students as present ({createdCount} created, {updatedCount} updated)"
+                    : "No students to mark";
 
                 return Json(new
                 {
                     success = true,
-                    message = $"Marked {markedCount} student(s) as present"
+                    message = message
                 });
             }
             catch (Exception ex)
@@ -357,11 +410,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         public int StudId { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Remarks { get; set; }
+        public string? Date { get; set; }
     }
 
     public class DeleteAttendanceRequest
     {
         public int ClassId { get; set; }
         public int StudId { get; set; }
+        public string? Date { get; set; }
     }
 }

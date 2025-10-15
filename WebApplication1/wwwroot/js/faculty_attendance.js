@@ -4,6 +4,7 @@
 
 let attendanceTable;
 let currentClassId = null;
+let selectedDate = null;
 
 $(document).ready(function () {
     // Initialize Lucide icons
@@ -11,11 +12,17 @@ $(document).ready(function () {
         lucide.createIcons();
     }
 
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    $('#dateSelect').val(today);
+    selectedDate = today;
+
     // Load faculty classes for dropdown
     loadClassesDropdown();
 
     // Event handlers
     $('#classSelect').on('change', handleClassChange);
+    $('#dateSelect').on('change', handleDateChange);
     $('#btnMarkAllPresent').on('click', markAllPresent);
     $('#btnUpdateAttendance').on('click', updateAttendance);
     $('#btnConfirmDelete').on('click', confirmDeleteAttendance);
@@ -85,7 +92,7 @@ function populateClassDropdown(classes) {
  */
 function handleClassChange() {
     const classId = $('#classSelect').val();
-    
+
     if (!classId) {
         showEmptyState();
         $('#btnMarkAllPresent').prop('disabled', true);
@@ -93,14 +100,40 @@ function handleClassChange() {
     }
 
     currentClassId = parseInt(classId);
-    $('#btnMarkAllPresent').prop('disabled', false);
-    initializeDataTable(currentClassId);
+    loadAttendanceForDate();
+}
+
+/**
+ * Handle date selection change
+ */
+function handleDateChange() {
+    selectedDate = $('#dateSelect').val();
+
+    if (currentClassId) {
+        loadAttendanceForDate();
+    }
+}
+
+/**
+ * Load attendance for selected date
+ */
+function loadAttendanceForDate() {
+    if (!currentClassId || !selectedDate) {
+        return;
+    }
+
+    // Enable/disable Mark All Present button based on if date is today
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+    $('#btnMarkAllPresent').prop('disabled', !isToday);
+
+    initializeDataTable(currentClassId, selectedDate);
 }
 
 /**
  * Initialize DataTable
  */
-function initializeDataTable(classId) {
+function initializeDataTable(classId, date) {
     // Destroy existing table if it exists
     if (attendanceTable) {
         attendanceTable.destroy();
@@ -112,12 +145,12 @@ function initializeDataTable(classId) {
 
     attendanceTable = $('#attendanceTable').DataTable({
         ajax: {
-            url: `/FacultyAttendance/GetClassAttendance?classId=${classId}`,
+            url: `/FacultyAttendance/GetClassAttendance?classId=${classId}&date=${date}`,
             dataSrc: function (json) {
                 if (json.success) {
                     // Update card header
                     $('#classTitle').text(`${json.data.courseCode} - Attendance`);
-                    $('#classSubtitle').text(`Today's class • ${json.data.date}`);
+                    $('#classSubtitle').text(`${json.data.date}`);
                     return json.data.students;
                 }
                 Toast.error(json.message || 'Failed to load attendance');
@@ -135,7 +168,21 @@ function initializeDataTable(classId) {
             },
             {
                 data: 'name',
-                width: '25%'
+                width: '25%',
+                render: function (data, type, row) {
+                    const profileImage = row.profileImage && row.profileImage !== 'default_profile.png' 
+                        ? `/images/profile/${row.profileImage}` 
+                        : '/images/profile/default_profile.png';
+                    return `
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <img src="${profileImage}" 
+                                 alt="${data}" 
+                                 class="student-profile-img"
+                                 onerror="this.src='/images/profile/default_profile.png'">
+                            <span>${data}</span>
+                        </div>
+                    `;
+                }
             },
             {
                 data: 'timeIn',
@@ -157,12 +204,7 @@ function initializeDataTable(classId) {
                 render: function (data) {
                     const statusLower = data.toLowerCase();
                     const icon = getStatusIcon(statusLower);
-                    return `
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            ${icon}
-                            <span class="status-badge ${statusLower}">${data}</span>
-                        </div>
-                    `;
+                    return `<span class="status-badge ${statusLower}">${icon}${data}</span>`;
                 }
             },
             {
@@ -180,12 +222,12 @@ function initializeDataTable(classId) {
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
-                    `;
+                    `;d
                 }
             }
         ],
         order: [[0, 'asc']],
-        pageLength: 10,
+        pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
             '<"row"<"col-sm-12"tr>>' +
@@ -278,7 +320,8 @@ function updateAttendance() {
             classId: currentClassId,
             studId: parseInt(studId),
             status: status,
-            remarks: remarks
+            remarks: remarks,
+            date: selectedDate
         }),
         success: function (response) {
             if (response.success) {
@@ -331,7 +374,8 @@ function confirmDeleteAttendance() {
         contentType: 'application/json',
         data: JSON.stringify({
             classId: currentClassId,
-            studId: parseInt(studId)
+            studId: parseInt(studId),
+            date: selectedDate
         }),
         success: function (response) {
             if (response.success) {
@@ -398,7 +442,7 @@ function showEmptyState() {
         attendanceTable.destroy();
         attendanceTable = null;
     }
-    
+
     $('#attendanceCard').hide();
     $('#emptyState').show();
 

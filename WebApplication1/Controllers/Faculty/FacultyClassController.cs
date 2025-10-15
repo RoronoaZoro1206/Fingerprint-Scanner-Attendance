@@ -37,7 +37,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         // GET: FacultyClass/Index
         public IActionResult Index()
         {
-            return View("~/Views/Faculty/FacultyClasses.cshtml");
+            return View("~/Views/Faculty/Index.cshtml");
         }
 
         // GET: FacultyClass/GetMyClasses

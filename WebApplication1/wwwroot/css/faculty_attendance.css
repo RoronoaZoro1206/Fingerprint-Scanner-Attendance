@@ -45,6 +45,25 @@
     box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
 }
 
+.date-selector {
+    min-width: 180px;
+}
+
+.date-selector .form-control {
+    padding: 0.625rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    background-color: white;
+    cursor: pointer;
+}
+
+.date-selector .form-control:focus {
+    border-color: #1a1a1a;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+}
+
 .btn-primary {
     background: #1a1a1a;
     color: white;
@@ -214,6 +233,15 @@
 .icon-sm {
     width: 16px;
     height: 16px;
+}
+
+/* Student Profile Image */
+.student-profile-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
 }
 
 /* Empty State */

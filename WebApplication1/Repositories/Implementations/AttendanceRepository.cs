@@ -60,7 +60,7 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<bool> AddAsync(Attendance attendance)
     {
         string query = @"INSERT INTO attendance (class_id, stud_id, attend_date, attend_scan_time, attend_type, attend_status, attend_remark, attend_created_at)
-                         VALUES (@class, @stud, @date, @scantime, @type, @status, @remark, @created);";
+                         VALUES (@class, @stud, @date, @scantime, @type::scan_type_enum, @status::attendance_status, @remark, @created);";
         var parameters = new Dictionary<string, object>
         {
             { "@class", attendance.ClassId ?? (object)DBNull.Value },
@@ -80,7 +80,7 @@ public class AttendanceRepository : IAttendanceRepository
     {
         string query = @"UPDATE attendance 
                          SET class_id = @class, stud_id = @stud, attend_date = @date, attend_scan_time = @scantime,
-                             attend_type = @type, attend_status = @status, attend_remark = @remark,
+                             attend_type = @type::scan_type_enum, attend_status = @status::attendance_status, attend_remark = @remark,
                              attend_created_at = @created
                          WHERE attend_id = @id;";
         var parameters = new Dictionary<string, object>

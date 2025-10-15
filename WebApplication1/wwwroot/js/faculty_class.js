@@ -120,5 +120,5 @@ function showEmptyState() {
  * Navigate to attendance page for a class
  */
 function goToAttendance(classId) {
-    window.location.href = `/Faculty/Attendance?classId=${classId}`;
+    window.location.href = `/FacultyAttendance/Index?classId=${classId}`;
 }
