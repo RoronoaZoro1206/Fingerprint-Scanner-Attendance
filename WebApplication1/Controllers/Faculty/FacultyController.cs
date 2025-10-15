@@ -35,6 +35,11 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             return View();
         }
         
+        public IActionResult FacultyReports()
+        {
+            return View();
+        }
+        
         public IActionResult FacultyRegisterFingerprint()
         {
             return View();
