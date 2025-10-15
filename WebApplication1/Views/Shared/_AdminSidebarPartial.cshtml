@@ -16,81 +16,113 @@
     </div>
     
     <nav class="sidebar-nav">
+        <!-- Dashboard -->
         <a href="@Url.Action("Index", "Admin")" class="sidebar-link">
             <i data-lucide="layout-dashboard"></i>
             <span>Overview</span>
         </a>
         
-        <a href="@Url.Action("Users", "Admin")" class="sidebar-link">
-            <i data-lucide="users"></i>
-            <span>Manage Users</span>
-        </a>
+        <!-- User Management -->
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle" data-group="users">
+                <i data-lucide="users"></i>
+                <span>User Management</span>
+                <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="sidebar-group-content" data-group-content="users">
+                <a href="@Url.Action("Users", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="user-cog"></i>
+                    <span>Manage Users</span>
+                </a>
+                <a href="@Url.Action("Faculty", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="user-check"></i>
+                    <span>Faculty</span>
+                </a>
+                <a href="@Url.Action("Students", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="users-2"></i>
+                    <span>Students</span>
+                </a>
+                <a href="@Url.Action("StudentId", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="credit-card"></i>
+                    <span>Student ID Pool</span>
+                </a>
+            </div>
+        </div>
         
-        <a href="@Url.Action("AcademicTerms", "Admin")" class="sidebar-link">
-            <i data-lucide="book-text"></i>
-            <span>Academic Terms</span>
-        </a>
+        <!-- Academic Setup -->
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle" data-group="academic">
+                <i data-lucide="book-text"></i>
+                <span>Academic Setup</span>
+                <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="sidebar-group-content" data-group-content="academic">
+                <a href="@Url.Action("AcademicTerms", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="calendar"></i>
+                    <span>Academic Terms</span>
+                </a>
+                <a href="@Url.Action("Departments", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="building"></i>
+                    <span>Departments</span>
+                </a>
+                <a href="@Url.Action("Programs", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="book-open"></i>
+                    <span>Programs</span>
+                </a>
+                <a href="@Url.Action("Courses", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="graduation-cap"></i>
+                    <span>Courses</span>
+                </a>
+            </div>
+        </div>
         
-        <a href="@Url.Action("Departments", "Admin")" class="sidebar-link">
-            <i data-lucide="building"></i>
-            <span>Departments</span>
-        </a>
+        <!-- Class Management -->
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle" data-group="classes">
+                <i data-lucide="library-big"></i>
+                <span>Class Management</span>
+                <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="sidebar-group-content" data-group-content="classes">
+                <a href="@Url.Action("Sections", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="layout-panel-top"></i>
+                    <span>Sections</span>
+                </a>
+                <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="building-2"></i>
+                    <span>Rooms</span>
+                </a>
+                <a href="@Url.Action("Classes", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="library"></i>
+                    <span>Classes</span>
+                </a>
+                <a href="@Url.Action("ClassSchedules", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="clock"></i>
+                    <span>Class Schedules</span>
+                </a>
+            </div>
+        </div>
         
-        <a href="@Url.Action("Programs", "Admin")" class="sidebar-link">
-            <i data-lucide="book-open"></i>
-            <span>Programs</span>
-        </a>
+        <!-- System -->
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle" data-group="system">
+                <i data-lucide="settings"></i>
+                <span>System</span>
+                <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="sidebar-group-content" data-group-content="system">
+                <a href="@Url.Action("AdminRegisterFingerprint", "Admin")" class="sidebar-link sub-link">
+                    <i data-lucide="fingerprint"></i>
+                    <span>Register Fingerprint</span>
+                </a>
+                <a href="@Url.Action("Index", "AdminAudit")" class="sidebar-link sub-link">
+                    <i data-lucide="file-text"></i>
+                    <span>Audit Logs</span>
+                </a>
+            </div>
+        </div>
         
-        <a href="@Url.Action("Courses", "Admin")" class="sidebar-link">
-            <i data-lucide="graduation-cap"></i>
-            <span>Courses</span>
-        </a>
-        
-        <a href="@Url.Action("Faculty", "Admin")" class="sidebar-link">
-            <i data-lucide="user-check"></i>
-            <span>Faculty</span>
-        </a>
-        
-        <a href="@Url.Action("Sections", "Admin")" class="sidebar-link">
-            <i data-lucide="layout-panel-top"></i>
-            <span>Sections</span>
-        </a>
-        
-        <a href="@Url.Action("StudentId", "Admin")" class="sidebar-link">
-            <i data-lucide="credit-card"></i>
-            <span>Student ID</span>
-        </a>
-        
-        <a href="@Url.Action("Students", "Admin")" class="sidebar-link">
-            <i data-lucide="users-2"></i>
-            <span>Students</span>
-        </a>
-        
-        <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link">
-            <i data-lucide="building-2"></i>
-            <span>Rooms</span>
-        </a>
-        
-        <a href="@Url.Action("Classes", "Admin")" class="sidebar-link">
-            <i data-lucide="library-big"></i>
-            <span>Classes</span>
-        </a>
-        
-        <a href="@Url.Action("ClassSchedules", "Admin")" class="sidebar-link">
-            <i data-lucide="clock-plus"></i>
-            <span>Class Schedules</span>
-        </a>
-        
-        <a href="@Url.Action("AdminRegisterFingerprint", "Admin")" class="sidebar-link">
-            <i data-lucide="fingerprint"></i>
-            <span>Register Fingerprint</span>
-        </a>
-        
-        <a href="@Url.Action("Index", "AdminAudit")" class="sidebar-link">
-            <i data-lucide="file-text"></i>
-            <span>Audit Logs</span>
-        </a>
-        
+        <!-- Logout -->
         <a href="@Url.Action("Logout", "Auth")" class="sidebar-link">
             <i data-lucide="log-out"></i>
             <span>Logout</span>
@@ -115,81 +147,113 @@
         </div>
         
         <nav class="sidebar-nav">
+            <!-- Dashboard -->
             <a href="@Url.Action("Index", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="layout-dashboard"></i>
                 <span>Overview</span>
             </a>
             
-            <a href="@Url.Action("Users", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="users"></i>
-                <span>Manage Users</span>
-            </a>
+            <!-- User Management -->
+            <div class="sidebar-group">
+                <button class="sidebar-group-toggle" data-group="users-mobile">
+                    <i data-lucide="users"></i>
+                    <span>User Management</span>
+                    <i data-lucide="chevron-down" class="chevron"></i>
+                </button>
+                <div class="sidebar-group-content" data-group-content="users-mobile">
+                    <a href="@Url.Action("Users", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="user-cog"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    <a href="@Url.Action("Faculty", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="user-check"></i>
+                        <span>Faculty</span>
+                    </a>
+                    <a href="@Url.Action("Students", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="users-2"></i>
+                        <span>Students</span>
+                    </a>
+                    <a href="@Url.Action("StudentId", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="credit-card"></i>
+                        <span>Student ID Pool</span>
+                    </a>
+                </div>
+            </div>
             
-            <a href="@Url.Action("AcademicTerms", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="building"></i>
-                <span>Academic Terms</span>
-            </a>
+            <!-- Academic Setup -->
+            <div class="sidebar-group">
+                <button class="sidebar-group-toggle" data-group="academic-mobile">
+                    <i data-lucide="book-text"></i>
+                    <span>Academic Setup</span>
+                    <i data-lucide="chevron-down" class="chevron"></i>
+                </button>
+                <div class="sidebar-group-content" data-group-content="academic-mobile">
+                    <a href="@Url.Action("AcademicTerms", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="calendar"></i>
+                        <span>Academic Terms</span>
+                    </a>
+                    <a href="@Url.Action("Departments", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="building"></i>
+                        <span>Departments</span>
+                    </a>
+                    <a href="@Url.Action("Programs", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="book-open"></i>
+                        <span>Programs</span>
+                    </a>
+                    <a href="@Url.Action("Courses", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="graduation-cap"></i>
+                        <span>Courses</span>
+                    </a>
+                </div>
+            </div>
             
-            <a href="@Url.Action("Departments", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="users"></i>
-                <span>Departments</span>
-            </a>
+            <!-- Class Management -->
+            <div class="sidebar-group">
+                <button class="sidebar-group-toggle" data-group="classes-mobile">
+                    <i data-lucide="library-big"></i>
+                    <span>Class Management</span>
+                    <i data-lucide="chevron-down" class="chevron"></i>
+                </button>
+                <div class="sidebar-group-content" data-group-content="classes-mobile">
+                    <a href="@Url.Action("Sections", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="layout-panel-top"></i>
+                        <span>Sections</span>
+                    </a>
+                    <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="building-2"></i>
+                        <span>Rooms</span>
+                    </a>
+                    <a href="@Url.Action("Classes", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="library"></i>
+                        <span>Classes</span>
+                    </a>
+                    <a href="@Url.Action("ClassSchedules", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="clock"></i>
+                        <span>Class Schedules</span>
+                    </a>
+                </div>
+            </div>
             
-            <a href="@Url.Action("Programs", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="book-open"></i>
-                <span>Programs</span>
-            </a>
+            <!-- System -->
+            <div class="sidebar-group">
+                <button class="sidebar-group-toggle" data-group="system-mobile">
+                    <i data-lucide="settings"></i>
+                    <span>System</span>
+                    <i data-lucide="chevron-down" class="chevron"></i>
+                </button>
+                <div class="sidebar-group-content" data-group-content="system-mobile">
+                    <a href="@Url.Action("AdminRegisterFingerprint", "Admin")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="fingerprint"></i>
+                        <span>Register Fingerprint</span>
+                    </a>
+                    <a href="@Url.Action("Index", "AdminAudit")" class="sidebar-link sub-link" data-bs-dismiss="offcanvas">
+                        <i data-lucide="file-text"></i>
+                        <span>Audit Logs</span>
+                    </a>
+                </div>
+            </div>
             
-            <a href="@Url.Action("Courses", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="graduation-cap"></i>
-                <span>Courses</span>
-            </a>
-            
-            <a href="@Url.Action("Faculty", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="user-check"></i>
-                <span>Faculty</span>
-            </a>
-            
-            <a href="@Url.Action("Sections", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="layout-panel-top"></i>
-                <span>Sections</span>
-            </a>
-            
-            <a href="@Url.Action("StudentId", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="credit-card"></i>
-                <span>Student ID</span>
-            </a>
-            
-            <a href="@Url.Action("Students", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="users-2"></i>
-                <span>Students</span>
-            </a>
-            
-            <a href="@Url.Action("Rooms", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="building-2"></i>
-                <span>Rooms</span>
-            </a>
-            
-            <a href="@Url.Action("Classes", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="library-big"></i>
-                <span>Classes</span>
-            </a>
-            
-            <a href="@Url.Action("Classes", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="clock-plus"></i>
-                <span>Class Schedules</span>
-            </a>
-            
-            <a href="@Url.Action("AdminRegisterFingerprint", "Admin")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="fingerprint"></i>
-                <span>Register Fingerprint</span>
-            </a>
-            
-            <a href="@Url.Action("Index", "AdminAudit")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="file-text"></i>
-                <span>Audit Logs</span>
-            </a>
-            
+            <!-- Logout -->
             <a href="@Url.Action("Logout", "Auth")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="log-out"></i>
                 <span>Logout</span>

@@ -1,7 +1,10 @@
-// Sidebar active link handler
+// Sidebar active link handler and collapsible groups
 document.addEventListener('DOMContentLoaded', function () {
     // Get current path
     const currentPath = window.location.pathname.toLowerCase();
+
+    // Initialize collapsible sidebar groups
+    initializeSidebarGroups();
 
     // Function to set active links based on current URL
     function setActiveLinks() {
@@ -78,18 +81,18 @@ document.addEventListener('DOMContentLoaded', function () {
     offcanvasLinks.forEach(link => {
         link.addEventListener('click', function (e) {
             const href = this.getAttribute('href');
-            
+
             // Only handle if it's a valid navigation link (not # or javascript:)
             if (href && href !== '#' && !href.startsWith('javascript:')) {
                 e.preventDefault(); // Prevent default navigation
-                
+
                 // Get the offcanvas instance
                 const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
-                
+
                 if (offcanvas) {
                     // Close the offcanvas
                     offcanvas.hide();
-                    
+
                     // Navigate after offcanvas is hidden
                     offcanvasElement.addEventListener('hidden.bs.offcanvas', function () {
                         window.location.href = href;
@@ -102,3 +105,74 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+
+/**
+ * Initialize collapsible sidebar groups
+ */
+function initializeSidebarGroups() {
+    // Get all group toggles
+    const groupToggles = document.querySelectorAll('.sidebar-group-toggle');
+
+    groupToggles.forEach(toggle => {
+        toggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            const groupName = this.getAttribute('data-group');
+            const content = document.querySelector(`[data-group-content="${groupName}"]`);
+
+            if (content) {
+                // Toggle expanded class
+                const isExpanded = content.classList.contains('expanded');
+
+                if (isExpanded) {
+                    // Collapse
+                    content.classList.remove('expanded');
+                    this.classList.remove('expanded');
+                } else {
+                    // Expand
+                    content.classList.add('expanded');
+                    this.classList.add('expanded');
+                }
+
+                // Reinitialize Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        });
+    });
+
+    // Auto-expand group if current page is in that group
+    autoExpandActiveGroup();
+}
+
+/**
+ * Auto-expand the group containing the active link
+ */
+function autoExpandActiveGroup() {
+    const currentPath = window.location.pathname.toLowerCase();
+    const allLinks = document.querySelectorAll('.sidebar-link.sub-link');
+
+    allLinks.forEach(link => {
+        const linkPath = new URL(link.href).pathname.toLowerCase();
+
+        if (currentPath === linkPath || currentPath.startsWith(linkPath)) {
+            // Find parent group content
+            const groupContent = link.closest('.sidebar-group-content');
+            if (groupContent) {
+                const groupName = groupContent.getAttribute('data-group-content');
+                const toggle = document.querySelector(`[data-group="${groupName}"]`);
+
+                if (toggle && groupContent) {
+                    groupContent.classList.add('expanded');
+                    toggle.classList.add('expanded');
+                }
+            }
+        }
+    });
+
+    // Reinitialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
