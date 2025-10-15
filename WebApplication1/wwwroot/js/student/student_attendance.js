@@ -15,6 +15,34 @@ $(document).ready(function () {
 
     // Initialize DataTable
     initializeDataTable();
+
+    // Export button handlers
+    $('#btnPrint').on('click', function (e) {
+        e.preventDefault();
+        printAttendance();
+    });
+
+    $('#btnExportExcel').on('click', function (e) {
+        e.preventDefault();
+        exportToExcel();
+    });
+
+    $('#btnExportCSV').on('click', function (e) {
+        e.preventDefault();
+        exportToCSV();
+    });
+
+    $('#btnExportPDF').on('click', function (e) {
+        e.preventDefault();
+        exportToPDF();
+    });
+
+    // Reinitialize icons when dropdown is shown
+    $('#exportDropdown').on('shown.bs.dropdown', function () {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
 });
 
 /**
@@ -221,4 +249,148 @@ function formatDate(dateString) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+// Export Functions
+function getAttendanceData() {
+    const data = [];
+    attendanceTable.rows({ search: 'applied' }).every(function () {
+        const rowData = this.data();
+        data.push({
+            'Date': formatDate(rowData.date),
+            'Course': rowData.courseCode,
+            'Status': rowData.status,
+            'Time In': rowData.timeIn,
+            'Time Out': rowData.timeOut
+        });
+    });
+    return data;
+}
+
+function printAttendance() {
+    const printWindow = window.open('', '_blank');
+    const data = getAttendanceData();
+    
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>My Attendance Record</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1a1a1a; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+                th { background-color: #f9fafb; font-weight: 600; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+                .present { background: #d1fae5; color: #065f46; }
+                .late { background: #fef3c7; color: #92400e; }
+                .absent { background: #fee2e2; color: #991b1b; }
+                .excused { background: #dbeafe; color: #1e40af; }
+                .pending { background: #f3f4f6; color: #6b7280; }
+                @media print {
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>My Attendance Record</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Course</th>
+                        <th>Status</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    data.forEach(row => {
+        const statusClass = row.Status.toLowerCase();
+        html += `<tr>
+            <td>${row.Date}</td>
+            <td><strong>${row.Course}</strong></td>
+            <td><span class="badge ${statusClass}">${row.Status}</span></td>
+            <td>${row['Time In']}</td>
+            <td>${row['Time Out']}</td>
+        </tr>`;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+function exportToCSV() {
+    const data = getAttendanceData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let csv = headers.join(',') + '\n';
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            return `"${value.toString().replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `my_attendance_${new Date().getTime()}.csv`;
+    link.click();
+    Toast.success('CSV exported successfully');
+}
+
+function exportToExcel() {
+    const data = getAttendanceData();
+    if (data.length === 0) {
+        Toast.warning('No data to export');
+        return;
+    }
+    
+    const headers = Object.keys(data[0]);
+    let html = '<table><thead><tr>';
+    headers.forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        headers.forEach(header => {
+            html += `<td>${row[header] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `my_attendance_${new Date().getTime()}.xls`;
+    link.click();
+    Toast.success('Excel exported successfully');
+}
+
+function exportToPDF() {
+    Toast.info('PDF export requires additional library. Using print instead.');
+    printAttendance();
 }

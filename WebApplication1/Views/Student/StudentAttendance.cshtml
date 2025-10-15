@@ -5,6 +5,38 @@
 
 <div class="page-header">
     <h1 class="page-title">My Attendance Record</h1>
+    <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-print" id="btnPrint">
+            <i data-lucide="printer" class="icon-sm"></i>
+            Print
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-outline dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i data-lucide="download" class="icon-sm"></i>
+                Export
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportExcel">
+                        <i data-lucide="file-spreadsheet" class="icon-sm"></i>
+                        Excel
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportCSV">
+                        <i data-lucide="file-text" class="icon-sm"></i>
+                        CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportPDF">
+                        <i data-lucide="file" class="icon-sm"></i>
+                        PDF
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
 </div>
 
 <!-- Statistics Cards -->
