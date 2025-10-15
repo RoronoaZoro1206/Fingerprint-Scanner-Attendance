@@ -10,15 +10,18 @@ public class AdminAcademicTermController : Controller
     private readonly ILogger<AdminAcademicTermController> _logger;
     private readonly IAcademicTermRepository _academicTermRepository;
     private readonly AdminAuditService _auditService;
+    private readonly AcademicTermService _academicTermService;
 
     public AdminAcademicTermController(
         ILogger<AdminAcademicTermController> logger, 
         IAcademicTermRepository academicTermRepository,
-        AdminAuditService auditService)
+        AdminAuditService auditService,
+        AcademicTermService academicTermService)
     {
         _logger = logger;
         _academicTermRepository = academicTermRepository;
         _auditService = auditService;
+        _academicTermService = academicTermService;
     }
 
     // GET: AcademicTerm/Index
@@ -119,6 +122,12 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                // Refresh session if this is the active term
+                if (term.IsActive)
+                {
+                    await _academicTermService.RefreshActiveAcademicTermAsync();
+                }
+                
                 await _auditService.LogActionAsync(
                     "Updated Academic Term", 
                     $"Updated academic term: {term.TermName} ({term.StartDate:yyyy-MM-dd} to {term.EndDate:yyyy-MM-dd})");
@@ -144,6 +153,12 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                // Refresh session if the deleted term was active
+                if (term?.IsActive == true)
+                {
+                    await _academicTermService.RefreshActiveAcademicTermAsync();
+                }
+                
                 await _auditService.LogActionAsync(
                     "Deleted Academic Term", 
                     $"Deleted academic term: {term?.TermName}");
@@ -169,6 +184,9 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                // Refresh session with new active term
+                await _academicTermService.RefreshActiveAcademicTermAsync();
+                
                 await _auditService.LogActionAsync(
                     "Set Active Academic Term", 
                     $"Set active academic term to: {term?.TermName}");

@@ -58,6 +58,9 @@ builder.Services.AddScoped<SuperAdminInitializer>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AdminAuditService>();
 
+// Add AcademicTermService
+builder.Services.AddScoped<AcademicTermService>();
+
 var app = builder.Build();
 
 // Initialize super admin account

@@ -386,6 +386,13 @@ function updateTerm() {
                 Toast.updated('Academic Term');
                 $('#editTermModal').modal('hide');
                 termsTable.ajax.reload(null, false);
+                
+                // Trigger navbar update if active status changed
+                if (isActive) {
+                    if (typeof window.triggerAcademicTermUpdate === 'function') {
+                        window.triggerAcademicTermUpdate();
+                    }
+                }
             } else {
                 Toast.error(response.message || 'Failed to update academic term.');
             }
@@ -441,6 +448,11 @@ function confirmSetActiveTerm() {
                 Toast.success('Active term set successfully!');
                 $('#setActiveModal').modal('hide');
                 termsTable.ajax.reload(null, false);
+                
+                // Trigger navbar update
+                if (typeof window.triggerAcademicTermUpdate === 'function') {
+                    window.triggerAcademicTermUpdate();
+                }
             } else {
                 Toast.error(response.message || 'Failed to set active term.');
             }

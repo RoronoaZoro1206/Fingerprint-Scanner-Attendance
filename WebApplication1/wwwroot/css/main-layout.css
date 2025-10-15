@@ -400,3 +400,47 @@ body {
     color: #fff !important;
 }
 
+
+/* Academic Term Badge */
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.academic-term-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #0369a1;
+    transition: all 0.2s ease;
+}
+
+.academic-term-badge.inactive {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+    color: #6b7280;
+}
+
+.academic-term-badge .term-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.academic-term-badge .term-text {
+    white-space: nowrap;
+}
+
+/* Responsive - Hide term badge on small screens */
+@media (max-width: 768px) {
+    .academic-term-badge {
+        display: none;
+    }
+}
