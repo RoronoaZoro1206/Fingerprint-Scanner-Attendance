@@ -8,6 +8,16 @@ $(document).ready(function() {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
+    
+    // Event handler for confirm delete button
+    $('#btnConfirmDelete').on('click', confirmDeleteAudit);
+    
+    // Reinitialize icons when modal is shown
+    $('#deleteAuditModal, #viewModal').on('shown.bs.modal', function () {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
 });
 
 function initializeDataTable() {
@@ -60,7 +70,8 @@ function initializeDataTable() {
         pageLength: 25,
         responsive: true,
         language: {
-            search: "Search logs:",
+            search: "",
+            searchPlaceholder: "Search logs...",
             lengthMenu: "Show _MENU_ logs per page",
             info: "Showing _START_ to _END_ of _TOTAL_ logs",
             infoEmpty: "No logs available",
@@ -145,10 +156,20 @@ async function viewAudit(id) {
     }
 }
 
-async function deleteAudit(id) {
-    if (!confirm('Are you sure you want to delete this audit log? This action cannot be undone.')) {
-        return;
+function deleteAudit(id) {
+    // Store the ID and show the modal
+    document.getElementById('deleteAudId').value = id;
+    const modal = new bootstrap.Modal(document.getElementById('deleteAuditModal'));
+    modal.show();
+    
+    // Reinitialize Lucide icons in modal
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
     }
+}
+
+async function confirmDeleteAudit() {
+    const id = document.getElementById('deleteAudId').value;
     
     try {
         const response = await fetch(`/AdminAudit/Delete?id=${id}`, {
@@ -158,6 +179,10 @@ async function deleteAudit(id) {
         const result = await response.json();
         
         if (result.success) {
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAuditModal'));
+            modal.hide();
+            
             showToast('Audit log deleted successfully', 'success');
             auditTable.ajax.reload();
             loadStatistics();
