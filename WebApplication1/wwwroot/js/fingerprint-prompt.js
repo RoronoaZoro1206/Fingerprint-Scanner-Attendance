@@ -6,7 +6,6 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'fingerprintPromptShown';
     const DELAY_MS = 400;
     const AUTO_HIDE_MS = 10000; // Auto-hide after 10 seconds
 
@@ -14,16 +13,6 @@
     function shouldShowPrompt() {
         const roleId = document.body.dataset.roleId;
         return roleId === '1' || roleId === '2' || roleId === '3'; // 1 = Admin, 2 = Faculty, 3 = Student
-    }
-
-    // Check if prompt was already shown in this login session
-    function wasPromptShownThisSession() {
-        return sessionStorage.getItem(STORAGE_KEY) === 'true';
-    }
-
-    // Mark prompt as shown for this login session only
-    function markPromptAsShown() {
-        sessionStorage.setItem(STORAGE_KEY, 'true');
     }
 
     // Check fingerprint registration status
@@ -107,7 +96,6 @@
 
         // Add event listeners
         btnLater.addEventListener('click', () => {
-            markPromptAsShown();
             closeNotification(notification);
         });
 
@@ -116,7 +104,6 @@
         });
 
         btnClose.addEventListener('click', () => {
-            markPromptAsShown();
             closeNotification(notification);
         });
 
@@ -128,7 +115,6 @@
         // Auto-hide after delay
         setTimeout(() => {
             if (notification && notification.parentElement) {
-                markPromptAsShown();
                 closeNotification(notification);
             }
         }, AUTO_HIDE_MS);
@@ -152,18 +138,10 @@
             return;
         }
 
-        // Check if already shown in this login session
-        if (wasPromptShownThisSession()) {
-            return;
-        }
-
-        // Check fingerprint status
+        // Check fingerprint status every time (no session storage)
         const status = await checkFingerprintStatus();
 
         if (!status.hasFingerprint) {
-            // Mark as shown for this session
-            markPromptAsShown();
-
             // Show notification after delay
             setTimeout(() => {
                 showFingerprintNotification();
