@@ -117,12 +117,24 @@ public class FacultyReportController : Controller
                 var classItem = facultyClasses.FirstOrDefault(c => c.ClassId == group.Key.ClassId);
                 var course = classItem != null ? courses.FirstOrDefault(c => c.CourseId == classItem.CourseId) : null;
 
-                // Count statuses for this class session
-                var sessionAttendances = group.ToList();
-                var presentCount = sessionAttendances.Count(a => a.AttendStatus == AttendanceStatus.Present);
-                var lateCount = sessionAttendances.Count(a => a.AttendStatus == AttendanceStatus.Late);
-                var absentCount = sessionAttendances.Count(a => a.AttendStatus == AttendanceStatus.Absent);
-                var excusedCount = sessionAttendances.Count(a => a.AttendStatus == AttendanceStatus.Excused);
+                // Group by student to count each student only once per session
+                // Use the status from Time In record, or first available record
+                var studentStatuses = group
+                    .GroupBy(a => a.StudId)
+                    .Select(studentGroup => 
+                    {
+                        // Prefer Time In status, otherwise use first record
+                        var timeInRecord = studentGroup.FirstOrDefault(a => a.AttendType == ScanType.In);
+                        var status = timeInRecord?.AttendStatus ?? studentGroup.First().AttendStatus;
+                        return status;
+                    })
+                    .ToList();
+
+                // Count unique students by status
+                var presentCount = studentStatuses.Count(s => s == AttendanceStatus.Present);
+                var lateCount = studentStatuses.Count(s => s == AttendanceStatus.Late);
+                var absentCount = studentStatuses.Count(s => s == AttendanceStatus.Absent);
+                var excusedCount = studentStatuses.Count(s => s == AttendanceStatus.Excused);
 
                 attendanceRecords.Add(new
                 {
