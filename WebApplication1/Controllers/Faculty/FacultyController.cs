@@ -25,7 +25,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             _classScheduleRepository = classScheduleRepository;
         }
 
-        public IActionResult MyClasses()
+        public IActionResult Index()
         {
             return View();
         }

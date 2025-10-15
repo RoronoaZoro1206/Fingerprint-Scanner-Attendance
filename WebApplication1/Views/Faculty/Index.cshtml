@@ -1,0 +1,18 @@
+﻿@{
+    ViewData["Title"] = "My Classes";
+    Layout = "~/Views/Shared/_MainLayout.cshtml";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Classes</h1>
+</div>
+
+<div id="classesContainer" class="classes-grid">
+    <!-- Classes will be loaded here via JavaScript -->
+</div>
+
+@section Scripts {
+    <script src="~/js/faculty_class.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/faculty_class.css" asp-append-version="true"/>
