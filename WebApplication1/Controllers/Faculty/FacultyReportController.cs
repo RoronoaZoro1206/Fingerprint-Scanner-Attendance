@@ -32,7 +32,7 @@ public class FacultyReportController : Controller
 
     public IActionResult Records()
     {
-        return View("~/Views/Faculty/FacultyRecords.cshtml");
+        return View("~/Views/Faculty/FacultyReports.cshtml");
     }
 
     [HttpGet]
