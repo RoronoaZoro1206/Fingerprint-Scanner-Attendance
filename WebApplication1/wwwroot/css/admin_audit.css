@@ -3,50 +3,50 @@
     margin-bottom: 2rem;
 }
 
-/* Stat Cards - Custom styling for audit page */
+/* Stat Cards - Match Student Attendance style */
 .stat-card {
     background: white;
-    border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     gap: 1rem;
-    transition: all 0.2s;
-}
-
-.stat-card:hover {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .stat-icon {
-    width: 60px;
-    height: 60px;
+    width: 48px;
+    height: 48px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 .stat-icon.total {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: #dbeafe;
+    color: #3b82f6;
 }
 
 .stat-icon.today {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
+    background: #fef3c7;
+    color: #f59e0b;
 }
 
 .stat-icon.week {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    color: white;
+    background: #d1fae5;
+    color: #10b981;
 }
 
 .stat-icon.month {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    color: white;
+    background: #e0e7ff;
+    color: #6366f1;
+}
+
+.stat-icon svg {
+    width: 24px;
+    height: 24px;
 }
 
 .stat-content {
@@ -268,21 +268,12 @@
 /* Responsive */
 @media (max-width: 768px) {
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .stat-card {
-        padding: 1rem;
-    }
-
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.25rem;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
+        flex-direction: column;
+        text-align: center;
     }
 
     .action-buttons {
@@ -292,6 +283,12 @@
     .btn-action {
         width: 100%;
         justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
     }
 }
 
