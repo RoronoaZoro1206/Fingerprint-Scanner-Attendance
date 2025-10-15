@@ -1,10 +1,10 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const loginForm = document.querySelector('.login-form');
     const submitButton = loginForm.querySelector('.sign-in-btn');
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
 
-    loginForm.addEventListener('submit', async function(e) {
+    loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
 
         // Clear previous errors
@@ -32,7 +32,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 // Show success message
                 showSuccessMessage('Login successful! Redirecting...');
-                
+
+                // Set flag to trigger fingerprint prompt after redirect
+                sessionStorage.setItem('justLoggedIn', 'true');
+
                 // Redirect after a short delay
                 setTimeout(() => {
                     window.location.href = result.redirectUrl;
@@ -42,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.errors && Array.isArray(result.errors)) {
                     showGeneralErrors(result.errors);
                 }
-                
+
                 // Re-enable submit button
                 submitButton.disabled = false;
                 submitButton.textContent = 'Sign In';
@@ -50,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Login error:', error);
             showGeneralErrors(['An unexpected error occurred. Please try again.']);
-            
+
             // Re-enable submit button
             submitButton.disabled = false;
             submitButton.textContent = 'Sign In';
@@ -73,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'alert alert-danger';
         errorDiv.style.marginBottom = '1rem';
-        
+
         if (errors.length === 1) {
             errorDiv.textContent = errors[0];
         } else {
@@ -87,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             errorDiv.appendChild(ul);
         }
-        
+
         formContainer.insertBefore(errorDiv, loginForm);
     }
 
@@ -97,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
         successDiv.className = 'alert alert-success';
         successDiv.style.marginBottom = '1rem';
         successDiv.textContent = message;
-        
+
         formContainer.insertBefore(successDiv, loginForm);
     }
 });

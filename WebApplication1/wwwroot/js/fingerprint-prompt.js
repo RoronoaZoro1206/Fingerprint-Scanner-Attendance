@@ -6,6 +6,7 @@
 (function () {
     'use strict';
 
+    const LOGIN_FLAG_KEY = 'justLoggedIn';
     const DELAY_MS = 400;
     const AUTO_HIDE_MS = 10000; // Auto-hide after 10 seconds
 
@@ -13,6 +14,16 @@
     function shouldShowPrompt() {
         const roleId = document.body.dataset.roleId;
         return roleId === '1' || roleId === '2' || roleId === '3'; // 1 = Admin, 2 = Faculty, 3 = Student
+    }
+
+    // Check if user just logged in
+    function justLoggedIn() {
+        return sessionStorage.getItem(LOGIN_FLAG_KEY) === 'true';
+    }
+
+    // Clear the login flag
+    function clearLoginFlag() {
+        sessionStorage.removeItem(LOGIN_FLAG_KEY);
     }
 
     // Check fingerprint registration status
@@ -133,12 +144,20 @@
 
     // Initialize the prompt
     async function init() {
+        // Only show if user just logged in
+        if (!justLoggedIn()) {
+            return;
+        }
+
+        // Clear the login flag immediately
+        clearLoginFlag();
+
         // Check if we should show the prompt
         if (!shouldShowPrompt()) {
             return;
         }
 
-        // Check fingerprint status every time (no session storage)
+        // Check fingerprint status
         const status = await checkFingerprintStatus();
 
         if (!status.hasFingerprint) {
