@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -10,15 +11,21 @@ public class AdminUserController : Controller
     private readonly ILogger<AdminUserController> _logger;
     private readonly IUserRepository _userRepository;
     private readonly IUserRoleRepository _userRoleRepository;
+    private readonly IAdministrationRepository _administrationRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminUserController(
         ILogger<AdminUserController> logger,
         IUserRepository userRepository,
-        IUserRoleRepository userRoleRepository)
+        IUserRoleRepository userRoleRepository,
+        IAdministrationRepository administrationRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _userRepository = userRepository;
         _userRoleRepository = userRoleRepository;
+        _administrationRepository = administrationRepository;
+        _auditService = auditService;
     }
 
     // GET: User/Index
@@ -120,7 +127,7 @@ public class AdminUserController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
-            // Hash password before saving (you should use proper password hashing)
+            // Hash password before saving
             user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword);
             user.UserCreatedAt = DateTime.Now;
             user.UserUpdatedAt = DateTime.Now;
@@ -129,6 +136,46 @@ public class AdminUserController : Controller
 
             if (result)
             {
+                // Get the created user to get the user_id
+                var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
+                
+                if (createdUser != null)
+                {
+                    // Check if user role is admin (role_id = 1)
+                    if (createdUser.RoleId == 1)
+                    {
+                        // Generate unique admin code
+                        var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+                        
+                        // Create administration record
+                        var administration = new Administration
+                        {
+                            UserId = createdUser.UserId,
+                            AdminCode = adminCode,
+                            AdminCreatedAt = DateTime.Now
+                        };
+
+                        var adminResult = await _administrationRepository.AddAsync(administration);
+                        
+                        if (adminResult)
+                        {
+                            await _auditService.LogActionAsync(
+                                "Created Admin User", 
+                                $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Failed to create administration record for user {createdUser.UserId}");
+                        }
+                    }
+                    else
+                    {
+                        await _auditService.LogActionAsync(
+                            "Created User", 
+                            $"Created user: {createdUser.UserEmail}");
+                    }
+                }
+
                 return Json(new { success = true, message = "User created successfully" });
             }
             return Json(new { success = false, message = "Failed to create user" });
@@ -158,6 +205,11 @@ public class AdminUserController : Controller
                 return Json(new { success = false, message = "User not found" });
             }
 
+            // Check if role changed to/from admin
+            var roleChanged = existingUser.RoleId != user.RoleId;
+            var wasAdmin = existingUser.RoleId == 1;
+            var isNowAdmin = user.RoleId == 1;
+
             // If password is provided, hash it; otherwise keep existing
             if (!string.IsNullOrEmpty(user.UserPassword))
             {
@@ -175,6 +227,50 @@ public class AdminUserController : Controller
 
             if (result)
             {
+                // Handle administration record based on role change
+                if (roleChanged)
+                {
+                    if (isNowAdmin && !wasAdmin)
+                    {
+                        // User promoted to admin - create administration record
+                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+                        if (existingAdmin == null)
+                        {
+                            var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+                            var administration = new Administration
+                            {
+                                UserId = user.UserId,
+                                AdminCode = adminCode,
+                                AdminCreatedAt = DateTime.Now
+                            };
+
+                            await _administrationRepository.AddAsync(administration);
+                            await _auditService.LogActionAsync(
+                                "Promoted User to Admin", 
+                                $"User {user.UserEmail} promoted to admin with code {adminCode}");
+                        }
+                    }
+                    else if (wasAdmin && !isNowAdmin)
+                    {
+                        // User demoted from admin - optionally delete administration record
+                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+                        if (existingAdmin != null)
+                        {
+                            // Note: You might want to keep the record for audit purposes
+                            // await _administrationRepository.DeleteAsync(existingAdmin.AdminId);
+                            await _auditService.LogActionAsync(
+                                "Demoted Admin to User", 
+                                $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
+                        }
+                    }
+                }
+                else
+                {
+                    await _auditService.LogActionAsync(
+                        "Updated User", 
+                        $"Updated user: {user.UserEmail}");
+                }
+
                 return Json(new { success = true, message = "User updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update user" });
@@ -192,10 +288,19 @@ public class AdminUserController : Controller
     {
         try
         {
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
             var result = await _userRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted User", 
+                    $"Deleted user: {user.UserEmail} (Role ID: {user.RoleId})");
                 return Json(new { success = true, message = "User deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete user" });

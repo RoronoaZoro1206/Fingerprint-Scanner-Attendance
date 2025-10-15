@@ -25,11 +25,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Areas\" />
-	  <Folder Include="Services\" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <Reference Include="libzkfpcsharp">
 	    <HintPath>..\..\..\..\..\Downloads\SDK WINDOWS\ZKFingerSDK_Windows_Standard\ZKFinger Standard SDK 5.3.0.33\C#\lib\x64\libzkfpcsharp.dll</HintPath>
 	  </Reference>

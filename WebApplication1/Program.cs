@@ -54,6 +54,10 @@ builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
 // Add SuperAdminInitializer service
 builder.Services.AddScoped<SuperAdminInitializer>();
 
+// Add AdminAuditService
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AdminAuditService>();
+
 var app = builder.Build();
 
 // Initialize super admin account

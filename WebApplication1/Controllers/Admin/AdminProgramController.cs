@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -9,11 +10,16 @@ public class AdminProgramController : Controller
 {
     private readonly ILogger<AdminProgramController> _logger;
     private readonly IProgramRepository _programRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminProgramController(ILogger<AdminProgramController> logger, IProgramRepository programRepository)
+    public AdminProgramController(
+        ILogger<AdminProgramController> logger, 
+        IProgramRepository programRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _programRepository = programRepository;
+        _auditService = auditService;
     }
 
     // GET: Program/Index
@@ -74,6 +80,9 @@ public class AdminProgramController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Program", 
+                    $"Created program: {program.ProgramCode} - {program.ProgramName}");
                 return Json(new { success = true, message = "Program created successfully" });
             }
             return Json(new { success = false, message = "Failed to create program" });
@@ -100,6 +109,9 @@ public class AdminProgramController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Program", 
+                    $"Updated program: {program.ProgramCode} - {program.ProgramName}");
                 return Json(new { success = true, message = "Program updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update program" });
@@ -117,10 +129,14 @@ public class AdminProgramController : Controller
     {
         try
         {
+            var program = await _programRepository.GetByIdAsync(id);
             var result = await _programRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Program", 
+                    $"Deleted program: {program?.ProgramCode} - {program?.ProgramName}");
                 return Json(new { success = true, message = "Program deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete program" });

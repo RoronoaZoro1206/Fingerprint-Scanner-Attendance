@@ -16,7 +16,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
     public async Task<IEnumerable<AdministrationAudit>> GetAllAsync()
     {
         string query = @"SELECT aud_id, admin_id, aud_action, aud_details, aud_action_time 
-                         FROM administration_audits;";
+                         FROM administration_audit;";
         var dt = await _db.ExecuteQueryAsync(query);
 
         return dt.AsEnumerable().Select(row => new AdministrationAudit
@@ -32,7 +32,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
     public async Task<AdministrationAudit?> GetByIdAsync(int audId)
     {
         string query = @"SELECT aud_id, admin_id, aud_action, aud_details, aud_action_time 
-                         FROM administration_audits WHERE aud_id = @id;";
+                         FROM administration_audit WHERE aud_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", audId } };
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -51,7 +51,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
 
     public async Task<bool> AddAsync(AdministrationAudit audit)
     {
-        string query = @"INSERT INTO administration_audits (admin_id, aud_action, aud_details, aud_action_time)
+        string query = @"INSERT INTO administration_audit (admin_id, aud_action, aud_details, aud_action_time)
                          VALUES (@admin, @action, @details, @time);";
         var parameters = new Dictionary<string, object>
         {
@@ -66,7 +66,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
 
     public async Task<bool> UpdateAsync(AdministrationAudit audit)
     {
-        string query = @"UPDATE administration_audits 
+        string query = @"UPDATE administration_audit 
                          SET admin_id = @admin, aud_action = @action, aud_details = @details, aud_action_time = @time
                          WHERE aud_id = @id;";
         var parameters = new Dictionary<string, object>
@@ -83,7 +83,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
 
     public async Task<bool> DeleteAsync(int audId)
     {
-        string query = "DELETE FROM administration_audits WHERE aud_id = @id;";
+        string query = "DELETE FROM administration_audit WHERE aud_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", audId } };
 
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
@@ -91,7 +91,7 @@ public class AdministrationAuditRepository : IAdministrationAuditRepository
 
     public async Task<bool> ExistsAsync(int audId)
     {
-        string query = "SELECT COUNT(*) FROM administration_audits WHERE aud_id = @id;";
+        string query = "SELECT COUNT(*) FROM administration_audit WHERE aud_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", audId } };
         return await _db.RecordExistsAsync(query, parameters);
     }

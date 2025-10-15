@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -10,12 +11,18 @@ public class AdminCourseController : Controller
     private readonly ILogger<AdminCourseController> _logger;
     private readonly ICourseRepository _courseRepository;
     private readonly IProgramRepository _programRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminCourseController(ILogger<AdminCourseController> logger, ICourseRepository courseRepository, IProgramRepository programRepository)
+    public AdminCourseController(
+        ILogger<AdminCourseController> logger, 
+        ICourseRepository courseRepository, 
+        IProgramRepository programRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _courseRepository = courseRepository;
         _programRepository = programRepository;
+        _auditService = auditService;
     }
 
     // GET: Course/Index
@@ -105,6 +112,9 @@ public class AdminCourseController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Course", 
+                    $"Created course: {course.CourseCode} - {course.CourseName}");
                 return Json(new { success = true, message = "Course created successfully" });
             }
             return Json(new { success = false, message = "Failed to create course" });
@@ -131,6 +141,9 @@ public class AdminCourseController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Course", 
+                    $"Updated course: {course.CourseCode} - {course.CourseName}");
                 return Json(new { success = true, message = "Course updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update course" });
@@ -148,10 +161,14 @@ public class AdminCourseController : Controller
     {
         try
         {
+            var course = await _courseRepository.GetByIdAsync(id);
             var result = await _courseRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Course", 
+                    $"Deleted course: {course?.CourseCode} - {course?.CourseName}");
                 return Json(new { success = true, message = "Course deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete course" });

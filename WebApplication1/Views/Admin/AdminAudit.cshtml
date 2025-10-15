@@ -1,0 +1,129 @@
+@{
+    ViewData["Title"] = "Audit Logs";
+}
+
+<link rel="stylesheet" href="~/css/admin_audit.css" />
+
+<div class="audit-container">
+    <div class="page-header">
+        <h1 class="page-title">Audit Logs</h1>
+        <p class="page-description">Track and monitor all administrative actions</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon total">
+                <i data-lucide="file-text"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="totalLogs">0</div>
+                <div class="stat-label">Total Logs</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon today">
+                <i data-lucide="calendar"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="todayLogs">0</div>
+                <div class="stat-label">Today</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon week">
+                <i data-lucide="calendar-days"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="weekLogs">0</div>
+                <div class="stat-label">This Week</div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon month">
+                <i data-lucide="calendar-range"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="monthLogs">0</div>
+                <div class="stat-label">This Month</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="table-card">
+        <div class="table-header">
+            <h2 class="table-title">
+                <i data-lucide="list"></i>
+                Audit Trail
+            </h2>
+        </div>
+
+        <div class="table-responsive">
+            <table id="auditTable" class="display table" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Admin</th>
+                        <th>Admin Code</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                        <th>Date & Time</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- View Details Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewModalLabel">
+                    <i data-lucide="eye"></i>
+                    Audit Log Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-group">
+                    <label class="detail-label">Log ID:</label>
+                    <div class="detail-value" id="viewAudId"></div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Administrator:</label>
+                    <div class="detail-value" id="viewAdminName"></div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Admin Code:</label>
+                    <div class="detail-value" id="viewAdminCode"></div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Action:</label>
+                    <div class="detail-value" id="viewAction"></div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Details:</label>
+                    <div class="detail-value" id="viewDetails"></div>
+                </div>
+                <div class="detail-group">
+                    <label class="detail-label">Date & Time:</label>
+                    <div class="detail-value" id="viewDateTime"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/js/admin_audit.js"></script>

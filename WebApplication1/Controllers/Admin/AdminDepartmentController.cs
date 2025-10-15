@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -9,11 +10,16 @@ public class AdminDepartmentController : Controller
 {
     private readonly ILogger<AdminDepartmentController> _logger;
     private readonly IDepartmentRepository _departmentRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminDepartmentController(ILogger<AdminDepartmentController> logger, IDepartmentRepository departmentRepository)
+    public AdminDepartmentController(
+        ILogger<AdminDepartmentController> logger, 
+        IDepartmentRepository departmentRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _departmentRepository = departmentRepository;
+        _auditService = auditService;
     }
 
     // GET: Department/Index
@@ -81,6 +87,9 @@ public class AdminDepartmentController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Department", 
+                    $"Created department: {department.DeptCode} - {department.DeptName}");
                 return Json(new { success = true, message = "Department created successfully" });
             }
             return Json(new { success = false, message = "Failed to create department" });
@@ -120,6 +129,9 @@ public class AdminDepartmentController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Department", 
+                    $"Updated department: {department.DeptCode} - {department.DeptName}");
                 return Json(new { success = true, message = "Department updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update department" });
@@ -143,10 +155,14 @@ public class AdminDepartmentController : Controller
                 return Json(new { success = false, message = "Department not found" });
             }
 
+            var department = await _departmentRepository.GetByIdAsync(id);
             var result = await _departmentRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Department", 
+                    $"Deleted department: {department?.DeptCode} - {department?.DeptName}");
                 return Json(new { success = true, message = "Department deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete department" });

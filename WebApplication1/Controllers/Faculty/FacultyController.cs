@@ -29,6 +29,11 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         {
             return View();
         }
+        
+        public IActionResult FacultyRegisterFingerprint()
+        {
+            return View();
+        }
 
         // GET: Faculty/GetMyClasses
         [HttpGet]
