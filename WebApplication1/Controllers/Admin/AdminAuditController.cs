@@ -31,13 +31,42 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         }
 
         [HttpGet]
+        public async Task<IActionResult> Test()
+        {
+            try
+            {
+                var audits = await _auditRepo.GetAllAsync();
+                return Json(new { 
+                    success = true, 
+                    count = audits.Count(),
+                    audits = audits.Select(a => new {
+                        a.AudId,
+                        a.AdminId,
+                        a.AudAction,
+                        a.AudDetails,
+                        a.AudActionTime
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message, stackTrace = ex.StackTrace });
+            }
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             try
             {
                 var audits = await _auditRepo.GetAllAsync();
+                _logger.LogInformation($"Found {audits.Count()} audit logs");
+                
                 var admins = await _adminRepo.GetAllAsync();
+                _logger.LogInformation($"Found {admins.Count()} admins");
+                
                 var users = await _userRepo.GetAllAsync();
+                _logger.LogInformation($"Found {users.Count()} users");
 
                 var auditData = audits.Select(audit =>
                 {
@@ -54,8 +83,9 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                         audDetails = audit.AudDetails ?? "",
                         audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
                     };
-                }).OrderByDescending(a => a.audActionTime);
+                }).OrderByDescending(a => a.audActionTime).ToList();
 
+                _logger.LogInformation($"Returning {auditData.Count} audit records");
                 return Json(new { data = auditData });
             }
             catch (Exception ex)

@@ -14,7 +14,11 @@ function initializeDataTable() {
     auditTable = $('#auditTable').DataTable({
         ajax: {
             url: '/AdminAudit/GetAll',
-            dataSrc: 'data'
+            dataSrc: 'data',
+            error: function(xhr, error, code) {
+                console.error('DataTables AJAX error:', error, code);
+                console.error('Response:', xhr.responseText);
+            }
         },
         columns: [
             { data: 'audId' },
@@ -95,12 +99,17 @@ async function loadStatistics() {
         const response = await fetch('/AdminAudit/GetStats');
         const result = await response.json();
         
+        console.log('Stats response:', result);
+        
         if (result.success) {
             const stats = result.data;
+            console.log('Stats data:', stats);
             document.getElementById('totalLogs').textContent = stats.totalLogs;
             document.getElementById('todayLogs').textContent = stats.todayLogs;
             document.getElementById('weekLogs').textContent = stats.weekLogs;
             document.getElementById('monthLogs').textContent = stats.monthLogs;
+        } else {
+            console.error('Stats request failed:', result.message);
         }
     } catch (error) {
         console.error('Error loading statistics:', error);

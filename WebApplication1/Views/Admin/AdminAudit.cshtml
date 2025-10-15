@@ -4,14 +4,12 @@
 
 <link rel="stylesheet" href="~/css/admin_audit.css" />
 
-<div class="audit-container">
-    <div class="page-header">
-        <h1 class="page-title">Audit Logs</h1>
-        <p class="page-description">Track and monitor all administrative actions</p>
-    </div>
+<div class="page-header">
+    <h1 class="page-title">Audit Logs</h1>
+</div>
 
-    <!-- Statistics Cards -->
-    <div class="stats-grid">
+<!-- Statistics Cards -->
+<div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon total">
                 <i data-lucide="file-text"></i>
@@ -53,17 +51,11 @@
         </div>
     </div>
 
-    <!-- Audit Logs Table -->
-    <div class="table-card">
-        <div class="table-header">
-            <h2 class="table-title">
-                <i data-lucide="list"></i>
-                Audit Trail
-            </h2>
-        </div>
-
+<!-- Audit Logs Table -->
+<div class="card">
+    <div class="card-body">
         <div class="table-responsive">
-            <table id="auditTable" class="display table" style="width:100%">
+            <table id="auditTable" class="table table-hover" style="width:100%">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -126,4 +118,6 @@
     </div>
 </div>
 
-<script src="~/js/admin_audit.js"></script>
+@section Scripts {
+    <script src="~/js/admin_audit.js"></script>
+}
