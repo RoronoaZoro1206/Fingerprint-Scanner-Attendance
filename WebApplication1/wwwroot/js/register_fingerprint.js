@@ -17,6 +17,14 @@ $(document).ready(function () {
     $('#btnScan').on('click', handleScannerClick);
     $('#btnRegister').on('click', handleRegister);
     $('#btnCancel').on('click', handleCancel);
+    $('#btnConfirmCancel').on('click', confirmCancel);
+
+    // Modal events - reinitialize icons when modal is shown
+    $('#cancelModal').on('shown.bs.modal', function () {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
 
     // Disable register button initially
     $('#btnRegister').prop('disabled', true);
@@ -151,14 +159,25 @@ function handleRegister() {
 }
 
 /**
- * Handle cancel
+ * Handle cancel - show confirmation modal
  */
 function handleCancel() {
-    if (confirm('Cancel fingerprint registration?')) {
-        scanCount = 0;
-        isScanning = false;
-        $('#fingerprintScanner').removeClass('scanning success error');
-        $('#btnScan').prop('disabled', false).text('Scan Fingerprint');
-        $('#btnRegister').prop('disabled', true);
-    }
+    // Show the confirmation modal
+    $('#cancelModal').modal('show');
+}
+
+/**
+ * Confirm cancel - reset the registration
+ */
+function confirmCancel() {
+    scanCount = 0;
+    isScanning = false;
+    $('#fingerprintScanner').removeClass('scanning success error');
+    $('#btnScan').prop('disabled', false).text('Scan Fingerprint');
+    $('#btnRegister').prop('disabled', true);
+    
+    // Hide the modal
+    $('#cancelModal').modal('hide');
+    
+    Toast.info('Registration cancelled');
 }

@@ -93,6 +93,34 @@
     </div>
 </div>
 
+<!-- Cancel Confirmation Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3">
+                    <div class="delete-icon-wrapper">
+                        <i data-lucide="alert-triangle" class="delete-icon"></i>
+                    </div>
+                </div>
+                <h5 class="modal-title mb-2" id="cancelModalLabel">Cancel Registration?</h5>
+                <p class="text-muted mb-0">Are you sure you want to cancel fingerprint registration?</p>
+                <p class="text-muted">All scan progress will be lost.</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">No, Continue</button>
+                <button type="button" class="btn btn-danger px-4" id="btnConfirmCancel">
+                    <i data-lucide="x-circle" class="icon-sm"></i>
+                    Yes, Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="~/js/register_fingerprint.js" asp-append-version="true"></script>
 }
