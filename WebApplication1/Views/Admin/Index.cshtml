@@ -1,3 +1,82 @@
 @{
-    ViewData["Title"] = "Overview";
+    ViewData["Title"] = "Dashboard Overview";
+}
+
+<link rel="stylesheet" href="~/css/admin_overview.css" />
+
+<div class="page-header">
+    <h1 class="page-title">Dashboard Overview</h1>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon users">
+            <i data-lucide="users"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value" id="totalUsers">0</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon courses">
+            <i data-lucide="graduation-cap"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value" id="totalCourses">0</div>
+            <div class="stat-label">Courses</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon faculty">
+            <i data-lucide="user-check"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value" id="totalFaculty">0</div>
+            <div class="stat-label">Faculty</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon rooms">
+            <i data-lucide="building-2"></i>
+        </div>
+        <div class="stat-content">
+            <div class="stat-value" id="totalRooms">0</div>
+            <div class="stat-label">Rooms</div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Recent Activity -->
+    <div class="card activity-card">
+        <h2 class="card-title">Recent Activity</h2>
+        <div id="recentActivity" class="activity-list">
+            <!-- Activities will be loaded here -->
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="card status-card">
+        <h2 class="card-title">System Status</h2>
+        <div class="status-list">
+            <div class="status-item">
+                <span class="status-label">Database Connection</span>
+                <span class="status-badge" id="dbStatus">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Biometric Scanner</span>
+                <span class="status-badge status-online">Online</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin_overview.js"></script>
 }
