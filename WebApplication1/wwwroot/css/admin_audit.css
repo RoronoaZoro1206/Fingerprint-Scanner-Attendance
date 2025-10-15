@@ -177,11 +177,16 @@
 
 /* Delete Modal Title - Match program.css style */
 #deleteAuditModal .modal-title {
-    text-align: center;
+    text-align: center !important;
     width: 100%;
     font-size: 20px;
     font-weight: 600;
     color: #1a1a1a;
+    display: block !important;
+}
+
+#deleteAuditModal .modal-body {
+    text-align: center;
 }
 
 #deleteAuditModal .text-muted {
