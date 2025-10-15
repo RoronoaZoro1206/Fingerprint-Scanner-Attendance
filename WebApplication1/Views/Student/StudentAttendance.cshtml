@@ -1,5 +1,6 @@
 @{
     ViewData["Title"] = "My Attendance Record";
+    Layout = "~/Views/Shared/_MainLayout.cshtml";
 }
 
 <div class="page-header">
@@ -12,37 +13,27 @@
 </div>
 
 <!-- Recent Attendance History -->
-<div class="attendance-history-section">
-    <h2 class="section-title">Recent Attendance History</h2>
-    
-    <div class="table-container">
-        <table class="attendance-table" id="attendanceTable">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Course</th>
-                    <th>Status</th>
-                    <th>Time In</th>
-                    <th>Time Out</th>
-                </tr>
-            </thead>
-            <tbody id="attendanceTableBody">
-                <!-- Attendance records will be loaded here -->
-            </tbody>
-        </table>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Attendance History</h2>
     </div>
-
-    <!-- Loading State -->
-    <div id="loadingState" class="loading-container">
-        <div class="spinner-border text-primary"></div>
-        <p class="mt-2">Loading attendance records...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="empty-state-container" style="display: none;">
-        <i data-lucide="calendar-x" class="empty-icon"></i>
-        <h3>No Attendance Records</h3>
-        <p>You don't have any attendance records yet.</p>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="attendanceTable" class="table table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Course</th>
+                        <th>Status</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

@@ -113,8 +113,8 @@ public class StudentAttendanceController : Controller
                     date = group.Key.AttendDate.ToString("yyyy-MM-dd"),
                     courseCode = course?.CourseCode ?? "N/A",
                     status = status.ToString(),
-                    timeIn = timeIn?.AttendScanTime.ToString("HH:mm:ss") ?? "-",
-                    timeOut = timeOut?.AttendScanTime.ToString("HH:mm:ss") ?? "-"
+                    timeIn = timeIn?.AttendScanTime.ToString("hh:mm:ss tt") ?? "-",
+                    timeOut = timeOut?.AttendScanTime.ToString("hh:mm:ss tt") ?? "-"
                 });
             }
 

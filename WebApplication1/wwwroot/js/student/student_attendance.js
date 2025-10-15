@@ -1,6 +1,8 @@
 /**
- * Student My Attendance
+ * Student My Attendance with DataTables
  */
+
+let attendanceTable;
 
 $(document).ready(function () {
     // Initialize Lucide icons
@@ -8,43 +10,121 @@ $(document).ready(function () {
         lucide.createIcons();
     }
 
-    // Load attendance data
-    loadAttendanceData();
+    // Load statistics first
+    loadStatistics();
+
+    // Initialize DataTable
+    initializeDataTable();
 });
 
 /**
- * Load attendance data
+ * Load statistics data
  */
-function loadAttendanceData() {
-    $('#loadingState').show();
-    $('#attendanceTable').hide();
-    $('#emptyState').hide();
-
+function loadStatistics() {
     $.ajax({
         url: '/StudentAttendance/GetAttendanceData',
         type: 'GET',
         success: function (response) {
-            $('#loadingState').hide();
-
             if (response.success && response.data) {
                 displayStatistics(response.data.statistics);
-                
-                if (response.data.records && response.data.records.length > 0) {
-                    displayAttendanceRecords(response.data.records);
-                    $('#attendanceTable').show();
-                } else {
-                    $('#emptyState').show();
-                }
-            } else {
-                Toast.error(response.message || 'Failed to load attendance data');
-                $('#emptyState').show();
             }
         },
         error: function (xhr, status, error) {
-            console.error('Error loading attendance data:', error);
-            $('#loadingState').hide();
-            Toast.error('Failed to load attendance data');
-            $('#emptyState').show();
+            console.error('Error loading statistics:', error);
+        }
+    });
+}
+
+/**
+ * Initialize DataTable
+ */
+function initializeDataTable() {
+    attendanceTable = $('#attendanceTable').DataTable({
+        ajax: {
+            url: '/StudentAttendance/GetAttendanceData',
+            dataSrc: function (json) {
+                if (json.success && json.data && json.data.records) {
+                    return json.data.records;
+                }
+                return [];
+            },
+            error: function (xhr, error, thrown) {
+                console.error('DataTables error:', error);
+                Toast.error('Failed to load attendance data.');
+            }
+        },
+        columns: [
+            {
+                data: 'date',
+                width: '15%',
+                render: function (data) {
+                    return formatDate(data);
+                }
+            },
+            {
+                data: 'courseCode',
+                width: '20%',
+                render: function (data) {
+                    return `<strong>${data}</strong>`;
+                }
+            },
+            {
+                data: 'status',
+                width: '20%',
+                render: function (data) {
+                    return getStatusBadge(data);
+                }
+            },
+            {
+                data: 'timeIn',
+                width: '20%'
+            },
+            {
+                data: 'timeOut',
+                width: '20%'
+            }
+        ],
+        order: [[0, 'desc']],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+            '<"row"<"col-sm-12"tr>>' +
+            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        drawCallback: function () {
+            // Reinitialize Lucide icons after table redraw
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        },
+        language: {
+            search: "",
+            searchPlaceholder: "Search records...",
+            lengthMenu: "Show _MENU_ records",
+            info: "Showing _START_ to _END_ of _TOTAL_ records",
+            infoEmpty: "No records found",
+            infoFiltered: "(filtered from _MAX_ total records)",
+            zeroRecords: "No matching records found",
+            emptyTable: "No attendance records available"
+        },
+        initComplete: function () {
+            // Add search icon to the search input
+            const searchInput = $('.dataTables_filter input');
+
+            // Check if icon hasn't been added yet
+            if (searchInput.parent().find('.search-icon').length === 0) {
+                // Wrap input in a container
+                searchInput.wrap('<div class="search-input-wrapper"></div>');
+
+                // Add search icon before the input
+                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
+
+                // Reinitialize Lucide icons
+                setTimeout(function () {
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }, 100);
+            }
         }
     });
 }
@@ -103,34 +183,7 @@ function displayStatistics(stats) {
     }
 }
 
-/**
- * Display attendance records in table
- */
-function displayAttendanceRecords(records) {
-    const tbody = $('#attendanceTableBody');
-    tbody.empty();
 
-    records.forEach(record => {
-        const statusBadge = getStatusBadge(record.status);
-        
-        const row = `
-            <tr>
-                <td>${formatDate(record.date)}</td>
-                <td><strong>${record.courseCode}</strong></td>
-                <td>${statusBadge}</td>
-                <td>${record.timeIn}</td>
-                <td>${record.timeOut}</td>
-            </tr>
-        `;
-
-        tbody.append(row);
-    });
-
-    // Reinitialize icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-}
 
 /**
  * Get status badge HTML
