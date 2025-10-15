@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -11,17 +12,20 @@ public class AdminFacultyController : Controller
     private readonly IFacultyRepository _facultyRepository;
     private readonly IUserRepository _userRepository;
     private readonly IDepartmentRepository _departmentRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminFacultyController(
         ILogger<AdminFacultyController> logger, 
         IFacultyRepository facultyRepository,
         IUserRepository userRepository,
-        IDepartmentRepository departmentRepository)
+        IDepartmentRepository departmentRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _facultyRepository = facultyRepository;
         _userRepository = userRepository;
         _departmentRepository = departmentRepository;
+        _auditService = auditService;
     }
 
     // GET: Faculty/Index
@@ -175,6 +179,11 @@ public class AdminFacultyController : Controller
 
             if (result)
             {
+                var user = await _userRepository.GetByIdAsync(faculty.UserId);
+                var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+                await _auditService.LogActionAsync(
+                    "Created Faculty", 
+                    $"Created faculty record for: {userName} (User ID: {faculty.UserId})");
                 return Json(new { success = true, message = "Faculty created successfully" });
             }
             return Json(new { success = false, message = "Failed to create faculty" });
@@ -207,6 +216,11 @@ public class AdminFacultyController : Controller
 
             if (result)
             {
+                var user = await _userRepository.GetByIdAsync(faculty.UserId);
+                var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+                await _auditService.LogActionAsync(
+                    "Updated Faculty", 
+                    $"Updated faculty record for: {userName} (User ID: {faculty.UserId})");
                 return Json(new { success = true, message = "Faculty updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update faculty" });
@@ -230,10 +244,17 @@ public class AdminFacultyController : Controller
                 return Json(new { success = false, message = "Faculty not found" });
             }
 
+            var faculty = await _facultyRepository.GetByIdAsync(id);
+            var user = faculty != null ? await _userRepository.GetByIdAsync(faculty.UserId) : null;
+            var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+
             var result = await _facultyRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Faculty", 
+                    $"Deleted faculty record for: {userName} (User ID: {faculty?.UserId})");
                 return Json(new { success = true, message = "Faculty deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete faculty" });

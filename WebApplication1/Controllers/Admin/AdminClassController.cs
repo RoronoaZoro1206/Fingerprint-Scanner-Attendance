@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -14,6 +15,7 @@ public class AdminClassController : Controller
     private readonly IFacultyRepository _facultyRepository;
     private readonly IAcademicTermRepository _academicTermRepository;
     private readonly IUserRepository _userRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminClassController(
         ILogger<AdminClassController> logger, 
@@ -22,7 +24,8 @@ public class AdminClassController : Controller
         IRoomRepository roomRepository,
         IFacultyRepository facultyRepository,
         IAcademicTermRepository academicTermRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _classRepository = classRepository;
@@ -31,6 +34,7 @@ public class AdminClassController : Controller
         _facultyRepository = facultyRepository;
         _academicTermRepository = academicTermRepository;
         _userRepository = userRepository;
+        _auditService = auditService;
     }
 
     // GET: Class/Index
@@ -181,6 +185,10 @@ public class AdminClassController : Controller
 
             if (result)
             {
+                var course = cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                await _auditService.LogActionAsync(
+                    "Created Class", 
+                    $"Created class for course: {course?.CourseName ?? "Unknown"}");
                 return Json(new { success = true, message = "Class created successfully" });
             }
             return Json(new { success = false, message = "Failed to create class" });
@@ -208,6 +216,10 @@ public class AdminClassController : Controller
 
             if (result)
             {
+                var course = cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                await _auditService.LogActionAsync(
+                    "Updated Class", 
+                    $"Updated class for course: {course?.CourseName ?? "Unknown"}");
                 return Json(new { success = true, message = "Class updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update class" });
@@ -225,10 +237,15 @@ public class AdminClassController : Controller
     {
         try
         {
+            var cls = await _classRepository.GetByIdAsync(id);
+            var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
             var result = await _classRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Class", 
+                    $"Deleted class for course: {course?.CourseName ?? "Unknown"}");
                 return Json(new { success = true, message = "Class deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete class" });

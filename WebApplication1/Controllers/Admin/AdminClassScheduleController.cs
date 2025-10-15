@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -11,17 +12,20 @@ public class AdminClassScheduleController : Controller
     private readonly IClassScheduleRepository _classScheduleRepository;
     private readonly IClassRepository _classRepository;
     private readonly ICourseRepository _courseRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminClassScheduleController(
         ILogger<AdminClassScheduleController> logger,
         IClassScheduleRepository classScheduleRepository,
         IClassRepository classRepository,
-        ICourseRepository courseRepository)
+        ICourseRepository courseRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _classScheduleRepository = classScheduleRepository;
         _classRepository = classRepository;
         _courseRepository = courseRepository;
+        _auditService = auditService;
     }
 
     public IActionResult Index()
@@ -138,7 +142,14 @@ public class AdminClassScheduleController : Controller
 
             var result = await _classScheduleRepository.AddAsync(schedule);
             if (result)
+            {
+                var cls = await _classRepository.GetByIdAsync(dto.ClassId);
+                var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                await _auditService.LogActionAsync(
+                    "Created Class Schedule", 
+                    $"Created schedule for {course?.CourseName ?? "Unknown"} on {dto.SchedDayOfWeek} ({dto.SchedStartTime}-{dto.SchedEndTime})");
                 return Json(new { success = true, message = "Schedule created successfully" });
+            }
             
             return Json(new { success = false, message = "Failed to create schedule" });
         }
@@ -202,7 +213,12 @@ public class AdminClassScheduleController : Controller
             }
 
             if (successCount > 0)
+            {
+                await _auditService.LogActionAsync(
+                    "Created Multiple Class Schedules", 
+                    $"Created {successCount} class schedule(s) successfully");
                 return Json(new { success = true, message = $"Created {successCount} schedule(s) successfully" });
+            }
             
             return Json(new { success = false, message = "Failed to create schedules" });
         }
@@ -246,7 +262,14 @@ public class AdminClassScheduleController : Controller
 
             var result = await _classScheduleRepository.UpdateAsync(schedule);
             if (result)
+            {
+                var cls = await _classRepository.GetByIdAsync(dto.ClassId);
+                var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                await _auditService.LogActionAsync(
+                    "Updated Class Schedule", 
+                    $"Updated schedule for {course?.CourseName ?? "Unknown"} on {dto.SchedDayOfWeek} ({dto.SchedStartTime}-{dto.SchedEndTime})");
                 return Json(new { success = true, message = "Schedule updated successfully" });
+            }
             
             return Json(new { success = false, message = "Failed to update schedule" });
         }
@@ -267,9 +290,18 @@ public class AdminClassScheduleController : Controller
     {
         try
         {
+            var schedule = await _classScheduleRepository.GetByIdAsync(id);
+            var cls = schedule != null ? await _classRepository.GetByIdAsync(schedule.ClassId) : null;
+            var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+            
             var result = await _classScheduleRepository.DeleteAsync(id);
             if (result)
+            {
+                await _auditService.LogActionAsync(
+                    "Deleted Class Schedule", 
+                    $"Deleted schedule for {course?.CourseName ?? "Unknown"} on {schedule?.SchedDayOfWeek}");
                 return Json(new { success = true, message = "Schedule deleted successfully" });
+            }
             
             return Json(new { success = false, message = "Failed to delete schedule" });
         }

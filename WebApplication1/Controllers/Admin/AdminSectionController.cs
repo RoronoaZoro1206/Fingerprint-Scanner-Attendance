@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -10,12 +11,18 @@ public class AdminSectionController : Controller
     private readonly ILogger<AdminSectionController> _logger;
     private readonly ISectionRepository _sectionRepository;
     private readonly IProgramRepository _programRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminSectionController(ILogger<AdminSectionController> logger, ISectionRepository sectionRepository, IProgramRepository programRepository)
+    public AdminSectionController(
+        ILogger<AdminSectionController> logger, 
+        ISectionRepository sectionRepository, 
+        IProgramRepository programRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _sectionRepository = sectionRepository;
         _programRepository = programRepository;
+        _auditService = auditService;
     }
 
     // GET: Section/Index
@@ -103,6 +110,9 @@ public class AdminSectionController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Section", 
+                    $"Created section: {section.SectionName} (Year Level: {section.YearLevel})");
                 return Json(new { success = true, message = "Section created successfully" });
             }
             return Json(new { success = false, message = "Failed to create section" });
@@ -129,6 +139,9 @@ public class AdminSectionController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Section", 
+                    $"Updated section: {section.SectionName} (Year Level: {section.YearLevel})");
                 return Json(new { success = true, message = "Section updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update section" });
@@ -146,10 +159,14 @@ public class AdminSectionController : Controller
     {
         try
         {
+            var section = await _sectionRepository.GetByIdAsync(id);
             var result = await _sectionRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Section", 
+                    $"Deleted section: {section?.SectionName} (Year Level: {section?.YearLevel})");
                 return Json(new { success = true, message = "Section deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete section" });

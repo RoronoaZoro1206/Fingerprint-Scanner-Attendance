@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -13,6 +14,7 @@ public class AdminStudentController : Controller
     private readonly IProgramRepository _programRepository;
     private readonly ISectionRepository _sectionRepository;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminStudentController(
         ILogger<AdminStudentController> logger,
@@ -20,7 +22,8 @@ public class AdminStudentController : Controller
         IUserRepository userRepository,
         IProgramRepository programRepository,
         ISectionRepository sectionRepository,
-        IStudentIdPoolRepository studentIdPoolRepository)
+        IStudentIdPoolRepository studentIdPoolRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _studentRepository = studentRepository;
@@ -28,6 +31,7 @@ public class AdminStudentController : Controller
         _programRepository = programRepository;
         _sectionRepository = sectionRepository;
         _studentIdPoolRepository = studentIdPoolRepository;
+        _auditService = auditService;
     }
 
     // GET: Student/Index
@@ -240,6 +244,11 @@ public class AdminStudentController : Controller
                     await _studentIdPoolRepository.MarkAsUsedAsync(poolEntry.PoolId);
                 }
 
+                var user = await _userRepository.GetByIdAsync(student.UserId);
+                var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+                await _auditService.LogActionAsync(
+                    "Created Student", 
+                    $"Created student record for: {userName} (Student Number: {student.StudNumber})");
                 return Json(new { success = true, message = "Student created successfully" });
             }
             return Json(new { success = false, message = "Failed to create student" });
@@ -266,6 +275,11 @@ public class AdminStudentController : Controller
 
             if (result)
             {
+                var user = await _userRepository.GetByIdAsync(student.UserId);
+                var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+                await _auditService.LogActionAsync(
+                    "Updated Student", 
+                    $"Updated student record for: {userName} (Student Number: {student.StudNumber})");
                 return Json(new { success = true, message = "Student updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update student" });
@@ -283,10 +297,17 @@ public class AdminStudentController : Controller
     {
         try
         {
+            var student = await _studentRepository.GetByIdAsync(id);
+            var user = student != null ? await _userRepository.GetByIdAsync(student.UserId) : null;
+            var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+
             var result = await _studentRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Student", 
+                    $"Deleted student record for: {userName} (Student Number: {student?.StudNumber})");
                 return Json(new { success = true, message = "Student deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete student" });

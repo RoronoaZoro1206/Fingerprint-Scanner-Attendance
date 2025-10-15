@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -9,11 +10,16 @@ public class AdminRoomController : Controller
 {
     private readonly ILogger<AdminRoomController> _logger;
     private readonly IRoomRepository _roomRepository;
+    private readonly AdminAuditService _auditService;
 
-    public AdminRoomController(ILogger<AdminRoomController> logger, IRoomRepository roomRepository)
+    public AdminRoomController(
+        ILogger<AdminRoomController> logger, 
+        IRoomRepository roomRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _roomRepository = roomRepository;
+        _auditService = auditService;
     }
 
     // GET: Room/Index
@@ -73,6 +79,9 @@ public class AdminRoomController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Created Room", 
+                    $"Created room: {room.RoomCode} - {room.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room created successfully" });
             }
             return Json(new { success = false, message = "Failed to create room" });
@@ -99,6 +108,9 @@ public class AdminRoomController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Room", 
+                    $"Updated room: {room.RoomCode} - {room.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update room" });
@@ -116,10 +128,14 @@ public class AdminRoomController : Controller
     {
         try
         {
+            var room = await _roomRepository.GetByIdAsync(id);
             var result = await _roomRepository.DeleteAsync(id);
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Room", 
+                    $"Deleted room: {room?.RoomCode} - {room?.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete room" });

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -9,13 +10,16 @@ public class AdminStudentIdPoolController : Controller
 {
     private readonly ILogger<AdminStudentIdPoolController> _logger;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
+    private readonly AdminAuditService _auditService;
 
     public AdminStudentIdPoolController(
         ILogger<AdminStudentIdPoolController> logger,
-        IStudentIdPoolRepository studentIdPoolRepository)
+        IStudentIdPoolRepository studentIdPoolRepository,
+        AdminAuditService auditService)
     {
         _logger = logger;
         _studentIdPoolRepository = studentIdPoolRepository;
+        _auditService = auditService;
     }
 
     // GET: StudentIdPool/Index
@@ -146,6 +150,13 @@ public class AdminStudentIdPoolController : Controller
                 message += $" {failedIds.Count} IDs already exist or failed to create.";
             }
 
+            if (generatedIds.Count > 0)
+            {
+                await _auditService.LogActionAsync(
+                    "Generated Student IDs", 
+                    $"Generated {generatedIds.Count} student IDs for year {year} starting from {year}-{startNumber:D4}");
+            }
+
             return Json(new
             {
                 success = true,
@@ -173,10 +184,14 @@ public class AdminStudentIdPoolController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
+            var pool = await _studentIdPoolRepository.GetByIdAsync(request.PoolId);
             var result = await _studentIdPoolRepository.UpdateRemarksAsync(request.PoolId, request.Remarks ?? "");
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Updated Student ID Remarks", 
+                    $"Updated remarks for student ID: {pool?.StudentIdCode}");
                 return Json(new { success = true, message = "Remarks updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update remarks" });
@@ -210,6 +225,9 @@ public class AdminStudentIdPoolController : Controller
 
             if (result)
             {
+                await _auditService.LogActionAsync(
+                    "Deleted Student ID", 
+                    $"Deleted unused student ID: {pool.StudentIdCode}");
                 return Json(new { success = true, message = "Student ID deleted successfully" });
             }
             return Json(new { success = false, message = "Failed to delete student ID" });
