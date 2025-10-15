@@ -1,0 +1,222 @@
+/**
+ * Fingerprint Registration Notification
+ * Subtle toast-style notification that doesn't block interaction
+ */
+
+.fingerprint-notification {
+    position: fixed;
+    top: 90px;
+    right: 24px;
+    z-index: 9999;
+    max-width: 480px;
+    width: calc(100% - 48px);
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.fingerprint-notification.show {
+    transform: translateX(0);
+}
+
+.fingerprint-notification.hide {
+    transform: translateX(120%);
+}
+
+.fingerprint-notification-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+}
+
+.fingerprint-notification-icon {
+    width: 48px;
+    height: 48px;
+    background: #000;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.fingerprint-notification-icon i {
+    width: 24px !important;
+    height: 24px !important;
+    color: #fff !important;
+    stroke-width: 2;
+}
+
+.fingerprint-notification-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: #fff;
+}
+
+.fingerprint-notification-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.fingerprint-notification-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+}
+
+.fingerprint-notification-message {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.fingerprint-notification-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-notification {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-notification-primary {
+    background: #000;
+    color: #fff;
+}
+
+.btn-notification-primary:hover {
+    background: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-notification-primary:active {
+    transform: translateY(0);
+}
+
+.btn-notification-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.btn-notification-secondary:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+
+.btn-notification-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    color: #9ca3af;
+}
+
+.btn-notification-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-notification-close i {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.btn-notification-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .fingerprint-notification {
+        top: 80px;
+        right: 16px;
+        left: 16px;
+        width: auto;
+        max-width: none;
+    }
+
+    .fingerprint-notification-content {
+        flex-wrap: wrap;
+        padding: 1rem;
+    }
+
+    .fingerprint-notification-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .fingerprint-notification-icon i {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .fingerprint-notification-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .fingerprint-notification-text {
+        flex: 1 1 100%;
+        order: 2;
+        margin-top: 0.75rem;
+    }
+
+    .fingerprint-notification-actions {
+        flex: 1 1 100%;
+        order: 3;
+        margin-top: 0.75rem;
+        width: 100%;
+    }
+
+    .btn-notification {
+        flex: 1;
+    }
+
+    .btn-notification-close {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .fingerprint-notification-title {
+        font-size: 0.875rem;
+    }
+
+    .fingerprint-notification-message {
+        font-size: 0.8125rem;
+    }
+
+    .btn-notification {
+        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+    }
+}

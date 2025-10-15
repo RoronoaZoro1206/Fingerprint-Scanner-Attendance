@@ -212,7 +212,7 @@ DO $$
 
 CREATE TABLE fingerprint_templates (
                                        ftemp_id          SERIAL PRIMARY KEY,
-                                       user_id           INT UNIQUE REFERENCES students(stud_id) ON DELETE CASCADE,
+                                       user_id           INT UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
                                        ftemp_data        BYTEA NOT NULL,
                                        ftemp_name        VARCHAR(20),
                                        ftemp_created_at  TIMESTAMP NOT NULL DEFAULT NOW()

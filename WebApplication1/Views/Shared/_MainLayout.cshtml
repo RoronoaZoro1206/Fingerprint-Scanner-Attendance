@@ -6,8 +6,9 @@
     <title>@ViewData["Title"] - School Attendance System</title>
     @await Html.PartialAsync("_HeadPartial")
     <link rel="stylesheet" href="~/css/main-layout.css" asp-append-version="true"/>
+    <link rel="stylesheet" href="~/css/fingerprint-prompt.css" asp-append-version="true"/>
 </head>
-<body>
+<body data-role-id="@Context.Session.GetInt32("RoleId")">
     <div class="app-container">
         <!-- Sidebar -->
         @{
@@ -39,6 +40,7 @@
     </div>
 
     @await Html.PartialAsync("_LayoutScripts")
+    <script src="~/js/fingerprint-prompt.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
