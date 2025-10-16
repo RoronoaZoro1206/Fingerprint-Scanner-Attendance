@@ -253,8 +253,8 @@ ON CONFLICT (role_name) DO NOTHING;
 -- ============================================================
 
 -- Users table
-CREATE INDEX idx_users_role_id   ON users(role_id);
-CREATE INDEX idx_users_email     ON users(user_email);
+CREATE INDEX idx_users_role_id   	   ON users(role_id);
+CREATE INDEX idx_users_email    	   ON users(user_email);
 
 -- Students table
 CREATE INDEX idx_students_stud_number  ON students(stud_number);
@@ -275,7 +275,19 @@ CREATE INDEX idx_class_room_id         ON classes(room_id);
 -- Scan logs table
 CREATE INDEX idx_scan_logs_time        ON scan_logs(scan_time);
 
+-- Improve JOIN performance
+CREATE INDEX idx_classes_course_id     ON classes(course_id);
+CREATE INDEX idx_classes_term_id       ON classes(term_id);
+CREATE INDEX idx_courses_program_id    ON courses(program_id);
+CREATE INDEX idx_students_program_id   ON students(program_id);
+CREATE INDEX idx_students_user_id      ON students(user_id);
+CREATE INDEX idx_faculty_user_id       ON faculty(user_id);
+CREATE INDEX idx_class_schedules_class_id ON class_schedules(class_id);
 
+-- Improve date-based queries
+CREATE INDEX idx_attendance_date ON attendance(attend_date);
+CREATE INDEX idx_attendance_class_date ON attendance(class_id, attend_date);
+CREATE INDEX idx_attendance_stud_date ON attendance(stud_id, attend_date);
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
