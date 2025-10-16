@@ -1,4 +1,5 @@
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 
 namespace Fingerprint_Attendance_System.Repositories.Interfaces;
 public interface IEnrollmentRepository
@@ -11,4 +12,8 @@ public interface IEnrollmentRepository
     Task<bool> UpdateAsync(Enrollment enroll);
     Task<bool> DeleteAsync(int enrollId);
     Task<bool> ExistsAsync(int enrollId);
+    
+    // Optimized methods to reduce N+1 queries
+    Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId);
+    Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId);
 }

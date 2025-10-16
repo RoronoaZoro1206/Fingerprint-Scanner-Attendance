@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Claims;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -11,36 +10,15 @@ public class StudentEnrollmentController : Controller
     private readonly ILogger<StudentEnrollmentController> _logger;
     private readonly IEnrollmentRepository _enrollmentRepository;
     private readonly IStudentRepository _studentRepository;
-    private readonly IClassRepository _classRepository;
-    private readonly ICourseRepository _courseRepository;
-    private readonly IRoomRepository _roomRepository;
-    private readonly IFacultyRepository _facultyRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly IClassScheduleRepository _classScheduleRepository;
-    private readonly IProgramRepository _programRepository;
 
     public StudentEnrollmentController(
         ILogger<StudentEnrollmentController> logger,
         IEnrollmentRepository enrollmentRepository,
-        IStudentRepository studentRepository,
-        IClassRepository classRepository,
-        ICourseRepository courseRepository,
-        IRoomRepository roomRepository,
-        IFacultyRepository facultyRepository,
-        IUserRepository userRepository,
-        IClassScheduleRepository classScheduleRepository,
-        IProgramRepository programRepository)
+        IStudentRepository studentRepository)
     {
         _logger = logger;
         _enrollmentRepository = enrollmentRepository;
         _studentRepository = studentRepository;
-        _classRepository = classRepository;
-        _courseRepository = courseRepository;
-        _roomRepository = roomRepository;
-        _facultyRepository = facultyRepository;
-        _userRepository = userRepository;
-        _classScheduleRepository = classScheduleRepository;
-        _programRepository = programRepository;
     }
 
     public IActionResult Enrollment()
@@ -62,38 +40,35 @@ public class StudentEnrollmentController : Controller
                 return Json(new { success = false, message = "User not authenticated" });
             }
 
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            // Single optimized query instead of 3 separate queries
+            var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
 
-            if (student == null)
+            if (studentInfo == null)
             {
                 _logger.LogWarning($"GetStudentInfo - No student found for userId: {userId.Value}");
                 return Json(new { success = false, message = "Student profile not found. Please complete your application first." });
             }
 
-            if (!student.ProgramId.HasValue)
+            if (!studentInfo.ProgramId.HasValue)
             {
-                _logger.LogWarning($"GetStudentInfo - Student {student.StudId} has no program assigned");
+                _logger.LogWarning($"GetStudentInfo - Student {studentInfo.StudId} has no program assigned");
                 return Json(new { success = false, message = "Please complete your student application to enroll in classes." });
             }
 
-            var user = await _userRepository.GetByIdAsync(userId.Value);
-            var program = await _programRepository.GetByIdAsync(student.ProgramId.Value);
-
-            _logger.LogInformation($"GetStudentInfo - Student: {student.StudId}, Program: {program?.ProgramName}");
+            _logger.LogInformation($"GetStudentInfo - Student: {studentInfo.StudId}, Program: {studentInfo.ProgramName}");
 
             return Json(new
             {
                 success = true,
                 data = new
                 {
-                    studId = student.StudId,
-                    studNumber = student.StudNumber,
-                    fullName = $"{user?.UserFirstName} {user?.UserLastName}",
-                    programId = student.ProgramId,
-                    programName = program?.ProgramName ?? "Unknown Program",
-                    yearLevel = student.StudYearLevel,
-                    hasProfile = true
+                    studId = studentInfo.StudId,
+                    studNumber = studentInfo.StudNumber,
+                    fullName = studentInfo.FullName,
+                    programId = studentInfo.ProgramId,
+                    programName = studentInfo.ProgramName,
+                    yearLevel = studentInfo.YearLevel,
+                    hasProfile = studentInfo.HasProfile
                 }
             });
         }
@@ -118,61 +93,22 @@ public class StudentEnrollmentController : Controller
                 return Json(new { success = false, data = new List<object>(), message = "User not authenticated" });
             }
             
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            // Get student info with single query
+            var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
 
-            if (student == null)
+            if (studentInfo == null)
             {
                 _logger.LogWarning($"GetCurrentEnrollments - No student found for userId: {userId.Value}");
                 return Json(new { success = false, data = new List<object>(), message = "Student profile not found" });
             }
 
-            _logger.LogInformation($"GetCurrentEnrollments - Student: {student.StudId}");
+            _logger.LogInformation($"GetCurrentEnrollments - Student: {studentInfo.StudId}");
 
-            var enrollments = await _enrollmentRepository.GetByStudentIdAsync(student.StudId);
-            var classes = await _classRepository.GetAllAsync();
-            var courses = await _courseRepository.GetAllAsync();
-            var rooms = await _roomRepository.GetAllAsync();
-            var faculties = await _facultyRepository.GetAllAsync();
-            var users = await _userRepository.GetAllAsync();
-            var schedules = await _classScheduleRepository.GetAllAsync();
+            // Single optimized query with all JOINs instead of 7 separate queries
+            var enrollments = await _enrollmentRepository.GetStudentEnrollmentsWithDetailsAsync(studentInfo.StudId);
 
-            _logger.LogInformation($"GetCurrentEnrollments - Found {enrollments.Count()} enrollments");
-
-            var enrollmentList = new List<object>();
-
-            foreach (var enrollment in enrollments)
-            {
-                var classItem = classes.FirstOrDefault(c => c.ClassId == enrollment.ClassId);
-                if (classItem == null) continue;
-
-                var course = courses.FirstOrDefault(c => c.CourseId == classItem.CourseId);
-                var room = rooms.FirstOrDefault(r => r.RoomId == classItem.RoomId);
-                var faculty = faculties.FirstOrDefault(f => f.FacId == classItem.FacId);
-                var facultyUser = faculty != null ? users.FirstOrDefault(u => u.UserId == faculty.UserId) : null;
-
-                var classSchedules = schedules.Where(s => s.ClassId == classItem.ClassId).ToList();
-                var scheduleText = string.Join(", ", classSchedules.Select(s =>
-                {
-                    var startTime = DateTime.Today.Add(s.SchedStartTime).ToString("hh:mm tt");
-                    var endTime = DateTime.Today.Add(s.SchedEndTime).ToString("hh:mm tt");
-                    return $"{s.SchedDayOfWeek} {startTime}-{endTime}";
-                }));
-
-                enrollmentList.Add(new
-                {
-                    enrollId = enrollment.EnrollId,
-                    classId = classItem.ClassId,
-                    courseCode = course?.CourseCode ?? "N/A",
-                    courseName = course?.CourseName ?? "N/A",
-                    facultyName = facultyUser != null ? $"{facultyUser.UserFirstName} {facultyUser.UserLastName}" : "N/A",
-                    schedule = scheduleText,
-                    roomCode = room?.RoomCode ?? "N/A"
-                });
-            }
-
-            _logger.LogInformation($"GetCurrentEnrollments - Returning {enrollmentList.Count} enrollments");
-            return Json(new { success = true, data = enrollmentList });
+            _logger.LogInformation($"GetCurrentEnrollments - Returning {enrollments.Count()} enrollments");
+            return Json(new { success = true, data = enrollments });
         }
         catch (Exception ex)
         {
@@ -195,72 +131,29 @@ public class StudentEnrollmentController : Controller
                 return Json(new { success = false, data = new List<object>(), message = "User not authenticated" });
             }
             
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            // Get student info with single query
+            var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
 
-            if (student == null)
+            if (studentInfo == null)
             {
                 _logger.LogWarning($"GetAvailableClasses - No student found for userId: {userId.Value}");
                 return Json(new { success = false, data = new List<object>(), message = "Student profile not found" });
             }
 
-            if (!student.ProgramId.HasValue)
+            if (!studentInfo.ProgramId.HasValue)
             {
-                _logger.LogWarning($"GetAvailableClasses - Student {student.StudId} has no program assigned");
+                _logger.LogWarning($"GetAvailableClasses - Student {studentInfo.StudId} has no program assigned");
                 return Json(new { success = false, data = new List<object>(), message = "No program assigned" });
             }
 
-            _logger.LogInformation($"GetAvailableClasses - Student: {student.StudId}, Program: {student.ProgramId}");
+            _logger.LogInformation($"GetAvailableClasses - Student: {studentInfo.StudId}, Program: {studentInfo.ProgramId}");
 
-            var enrollments = await _enrollmentRepository.GetByStudentIdAsync(student.StudId);
-            var enrolledClassIds = enrollments.Select(e => e.ClassId).ToHashSet();
+            // Single optimized query with all JOINs and filtering instead of 7 separate queries
+            var availableClasses = await _enrollmentRepository.GetAvailableClassesForStudentAsync(
+                studentInfo.StudId, 
+                studentInfo.ProgramId.Value);
 
-            var classes = await _classRepository.GetAllAsync();
-            var courses = await _courseRepository.GetAllAsync();
-            var rooms = await _roomRepository.GetAllAsync();
-            var faculties = await _facultyRepository.GetAllAsync();
-            var users = await _userRepository.GetAllAsync();
-            var schedules = await _classScheduleRepository.GetAllAsync();
-
-            _logger.LogInformation($"GetAvailableClasses - Total classes: {classes.Count()}, Total courses: {courses.Count()}");
-
-            var availableClasses = new List<object>();
-
-            foreach (var classItem in classes)
-            {
-                if (enrolledClassIds.Contains(classItem.ClassId))
-                    continue;
-
-                var course = courses.FirstOrDefault(c => c.CourseId == classItem.CourseId);
-                
-                // Filter by student's program
-                if (course?.ProgramId != student.ProgramId)
-                    continue;
-
-                var room = rooms.FirstOrDefault(r => r.RoomId == classItem.RoomId);
-                var faculty = faculties.FirstOrDefault(f => f.FacId == classItem.FacId);
-                var facultyUser = faculty != null ? users.FirstOrDefault(u => u.UserId == faculty.UserId) : null;
-
-                var classSchedules = schedules.Where(s => s.ClassId == classItem.ClassId).ToList();
-                var scheduleText = string.Join(", ", classSchedules.Select(s =>
-                {
-                    var startTime = DateTime.Today.Add(s.SchedStartTime).ToString("hh:mm tt");
-                    var endTime = DateTime.Today.Add(s.SchedEndTime).ToString("hh:mm tt");
-                    return $"{s.SchedDayOfWeek} {startTime}-{endTime}";
-                }));
-
-                availableClasses.Add(new
-                {
-                    classId = classItem.ClassId,
-                    courseCode = course?.CourseCode ?? "N/A",
-                    courseName = course?.CourseName ?? "N/A",
-                    facultyName = facultyUser != null ? $"{facultyUser.UserFirstName} {facultyUser.UserLastName}" : "N/A",
-                    schedule = scheduleText,
-                    roomCode = room?.RoomCode ?? "N/A"
-                });
-            }
-
-            _logger.LogInformation($"GetAvailableClasses - Found {availableClasses.Count} available classes");
+            _logger.LogInformation($"GetAvailableClasses - Found {availableClasses.Count()} available classes");
             return Json(new { success = true, data = availableClasses });
         }
         catch (Exception ex)
@@ -278,15 +171,15 @@ public class StudentEnrollmentController : Controller
             var userId = HttpContext.Session.GetInt32("UserId");
             if (!userId.HasValue) return Json(new { success = false, message = "User not authenticated" });
             
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            // Get student info with single query
+            var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
 
-            if (student == null)
+            if (studentInfo == null)
                 return Json(new { success = false, message = "Student profile not found" });
 
             var enrollment = new Enrollment
             {
-                StudId = student.StudId,
+                StudId = studentInfo.StudId,
                 ClassId = request.ClassId,
                 EnrollAt = DateTime.Now
             };

@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations;
@@ -124,5 +125,123 @@ public class EnrollmentRepository : IEnrollmentRepository
         string query = "SELECT COUNT(*) FROM enrollment WHERE enroll_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", enrollId } };
         return await _db.RecordExistsAsync(query, parameters);
+    }
+
+    /// <summary>
+    /// Gets student enrollments with all related details in a single optimized query
+    /// Eliminates N+1 query problem by using JOINs instead of multiple repository calls
+    /// </summary>
+    public async Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId)
+    {
+        string query = @"
+            SELECT 
+                e.enroll_id,
+                e.class_id,
+                co.course_code,
+                co.course_name,
+                CONCAT(u.user_first_name, ' ', u.user_last_name) as faculty_name,
+                r.room_code,
+                STRING_AGG(
+                    cs.sched_day_of_week || ' ' || 
+                    TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                    TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
+                    ', ' ORDER BY 
+                        CASE cs.sched_day_of_week
+                            WHEN 'Monday' THEN 1
+                            WHEN 'Tuesday' THEN 2
+                            WHEN 'Wednesday' THEN 3
+                            WHEN 'Thursday' THEN 4
+                            WHEN 'Friday' THEN 5
+                            WHEN 'Saturday' THEN 6
+                            WHEN 'Sunday' THEN 7
+                        END,
+                        cs.sched_start_time
+                ) as schedule
+            FROM enrollment e
+            INNER JOIN classes cl ON e.class_id = cl.class_id
+            LEFT JOIN courses co ON cl.course_id = co.course_id
+            LEFT JOIN rooms r ON cl.room_id = r.room_id
+            LEFT JOIN faculty f ON cl.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN class_schedules cs ON cl.class_id = cs.class_id
+            WHERE e.stud_id = @studId
+            GROUP BY e.enroll_id, e.class_id, co.course_code, co.course_name, 
+                     u.user_first_name, u.user_last_name, r.room_code
+            ORDER BY co.course_code;";
+        
+        var parameters = new Dictionary<string, object> { { "@studId", studId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        
+        return dt.AsEnumerable().Select(row => new EnrollmentDetailDto
+        {
+            EnrollId = Convert.ToInt32(row["enroll_id"]),
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
+            RoomCode = row["room_code"]?.ToString() ?? "N/A",
+            Schedule = row["schedule"]?.ToString() ?? "No schedule"
+        });
+    }
+
+    /// <summary>
+    /// Gets available classes for a student to enroll in with all details in a single query
+    /// Filters out already enrolled classes and matches student's program
+    /// </summary>
+    public async Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId)
+    {
+        string query = @"
+            SELECT 
+                cl.class_id,
+                co.course_code,
+                co.course_name,
+                CONCAT(u.user_first_name, ' ', u.user_last_name) as faculty_name,
+                r.room_code,
+                STRING_AGG(
+                    cs.sched_day_of_week || ' ' || 
+                    TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                    TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
+                    ', ' ORDER BY 
+                        CASE cs.sched_day_of_week
+                            WHEN 'Monday' THEN 1
+                            WHEN 'Tuesday' THEN 2
+                            WHEN 'Wednesday' THEN 3
+                            WHEN 'Thursday' THEN 4
+                            WHEN 'Friday' THEN 5
+                            WHEN 'Saturday' THEN 6
+                            WHEN 'Sunday' THEN 7
+                        END,
+                        cs.sched_start_time
+                ) as schedule
+            FROM classes cl
+            INNER JOIN courses co ON cl.course_id = co.course_id
+            LEFT JOIN rooms r ON cl.room_id = r.room_id
+            LEFT JOIN faculty f ON cl.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN class_schedules cs ON cl.class_id = cs.class_id
+            WHERE co.program_id = @programId
+              AND cl.class_id NOT IN (
+                  SELECT class_id FROM enrollment WHERE stud_id = @studId
+              )
+            GROUP BY cl.class_id, co.course_code, co.course_name, 
+                     u.user_first_name, u.user_last_name, r.room_code
+            ORDER BY co.course_code;";
+        
+        var parameters = new Dictionary<string, object> 
+        { 
+            { "@studId", studId },
+            { "@programId", programId }
+        };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        
+        return dt.AsEnumerable().Select(row => new AvailableClassDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
+            RoomCode = row["room_code"]?.ToString() ?? "N/A",
+            Schedule = row["schedule"]?.ToString() ?? "No schedule"
+        });
     }
 }

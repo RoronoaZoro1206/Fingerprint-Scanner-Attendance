@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations
@@ -98,6 +99,43 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             string query = "DELETE FROM students WHERE stud_id = @id;";
             var parameters = new Dictionary<string, object> { { "@id", studId } };
             return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
+        }
+
+        /// <summary>
+        /// Gets student information with user and program details in a single optimized query
+        /// Eliminates need for separate User and Program repository calls
+        /// </summary>
+        public async Task<StudentInfoDto?> GetStudentInfoByUserIdAsync(int userId)
+        {
+            string query = @"
+                SELECT 
+                    s.stud_id,
+                    s.stud_number,
+                    CONCAT(u.user_first_name, ' ', u.user_last_name) as full_name,
+                    s.program_id,
+                    p.program_name,
+                    s.stud_year_level
+                FROM students s
+                INNER JOIN users u ON s.user_id = u.user_id
+                LEFT JOIN programs p ON s.program_id = p.program_id
+                WHERE s.user_id = @userId;";
+            
+            var parameters = new Dictionary<string, object> { { "@userId", userId } };
+            var dt = await _db.ExecuteQueryAsync(query, parameters);
+            
+            if (dt.Rows.Count == 0) return null;
+            
+            var row = dt.Rows[0];
+            return new StudentInfoDto
+            {
+                StudId = Convert.ToInt32(row["stud_id"]),
+                StudNumber = row["stud_number"]?.ToString() ?? string.Empty,
+                FullName = row["full_name"]?.ToString() ?? string.Empty,
+                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+                ProgramName = row["program_name"]?.ToString() ?? "Unknown Program",
+                YearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
+                HasProfile = true
+            };
         }
     }
 }
