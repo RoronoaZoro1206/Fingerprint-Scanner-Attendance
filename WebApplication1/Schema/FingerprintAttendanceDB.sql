@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE TABLE user_roles (
                             role_id     SERIAL PRIMARY KEY,
-                            role_name   VARCHAR(30) UNIQUE NOT NULL        -- 'admin', 'faculty', 'student'
+                            role_name   VARCHAR(30) UNIQUE NOT NULL            -- 'admin', 'faculty', 'student'
 );
 
 CREATE TABLE users (
@@ -33,6 +33,7 @@ CREATE TABLE users (
                        is_active           BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+
 -- ============================================================
 -- ADMINISTRATION (ADMINS)
 -- ============================================================
@@ -52,6 +53,7 @@ CREATE TABLE administration_audit (
                                       aud_action_time  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 -- ============================================================
 -- DEPARTMENT
 -- ============================================================
@@ -63,6 +65,7 @@ CREATE TABLE departments (
                              dept_desc        TEXT,
                              dept_created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
 
 -- ============================================================
 -- FACULTY
@@ -76,28 +79,30 @@ CREATE TABLE faculty (
                          fac_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 -- ============================================================
 -- PROGRAMS & COURSES
 -- ============================================================
 
 CREATE TABLE programs (
-                          program_id       SERIAL PRIMARY KEY,
-                          program_code     VARCHAR(20) UNIQUE NOT NULL,     -- e.g. BSIT, BSHM
-                          program_name     VARCHAR(100) NOT NULL,           -- full name of program
-                          program_desc     TEXT,
-                          dept_id          INT REFERENCES departments(dept_id),
+                          program_id         SERIAL PRIMARY KEY,
+                          program_code       VARCHAR(20) UNIQUE NOT NULL,      -- e.g. BSIT, BSHM
+                          program_name       VARCHAR(100) NOT NULL,            -- full name of program
+                          program_desc       TEXT,
+                          dept_id            INT REFERENCES departments(dept_id),
                           program_created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE courses (
-                         course_id        SERIAL PRIMARY KEY,
-                         course_code      VARCHAR(20) UNIQUE NOT NULL,     -- e.g. IT101, MATH001
-                         course_name      VARCHAR(100) NOT NULL,
-                         course_desc      TEXT,
-                         course_units     INT NOT NULL DEFAULT 3,
-                         program_id       INT REFERENCES programs(program_id) ON DELETE SET NULL,
+                         course_id         SERIAL PRIMARY KEY,
+                         course_code       VARCHAR(20) UNIQUE NOT NULL,       -- e.g. IT101, MATH001
+                         course_name       VARCHAR(100) NOT NULL,
+                         course_desc       TEXT,
+                         course_units      INT NOT NULL DEFAULT 3,
+                         program_id        INT REFERENCES programs(program_id) ON DELETE SET NULL,
                          course_created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
 
 -- ============================================================
 -- STUDENT ID POOL (Pre-generated Student IDs by Admin)
@@ -105,7 +110,7 @@ CREATE TABLE courses (
 
 CREATE TABLE student_id_pool (
                                  pool_id          SERIAL PRIMARY KEY,
-                                 student_id_code  VARCHAR(20) UNIQUE NOT NULL,     -- e.g. 2025-0156
+                                 student_id_code  VARCHAR(20) UNIQUE NOT NULL,        -- e.g. 2025-0156
                                  is_used          BOOLEAN NOT NULL DEFAULT FALSE,
                                  generated_by     INT REFERENCES administration(admin_id) ON DELETE SET NULL,
                                  generated_at     TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -113,17 +118,19 @@ CREATE TABLE student_id_pool (
                                  remarks          TEXT
 );
 
+
 -- ============================================================
 -- SECTION
 -- ============================================================
 
 CREATE TABLE sections (
-                          section_id        SERIAL PRIMARY KEY,
-                          section_name      VARCHAR(50) UNIQUE NOT NULL,
-                          program_id        INT REFERENCES programs(program_id),
-                          year_level        INT,
+                          section_id         SERIAL PRIMARY KEY,
+                          section_name       VARCHAR(50) UNIQUE NOT NULL,
+                          program_id         INT REFERENCES programs(program_id),
+                          year_level         INT,
                           section_created_at TIMESTAMP DEFAULT NOW()
 );
+
 
 -- ============================================================
 -- STUDENTS
@@ -139,17 +146,19 @@ CREATE TABLE students (
                           stud_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 -- ============================================================
 -- ACADEMIC TERM
 -- ============================================================
 
 CREATE TABLE academic_terms (
                                 term_id       SERIAL PRIMARY KEY,
-                                term_name     VARCHAR(50) NOT NULL,               -- e.g. "1st Semester AY 2025-2026"
+                                term_name     VARCHAR(50) NOT NULL,                  -- e.g. "1st Semester AY 2025-2026"
                                 start_date    DATE NOT NULL,
                                 end_date      DATE NOT NULL,
                                 is_active     BOOLEAN DEFAULT FALSE
 );
+
 
 -- ============================================================
 -- ROOMS & CLASSES
@@ -180,6 +189,7 @@ CREATE TABLE class_schedules (
                                  UNIQUE (class_id, sched_day_of_week, sched_start_time, sched_end_time)
 );
 
+
 -- ============================================================
 -- ENROLLMENT
 -- ============================================================
@@ -192,20 +202,21 @@ CREATE TABLE enrollment (
                             UNIQUE (stud_id, class_id)
 );
 
+
 -- ============================================================
 -- BIOMETRIC & ATTENDANCE
 -- ============================================================
 
 DO $$
     BEGIN
-        CREATE TYPE attendance_status AS ENUM ('pending','present','late','absent','excused');
+        CREATE TYPE attendance_status AS ENUM ('pending', 'present', 'late', 'absent', 'excused');
     EXCEPTION
         WHEN duplicate_object THEN NULL;
     END $$;
 
 DO $$
     BEGIN
-        CREATE TYPE scan_type_enum AS ENUM ('in','out');
+        CREATE TYPE scan_type_enum AS ENUM ('in', 'out');
     EXCEPTION
         WHEN duplicate_object THEN NULL;
     END $$;
@@ -240,6 +251,7 @@ CREATE TABLE scan_logs (
                            scan_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+
 -- ============================================================
 -- DEFAULT ROLES
 -- ============================================================
@@ -248,46 +260,49 @@ INSERT INTO user_roles (role_name)
 VALUES ('admin'), ('faculty'), ('student')
 ON CONFLICT (role_name) DO NOTHING;
 
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
 
 -- Users table
-CREATE INDEX idx_users_role_id   	   ON users(role_id);
-CREATE INDEX idx_users_email    	   ON users(user_email);
+CREATE INDEX idx_users_role_id              ON users(role_id);
+CREATE INDEX idx_users_email                ON users(user_email);
 
 -- Students table
-CREATE INDEX idx_students_stud_number  ON students(stud_number);
+CREATE INDEX idx_students_stud_number       ON students(stud_number);
 
 -- Enrollment table
-CREATE INDEX idx_enroll_stud_id        ON enrollment(stud_id);
-CREATE INDEX idx_enroll_class_id       ON enrollment(class_id);
+CREATE INDEX idx_enroll_stud_id             ON enrollment(stud_id);
+CREATE INDEX idx_enroll_class_id            ON enrollment(class_id);
 
 -- Attendance table
-CREATE INDEX idx_attend_class_id       ON attendance(class_id);
-CREATE INDEX idx_attend_stud_id        ON attendance(stud_id);
-CREATE INDEX idx_attend_scan_time      ON attendance(attend_scan_time);
+CREATE INDEX idx_attend_class_id            ON attendance(class_id);
+CREATE INDEX idx_attend_stud_id             ON attendance(stud_id);
+CREATE INDEX idx_attend_scan_time           ON attendance(attend_scan_time);
 
 -- Classes table
-CREATE INDEX idx_class_fac_id          ON classes(fac_id);
-CREATE INDEX idx_class_room_id         ON classes(room_id);
+CREATE INDEX idx_class_fac_id               ON classes(fac_id);
+CREATE INDEX idx_class_room_id              ON classes(room_id);
 
 -- Scan logs table
-CREATE INDEX idx_scan_logs_time        ON scan_logs(scan_time);
+CREATE INDEX idx_scan_logs_time             ON scan_logs(scan_time);
 
 -- Improve JOIN performance
-CREATE INDEX idx_classes_course_id     ON classes(course_id);
-CREATE INDEX idx_classes_term_id       ON classes(term_id);
-CREATE INDEX idx_courses_program_id    ON courses(program_id);
-CREATE INDEX idx_students_program_id   ON students(program_id);
-CREATE INDEX idx_students_user_id      ON students(user_id);
-CREATE INDEX idx_faculty_user_id       ON faculty(user_id);
-CREATE INDEX idx_class_schedules_class_id ON class_schedules(class_id);
+CREATE INDEX idx_classes_course_id          ON classes(course_id);
+CREATE INDEX idx_classes_term_id            ON classes(term_id);
+CREATE INDEX idx_courses_program_id         ON courses(program_id);
+CREATE INDEX idx_students_program_id        ON students(program_id);
+CREATE INDEX idx_students_user_id           ON students(user_id);
+CREATE INDEX idx_faculty_user_id            ON faculty(user_id);
+CREATE INDEX idx_class_schedules_class_id   ON class_schedules(class_id);
 
 -- Improve date-based queries
-CREATE INDEX idx_attendance_date ON attendance(attend_date);
-CREATE INDEX idx_attendance_class_date ON attendance(class_id, attend_date);
-CREATE INDEX idx_attendance_stud_date ON attendance(stud_id, attend_date);
+CREATE INDEX idx_attendance_date            ON attendance(attend_date);
+CREATE INDEX idx_attendance_class_date      ON attendance(class_id, attend_date);
+CREATE INDEX idx_attendance_stud_date       ON attendance(stud_id, attend_date);
+
+
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
@@ -309,6 +324,7 @@ CREATE TRIGGER trg_mark_student_id_used
     FOR EACH ROW
 EXECUTE FUNCTION mark_student_id_used();
 
+
 -- Update timestamp on class update
 CREATE OR REPLACE FUNCTION update_updated_at_column()
     RETURNS TRIGGER AS $$
@@ -322,6 +338,7 @@ CREATE TRIGGER trigger_update_classes_updated_at
     BEFORE UPDATE ON classes
     FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
 
 -- Ensure only one active academic term
 CREATE OR REPLACE FUNCTION enforce_single_active_term()
