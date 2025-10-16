@@ -8,31 +8,22 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
     {
         private readonly ILogger<FacultyAttendanceController> _logger;
         private readonly IFacultyRepository _facultyRepository;
-        private readonly IClassRepository _classRepository;
-        private readonly IEnrollmentRepository _enrollmentRepository;
         private readonly IAttendanceRepository _attendanceRepository;
-        private readonly IStudentRepository _studentRepository;
-        private readonly IUserRepository _userRepository;
-        private readonly ICourseRepository _courseRepository;
+        private readonly IEnrollmentRepository _enrollmentRepository;
+        private readonly IClassRepository _classRepository;
 
         public FacultyAttendanceController(
             ILogger<FacultyAttendanceController> logger,
             IFacultyRepository facultyRepository,
-            IClassRepository classRepository,
-            IEnrollmentRepository enrollmentRepository,
             IAttendanceRepository attendanceRepository,
-            IStudentRepository studentRepository,
-            IUserRepository userRepository,
-            ICourseRepository courseRepository)
+            IEnrollmentRepository enrollmentRepository,
+            IClassRepository classRepository)
         {
             _logger = logger;
             _facultyRepository = facultyRepository;
-            _classRepository = classRepository;
-            _enrollmentRepository = enrollmentRepository;
             _attendanceRepository = attendanceRepository;
-            _studentRepository = studentRepository;
-            _userRepository = userRepository;
-            _courseRepository = courseRepository;
+            _enrollmentRepository = enrollmentRepository;
+            _classRepository = classRepository;
         }
 
         // GET: FacultyAttendance/Index
@@ -60,85 +51,22 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     return Json(new { success = false, message = "Faculty record not found" });
                 }
 
-                var classEntity = await _classRepository.GetByIdAsync(classId);
-                if (classEntity == null || classEntity.FacId != faculty.FacId)
+                // Parse target date
+                var targetDate = string.IsNullOrEmpty(date) ? DateTime.Today : DateTime.Parse(date);
+
+                // Single optimized query with all JOINs and faculty verification
+                var attendanceData = await _attendanceRepository.GetClassAttendanceWithDetailsAsync(
+                    classId, targetDate, faculty.FacId);
+
+                if (attendanceData == null)
                 {
                     return Json(new { success = false, message = "Class not found or access denied" });
-                }
-
-                // Get course info
-                var course = classEntity.CourseId.HasValue 
-                    ? await _courseRepository.GetByIdAsync(classEntity.CourseId.Value) 
-                    : null;
-
-                // Get enrolled students
-                var enrollments = await _enrollmentRepository.GetByClassIdAsync(classId);
-                var allStudents = await _studentRepository.GetAllAsync();
-                var allUsers = await _userRepository.GetAllAsync();
-                var allAttendance = await _attendanceRepository.GetAllAsync();
-
-                var studentDict = allStudents.ToDictionary(s => s.StudId);
-                var userDict = allUsers.ToDictionary(u => u.UserId);
-
-                // Get attendance for the specified date (or today if not specified)
-                var targetDate = string.IsNullOrEmpty(date) ? DateTime.Today : DateTime.Parse(date);
-                var todayAttendance = allAttendance
-                    .Where(a => a.ClassId == classId && a.AttendDate.Date == targetDate)
-                    .GroupBy(a => a.StudId)
-                    .ToDictionary(g => g.Key, g => g.OrderBy(a => a.AttendScanTime).ToList());
-
-                var studentsData = new List<object>();
-                foreach (var enrollment in enrollments)
-                {
-                    if (!studentDict.ContainsKey(enrollment.StudId))
-                        continue;
-
-                    var student = studentDict[enrollment.StudId];
-                    var user = userDict.ContainsKey(student.UserId) ? userDict[student.UserId] : null;
-
-                    var attendanceRecords = todayAttendance.ContainsKey(student.StudId) 
-                        ? todayAttendance[student.StudId] 
-                        : new List<Attendance>();
-
-                    // Get Time In (first scan of type In)
-                    var timeInRecord = attendanceRecords.FirstOrDefault(a => a.AttendType == ScanType.In);
-                    var timeIn = timeInRecord?.AttendScanTime.ToString("hh:mm:ss tt");
-
-                    // Get Time Out (first scan of type Out)
-                    var timeOutRecord = attendanceRecords.FirstOrDefault(a => a.AttendType == ScanType.Out);
-                    var timeOut = timeOutRecord?.AttendScanTime.ToString("hh:mm:ss tt");
-
-                    // Determine status based on attendance records
-                    var status = "Absent";
-                    if (attendanceRecords.Any())
-                    {
-                        var latestRecord = attendanceRecords.OrderByDescending(a => a.AttendScanTime).First();
-                        status = latestRecord.AttendStatus.ToString();
-                    }
-
-                    studentsData.Add(new
-                    {
-                        studId = student.StudId,
-                        studentNumber = student.StudNumber,
-                        name = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown",
-                        profileImage = user?.UserProfileImage ?? "default_profile.png",
-                        timeIn = timeIn,
-                        timeOut = timeOut,
-                        status = status,
-                        attendId = timeInRecord?.AttendId
-                    });
                 }
 
                 return Json(new
                 {
                     success = true,
-                    data = new
-                    {
-                        courseCode = course?.CourseCode ?? "N/A",
-                        courseName = course?.CourseName ?? "N/A",
-                        date = targetDate.ToString("M/d/yyyy"),
-                        students = studentsData
-                    }
+                    data = attendanceData
                 });
             }
             catch (Exception ex)
