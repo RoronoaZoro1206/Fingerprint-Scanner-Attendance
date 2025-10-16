@@ -40,38 +40,11 @@ public class AdminClassScheduleController : Controller
         {
             _logger.LogInformation("Fetching all class schedules...");
 
-            var schedules = await _classScheduleRepository.GetAllAsync();
-            _logger.LogInformation($"Found {schedules.Count()} schedules");
+            // Single optimized query with all JOINs instead of 3 separate queries
+            var schedules = await _classScheduleRepository.GetAllWithDetailsAsync();
 
-            var classes = await _classRepository.GetAllAsync();
-            var courses = await _courseRepository.GetAllAsync();
-
-            _logger.LogInformation($"Found {classes.Count()} classes and {courses.Count()} courses");
-
-            var classDict = classes.ToDictionary(c => c.ClassId);
-            var courseDict = courses.ToDictionary(c => c.CourseId);
-
-            var scheduleList = schedules.Select(s =>
-            {
-                var cls = classDict.ContainsKey(s.ClassId) ? classDict[s.ClassId] : null;
-                var courseId = cls?.CourseId;
-                var course = courseId.HasValue && courseDict.ContainsKey(courseId.Value)
-                    ? courseDict[courseId.Value]
-                    : null;
-
-                return new
-                {
-                    schedId = s.SchedId,
-                    classId = s.ClassId,
-                    courseName = course?.CourseName ?? "N/A",
-                    schedDayOfWeek = s.SchedDayOfWeek,
-                    schedStartTime = s.SchedStartTime.ToString(@"hh\:mm"),
-                    schedEndTime = s.SchedEndTime.ToString(@"hh\:mm")
-                };
-            }).ToList();
-
-            _logger.LogInformation($"Returning {scheduleList.Count} schedule records");
-            return Json(new { data = scheduleList });
+            _logger.LogInformation($"Returning {schedules.Count()} schedule records");
+            return Json(new { data = schedules });
         }
         catch (Exception ex)
         {

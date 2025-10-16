@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations;
@@ -114,5 +115,37 @@ public class ClassScheduleRepository : IClassScheduleRepository
         string query = "SELECT COUNT(*) FROM class_schedules WHERE sched_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", schedId } };
         return await _db.RecordExistsAsync(query, parameters);
+    }
+
+    /// <summary>
+    /// Gets all class schedules with course information in a single optimized query
+    /// Eliminates N+1 query problem by using JOINs instead of multiple repository calls
+    /// </summary>
+    public async Task<IEnumerable<ClassScheduleDetailDto>> GetAllWithDetailsAsync()
+    {
+        string query = @"
+            SELECT 
+                cs.sched_id,
+                cs.class_id,
+                COALESCE(co.course_name, 'N/A') as course_name,
+                cs.sched_day_of_week,
+                TO_CHAR(cs.sched_start_time, 'HH24:MI') as sched_start_time,
+                TO_CHAR(cs.sched_end_time, 'HH24:MI') as sched_end_time
+            FROM class_schedules cs
+            INNER JOIN classes cl ON cs.class_id = cl.class_id
+            LEFT JOIN courses co ON cl.course_id = co.course_id
+            ORDER BY cs.sched_id;";
+        
+        var dt = await _db.ExecuteQueryAsync(query);
+        
+        return dt.AsEnumerable().Select(row => new ClassScheduleDetailDto
+        {
+            SchedId = Convert.ToInt32(row["sched_id"]),
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            SchedDayOfWeek = row["sched_day_of_week"]?.ToString() ?? "",
+            SchedStartTime = row["sched_start_time"]?.ToString() ?? "",
+            SchedEndTime = row["sched_end_time"]?.ToString() ?? ""
+        });
     }
 }
