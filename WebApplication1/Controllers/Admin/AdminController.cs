@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
+[RoleAuthorize(USER_ROLES.ADMIN)]
 public class AdminController : Controller
 {
     private readonly ILogger<AdminController> _logger;

@@ -1,9 +1,12 @@
+using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Faculty
 {
+    [RoleAuthorize(USER_ROLES.FACULTY)]
     public class FacultyAttendanceController : Controller
     {
         private readonly ILogger<FacultyAttendanceController> _logger;

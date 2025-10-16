@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Fingerprint_Attendance_System.Attributes;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Controllers
 {
     [Route("api/fingerprint")]
     [ApiController]
+    [RoleAuthorize(USER_ROLES.ADMIN, USER_ROLES.FACULTY, USER_ROLES.STUDENT)]
     public class FingerprintStatusController : ControllerBase
     {
         private readonly IFingerprintTemplateRepository _fingerprintRepo;

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Fingerprint_Attendance_System.Attributes;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Data;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin
 {
+    [RoleAuthorize(USER_ROLES.ADMIN)]
     public class AdminOverviewController : Controller
     {
         private readonly IUserRepository _userRepo;

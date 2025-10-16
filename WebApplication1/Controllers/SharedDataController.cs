@@ -1,8 +1,11 @@
+using Fingerprint_Attendance_System.Attributes;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers;
 
+[RoleAuthorize(USER_ROLES.ADMIN, USER_ROLES.FACULTY, USER_ROLES.STUDENT)]
 public class SharedDataController : Controller
 {
     private readonly AcademicTermService _academicTermService;

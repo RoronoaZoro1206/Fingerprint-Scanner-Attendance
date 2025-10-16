@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers;
 
+[RoleAuthorize(USER_ROLES.ADMIN, USER_ROLES.FACULTY, USER_ROLES.STUDENT)]
 public class UserProfileController : Controller
 {
     private readonly ILogger<UserProfileController> _logger;

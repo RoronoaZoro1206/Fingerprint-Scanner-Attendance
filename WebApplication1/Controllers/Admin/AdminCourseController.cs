@@ -1,11 +1,14 @@
 using System.Diagnostics;
+using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
 
+[RoleAuthorize(USER_ROLES.ADMIN)]
 public class AdminCourseController : Controller
 {
     private readonly ILogger<AdminCourseController> _logger;
@@ -37,21 +40,10 @@ public class AdminCourseController : Controller
     {
         try
         {
-            var courses = await _courseRepository.GetAllAsync();
-            var programs = await _programRepository.GetAllAsync();
+            // Single optimized query with JOIN instead of 2 separate queries
+            var courses = await _courseRepository.GetAllWithProgramAsync();
             
-            var courseData = courses.Select(c => new
-            {
-                c.CourseId,
-                c.CourseCode,
-                c.CourseName,
-                c.CourseDesc,
-                c.CourseUnits,
-                c.ProgramId,
-                ProgramName = programs.FirstOrDefault(p => p.ProgramId == c.ProgramId)?.ProgramName ?? "N/A"
-            });
-            
-            return Json(new { data = courseData });
+            return Json(new { data = courses });
         }
         catch (Exception ex)
         {

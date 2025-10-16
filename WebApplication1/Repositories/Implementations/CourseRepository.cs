@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations;
@@ -100,5 +101,38 @@ public class CourseRepository : ICourseRepository
         string query = "DELETE FROM courses WHERE course_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", courseId } };
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
+    }
+
+    /// <summary>
+    /// Gets all courses with program information in a single optimized query
+    /// Eliminates N+1 query problem by using JOIN instead of multiple repository calls
+    /// </summary>
+    public async Task<IEnumerable<CourseDetailDto>> GetAllWithProgramAsync()
+    {
+        string query = @"
+            SELECT 
+                c.course_id,
+                c.course_code,
+                c.course_name,
+                c.course_desc,
+                c.course_units,
+                c.program_id,
+                COALESCE(p.program_name, 'N/A') as program_name
+            FROM courses c
+            LEFT JOIN programs p ON c.program_id = p.program_id
+            ORDER BY c.course_id;";
+        
+        var dt = await _db.ExecuteQueryAsync(query);
+        
+        return dt.AsEnumerable().Select(row => new CourseDetailDto
+        {
+            CourseId = Convert.ToInt32(row["course_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "",
+            CourseName = row["course_name"]?.ToString() ?? "",
+            CourseDesc = row["course_desc"] != DBNull.Value ? row["course_desc"]?.ToString() : null,
+            CourseUnits = Convert.ToInt32(row["course_units"]),
+            ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+            ProgramName = row["program_name"]?.ToString() ?? "N/A"
+        });
     }
 }
