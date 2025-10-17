@@ -183,4 +183,54 @@ public class UserRepository : IUserRepository
         var parameters = new Dictionary<string, object> { { "@id", userId } };
         return await _db.RecordExistsAsync(query, parameters);
     }
+
+    public async Task<bool> AdminExistsAsync()
+    {
+        string query = "SELECT COUNT(*) FROM users WHERE role_id = 1 LIMIT 1;";
+        return await _db.RecordExistsAsync(query);
+    }
+
+    public async Task<User?> GetByEmailWithRoleCheckAsync(string email, int roleId)
+    {
+        string query = @"
+            SELECT * FROM users 
+            WHERE LOWER(user_email) = LOWER(@email) AND role_id = @roleId;";
+        
+        var parameters = new Dictionary<string, object> 
+        { 
+            { "@email", email },
+            { "@roleId", roleId }
+        };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new User
+        {
+            UserId = Convert.ToInt32(row["user_id"]),
+            UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
+            UserFirstName = row["user_first_name"].ToString() ?? "",
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
+            UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
+            UserEmail = row["user_email"].ToString() ?? "",
+            UserPassword = row["user_password"].ToString() ?? "",
+            RoleId = Convert.ToInt32(row["role_id"]),
+            UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
+            UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
+            IsActive = Convert.ToBoolean(row["is_active"])
+        };
+    }
+
+    public async Task<bool> EmailExistsAsync(string email)
+    {
+        string query = "SELECT COUNT(*) FROM users WHERE LOWER(user_email) = LOWER(@email) LIMIT 1;";
+        var parameters = new Dictionary<string, object> { { "@email", email } };
+        return await _db.RecordExistsAsync(query, parameters);
+    }
 }

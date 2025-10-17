@@ -26,13 +26,12 @@ public class SuperAdminInitializer
         {
             _logger.LogInformation("Checking for super admin account...");
 
-            // Check if any admin users exist (RoleId = 1 for admin)
-            var allUsers = await _userRepository.GetAllAsync();
-            var adminUsers = allUsers.Where(u => u.RoleId == 1).ToList();
+            // Optimized: Check if any admin users exist without loading all users
+            var adminExists = await _userRepository.AdminExistsAsync();
 
-            if (adminUsers.Any())
+            if (adminExists)
             {
-                _logger.LogInformation($"Found {adminUsers.Count} admin user(s). Skipping super admin creation.");
+                _logger.LogInformation("Admin user(s) already exist. Skipping super admin creation.");
                 return;
             }
 
@@ -45,11 +44,11 @@ public class SuperAdminInitializer
             var adminLastName = Environment.GetEnvironmentVariable("ADMIN_LAST_NAME") ?? "Admin";
             var adminCode = Environment.GetEnvironmentVariable("ADMIN_CODE") ?? "ADMIN001";
 
-            // Check if email already exists
-            var existingUser = await _userRepository.GetByEmailAsync(adminEmail);
+            // Optimized: Check if email already exists with role check
+            var existingUser = await _userRepository.GetByEmailWithRoleCheckAsync(adminEmail, 1);
             if (existingUser != null)
             {
-                _logger.LogWarning($"User with email {adminEmail} already exists. Skipping super admin creation.");
+                _logger.LogWarning($"Admin user with email {adminEmail} already exists. Skipping super admin creation.");
                 return;
             }
 

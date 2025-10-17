@@ -28,15 +28,10 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" asp-for="MiddleName">Middle Name</label>
-                        <input type="text" class="form-input" placeholder="Middle name" asp-for="MiddleName" />
+                        <label class="form-label" asp-for="LastName">Last Name</label>
+                        <input type="text" class="form-input" placeholder="Last name" asp-for="LastName" required />
+                        <span asp-validation-for="LastName" class="text-danger"></span>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="LastName">Last Name</label>
-                    <input type="text" class="form-input" placeholder="Enter your last name" asp-for="LastName" required />
-                    <span asp-validation-for="LastName" class="text-danger"></span>
                 </div>
 
                 <div class="form-group">

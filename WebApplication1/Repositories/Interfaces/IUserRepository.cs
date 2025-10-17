@@ -10,4 +10,7 @@ public interface IUserRepository
     Task<bool> UpdateAsync(User user);
     Task<bool> DeleteAsync(int userId);
     Task<bool> ExistsAsync(int userId);
+    Task<bool> AdminExistsAsync();
+    Task<User?> GetByEmailWithRoleCheckAsync(string email, int roleId);
+    Task<bool> EmailExistsAsync(string email);
 }

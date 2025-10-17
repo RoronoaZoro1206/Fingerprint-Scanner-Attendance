@@ -191,9 +191,9 @@ public class AuthController : Controller
                 return View(model);
             }
 
-            // Check if email is already in use
-            var existingUsers = await _userRepository.GetAllAsync();
-            if (existingUsers.Any(u => u.UserEmail.Equals(model.Email, StringComparison.OrdinalIgnoreCase)))
+            // Optimized: Check if email is already in use without loading all users
+            var emailExists = await _userRepository.EmailExistsAsync(model.Email);
+            if (emailExists)
             {
                 if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
                 {
@@ -210,7 +210,7 @@ public class AuthController : Controller
             var user = new User
             {
                 UserFirstName = model.FirstName,
-                UserMiddleName = model.MiddleName,
+                UserMiddleName = null,
                 UserLastName = model.LastName,
                 UserEmail = model.Email,
                 UserPassword = hashedPassword,
@@ -234,9 +234,8 @@ public class AuthController : Controller
                 return View(model);
             }
 
-            // Get the created user to obtain the UserId
-            var users = await _userRepository.GetAllAsync();
-            var createdUser = users.FirstOrDefault(u => u.UserEmail == model.Email);
+            // Optimized: Get the created user by email without loading all users
+            var createdUser = await _userRepository.GetByEmailAsync(model.Email);
 
             if (createdUser == null)
             {
