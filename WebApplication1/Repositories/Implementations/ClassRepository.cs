@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations;
@@ -218,5 +219,101 @@ public class ClassRepository : IClassRepository
         string query = "SELECT COUNT(*) FROM classes WHERE class_id = @id;";
         var parameters = new Dictionary<string, object> { { "@id", classId } };
         return await _db.RecordExistsAsync(query, parameters);
+    }
+
+    // Optimized DTO methods
+    public async Task<IEnumerable<ClassListDto>> GetAllClassListAsync()
+    {
+        string query = @"
+            SELECT 
+                c.class_id,
+                c.course_id,
+                c.room_id,
+                c.fac_id,
+                c.term_id,
+                c.class_created_at,
+                c.class_updated_at,
+                COALESCE(co.course_name, 'N/A') AS course_name,
+                COALESCE(r.room_code, 'N/A') AS room_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'N/A') AS faculty_name,
+                COALESCE(t.term_name, 'N/A') AS term_name
+            FROM classes c
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN academic_terms t ON c.term_id = t.term_id
+            ORDER BY c.class_id;";
+
+        var dt = await _db.ExecuteQueryAsync(query);
+
+        return dt.AsEnumerable().Select(row => new ClassListDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseId = row["course_id"] != DBNull.Value ? Convert.ToInt32(row["course_id"]) : null,
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            RoomId = row["room_id"] != DBNull.Value ? Convert.ToInt32(row["room_id"]) : null,
+            RoomName = row["room_name"]?.ToString() ?? "N/A",
+            FacId = row["fac_id"] != DBNull.Value ? Convert.ToInt32(row["fac_id"]) : null,
+            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
+            TermId = row["term_id"] != DBNull.Value ? Convert.ToInt32(row["term_id"]) : null,
+            TermName = row["term_name"]?.ToString() ?? "N/A",
+            ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
+            ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
+        });
+    }
+
+    public async Task<ClassDetailDto?> GetClassDetailByIdAsync(int classId)
+    {
+        string query = @"
+            SELECT 
+                c.class_id,
+                c.course_id,
+                c.room_id,
+                c.fac_id,
+                c.term_id,
+                c.class_created_at,
+                c.class_updated_at,
+                co.course_code,
+                co.course_name,
+                r.room_code,
+                r.room_description,
+                CONCAT(u.user_first_name, ' ', u.user_last_name) AS faculty_name,
+                t.term_name,
+                t.start_date,
+                t.end_date
+            FROM classes c
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN academic_terms t ON c.term_id = t.term_id
+            WHERE c.class_id = @id
+            LIMIT 1;";
+
+        var parameters = new Dictionary<string, object> { { "@id", classId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new ClassDetailDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseId = row["course_id"] != DBNull.Value ? Convert.ToInt32(row["course_id"]) : null,
+            CourseCode = row["course_code"]?.ToString() ?? "",
+            CourseName = row["course_name"]?.ToString() ?? "",
+            RoomId = row["room_id"] != DBNull.Value ? Convert.ToInt32(row["room_id"]) : null,
+            RoomCode = row["room_code"]?.ToString() ?? "",
+            RoomDescription = row["room_description"]?.ToString(),
+            FacId = row["fac_id"] != DBNull.Value ? Convert.ToInt32(row["fac_id"]) : null,
+            FacultyName = row["faculty_name"]?.ToString() ?? "",
+            TermId = row["term_id"] != DBNull.Value ? Convert.ToInt32(row["term_id"]) : null,
+            TermName = row["term_name"]?.ToString() ?? "",
+            TermStartDate = row["start_date"] != DBNull.Value ? Convert.ToDateTime(row["start_date"]) : null,
+            TermEndDate = row["end_date"] != DBNull.Value ? Convert.ToDateTime(row["end_date"]) : null,
+            ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
+            ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
+        };
     }
 }

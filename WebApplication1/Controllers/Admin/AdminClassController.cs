@@ -46,25 +46,25 @@ public class AdminClassController : Controller
         return View("~/Views/Admin/Classes.cshtml");
     }
 
-    // GET: Class/GetAll - DataTables AJAX endpoint
+    // GET: Class/GetAll - DataTables AJAX endpoint (Optimized with DTO)
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         try
         {
-            var classes = await _classRepository.GetAllWithDetailsAsync();
+            var classes = await _classRepository.GetAllClassListAsync();
             
             var classData = classes.Select(c => new
             {
-                c.ClassId,
-                c.CourseId,
-                CourseName = c.Course?.CourseName ?? "N/A",
-                c.RoomId,
-                RoomName = c.Room?.RoomName ?? "N/A",
-                c.FacId,
-                FacultyName = c.Faculty?.FacName ?? "N/A",
-                c.TermId,
-                TermName = c.Term?.TermName ?? "N/A"
+                classId = c.ClassId,
+                courseId = c.CourseId,
+                courseName = c.CourseName,
+                roomId = c.RoomId,
+                roomName = c.RoomName,
+                facId = c.FacId,
+                facultyName = c.FacultyName,
+                termId = c.TermId,
+                termName = c.TermName
             });
             
             return Json(new { data = classData });
@@ -76,13 +76,13 @@ public class AdminClassController : Controller
         }
     }
 
-    // GET: Class/GetById/{id}
+    // GET: Class/GetById/{id} (Optimized with detailed DTO)
     [HttpGet]
     public async Task<IActionResult> GetById(int id)
     {
         try
         {
-            var cls = await _classRepository.GetByIdAsync(id);
+            var cls = await _classRepository.GetClassDetailByIdAsync(id);
             if (cls == null)
             {
                 return Json(new { success = false, message = "Class not found" });
@@ -128,22 +128,18 @@ public class AdminClassController : Controller
         }
     }
 
-    // GET: Class/GetFaculties
+    // GET: Class/GetFaculties (Optimized with single query)
     [HttpGet]
     public async Task<IActionResult> GetFaculties()
     {
         try
         {
-            var faculties = await _facultyRepository.GetAllAsync();
-            var allUsers = await _userRepository.GetAllAsync();
-            var userDict = allUsers.ToDictionary(u => u.UserId);
+            var faculties = await _facultyRepository.GetAllSimpleAsync();
 
             var facultyList = faculties.Select(f => new
             {
                 facId = f.FacId,
-                facName = userDict.ContainsKey(f.UserId) 
-                    ? $"{userDict[f.UserId].UserFirstName} {userDict[f.UserId].UserLastName}".Trim()
-                    : "Unknown"
+                facName = f.FacName
             });
 
             return Json(new { success = true, data = facultyList });

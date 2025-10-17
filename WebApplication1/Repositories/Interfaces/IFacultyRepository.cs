@@ -18,4 +18,5 @@ public interface IFacultyRepository
     Task<IEnumerable<FacultyListDto>> GetAllWithDetailsAsync();
     Task<FacultyDetailDto?> GetDetailByIdAsync(int facId);
     Task<IEnumerable<FacultyUserDto>> GetAvailableFacultyUsersAsync();
+    Task<IEnumerable<FacultySimpleDto>> GetAllSimpleAsync();
 }

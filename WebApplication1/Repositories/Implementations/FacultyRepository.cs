@@ -233,5 +233,24 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 HasFacultyRecord = Convert.ToInt32(row["has_faculty_record"]) == 1
             });
         }
+
+        public async Task<IEnumerable<FacultySimpleDto>> GetAllSimpleAsync()
+        {
+            string query = @"
+                SELECT 
+                    f.fac_id,
+                    CONCAT(u.user_first_name, ' ', u.user_last_name) AS fac_name
+                FROM faculty f
+                INNER JOIN users u ON f.user_id = u.user_id
+                ORDER BY u.user_first_name, u.user_last_name;";
+
+            var dt = await _db.ExecuteQueryAsync(query);
+
+            return dt.AsEnumerable().Select(row => new FacultySimpleDto
+            {
+                FacId = Convert.ToInt32(row["fac_id"]),
+                FacName = row["fac_name"]?.ToString() ?? "Unknown"
+            });
+        }
     }
 }
