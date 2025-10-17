@@ -9,26 +9,14 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
     [RoleAuthorize(USER_ROLES.ADMIN)]
     public class AdminOverviewController : Controller
     {
-        private readonly IUserRepository _userRepo;
-        private readonly ICourseRepository _courseRepo;
-        private readonly IFacultyRepository _facultyRepo;
-        private readonly IRoomRepository _roomRepo;
-        private readonly IAdministrationAuditRepository _auditRepo;
+        private readonly IAdminOverviewRepository _overviewRepo;
         private readonly DatabaseHelper _db;
 
         public AdminOverviewController(
-            IUserRepository userRepo,
-            ICourseRepository courseRepo,
-            IFacultyRepository facultyRepo,
-            IRoomRepository roomRepo,
-            IAdministrationAuditRepository auditRepo,
+            IAdminOverviewRepository overviewRepo,
             DatabaseHelper db)
         {
-            _userRepo = userRepo;
-            _courseRepo = courseRepo;
-            _facultyRepo = facultyRepo;
-            _roomRepo = roomRepo;
-            _auditRepo = auditRepo;
+            _overviewRepo = overviewRepo;
             _db = db;
         }
 
@@ -42,20 +30,18 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         {
             try
             {
-                var users = await _userRepo.GetAllAsync();
-                var courses = await _courseRepo.GetAllAsync();
-                var faculty = await _facultyRepo.GetAllAsync();
-                var rooms = await _roomRepo.GetAllAsync();
+                // Optimized: Single query to get all counts
+                var stats = await _overviewRepo.GetOverviewStatsAsync();
 
                 return Json(new
                 {
                     success = true,
                     data = new
                     {
-                        totalUsers = users.Count(),
-                        totalCourses = courses.Count(),
-                        totalFaculty = faculty.Count(),
-                        totalRooms = rooms.Count()
+                        totalUsers = stats.TotalUsers,
+                        totalCourses = stats.TotalCourses,
+                        totalFaculty = stats.TotalFaculty,
+                        totalRooms = stats.TotalRooms
                     }
                 });
             }
@@ -70,17 +56,17 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         {
             try
             {
-                var audits = await _auditRepo.GetAllAsync();
-                var recentAudits = audits.OrderByDescending(a => a.AudActionTime).Take(5);
+                // Optimized: Single query with LIMIT to get recent activities
+                var activities = await _overviewRepo.GetRecentActivityAsync(5);
 
-                var activities = recentAudits.Select(a => new
+                var result = activities.Select(a => new
                 {
-                    action = a.AudAction,
-                    details = a.AudDetails,
-                    timestamp = a.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
+                    action = a.Action,
+                    details = a.Details,
+                    timestamp = a.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")
                 });
 
-                return Json(new { success = true, data = activities });
+                return Json(new { success = true, data = result });
             }
             catch (Exception ex)
             {
