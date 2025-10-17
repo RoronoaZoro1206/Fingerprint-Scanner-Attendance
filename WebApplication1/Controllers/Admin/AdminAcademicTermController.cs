@@ -91,6 +91,12 @@ public class AdminAcademicTermController : Controller
 
             if (result)
             {
+                // Refresh session if this new term is set as active
+                if (term.IsActive)
+                {
+                    await _academicTermService.RefreshActiveAcademicTermAsync();
+                }
+                
                 await _auditService.LogActionAsync(
                     "Created Academic Term", 
                     $"Created academic term: {term.TermName} ({term.StartDate:yyyy-MM-dd} to {term.EndDate:yyyy-MM-dd})");

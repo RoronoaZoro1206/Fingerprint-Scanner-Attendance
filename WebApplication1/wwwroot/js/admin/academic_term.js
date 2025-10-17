@@ -314,6 +314,13 @@ function saveTerm() {
                 Toast.created('Academic Term');
                 $('#addTermModal').modal('hide');
                 termsTable.ajax.reload(null, false);
+                
+                // Trigger navbar update if the new term is active
+                if (isActive) {
+                    if (typeof window.refreshAcademicTerm === 'function') {
+                        window.refreshAcademicTerm();
+                    }
+                }
             } else {
                 Toast.error(response.message || 'Failed to create academic term.');
             }
@@ -389,8 +396,8 @@ function updateTerm() {
                 
                 // Trigger navbar update if active status changed
                 if (isActive) {
-                    if (typeof window.triggerAcademicTermUpdate === 'function') {
-                        window.triggerAcademicTermUpdate();
+                    if (typeof window.refreshAcademicTerm === 'function') {
+                        window.refreshAcademicTerm();
                     }
                 }
             } else {
@@ -450,8 +457,8 @@ function confirmSetActiveTerm() {
                 termsTable.ajax.reload(null, false);
                 
                 // Trigger navbar update
-                if (typeof window.triggerAcademicTermUpdate === 'function') {
-                    window.triggerAcademicTermUpdate();
+                if (typeof window.refreshAcademicTerm === 'function') {
+                    window.refreshAcademicTerm();
                 }
             } else {
                 Toast.error(response.message || 'Failed to set active term.');
