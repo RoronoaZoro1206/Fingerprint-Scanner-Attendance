@@ -46,49 +46,35 @@ public class StudentProfileController : Controller
             if (!userId.HasValue || userId.Value == 0)
                 return Json(new { success = false, message = "User not authenticated" });
 
-            var user = await _userRepository.GetByIdAsync(userId.Value);
-            if (user == null)
-                return Json(new { success = false, message = "User not found" });
-
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId);
-
-            var programs = await _programRepository.GetAllAsync();
-            var sections = await _sectionRepository.GetAllAsync();
-
-            var programName = student?.ProgramId.HasValue == true
-                ? programs.FirstOrDefault(p => p.ProgramId == student.ProgramId)?.ProgramName
-                : null;
-
-            var sectionName = student?.SectionId.HasValue == true
-                ? sections.FirstOrDefault(s => s.SectionId == student.SectionId)?.SectionName
-                : null;
+            var profile = await _studentRepository.GetStudentProfileByUserIdAsync(userId.Value);
+            if (profile == null)
+                return Json(new { success = false, message = "Profile not found" });
 
             return Json(new
             {
                 success = true,
                 data = new
                 {
-                    userId = user.UserId,
-                    userProfileImage = user.UserProfileImage,
-                    userFirstName = user.UserFirstName,
-                    userMiddleName = user.UserMiddleName,
-                    userLastName = user.UserLastName,
-                    userEmail = user.UserEmail,
-                    userPhone = user.UserPhone,
-                    userGender = user.UserGender,
-                    userBirthdate = user.UserBirthdate?.ToString("yyyy-MM-dd"),
-                    userAddress = user.UserAddress,
-                    studId = student?.StudId,
-                    studNumber = student?.StudNumber,
-                    programId = student?.ProgramId,
-                    programName = programName,
-                    studYearLevel = student?.StudYearLevel,
-                    sectionId = student?.SectionId,
-                    sectionName = sectionName,
-                    profileSubmitted = student?.ProfileSubmitted ?? false,
-                    profileSubmittedAt = student?.ProfileSubmittedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
-                    hasStudentProfile = student != null
+                    userId = profile.UserId,
+                    userProfileImage = profile.UserProfileImage,
+                    userFirstName = profile.UserFirstName,
+                    userMiddleName = profile.UserMiddleName,
+                    userLastName = profile.UserLastName,
+                    userEmail = profile.UserEmail,
+                    userPhone = profile.UserPhone,
+                    userGender = profile.UserGender,
+                    userBirthdate = profile.UserBirthdate,
+                    userAddress = profile.UserAddress,
+                    studId = profile.StudId,
+                    studNumber = profile.StudNumber,
+                    programId = profile.ProgramId,
+                    programName = profile.ProgramName,
+                    studYearLevel = profile.StudYearLevel,
+                    sectionId = profile.SectionId,
+                    sectionName = profile.SectionName,
+                    profileSubmitted = profile.ProfileSubmitted,
+                    profileSubmittedAt = profile.ProfileSubmittedAt,
+                    hasStudentProfile = profile.HasStudentProfile
                 }
             });
         }
@@ -175,8 +161,7 @@ public class StudentProfileController : Controller
             HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
 
             // Update or create student profile
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            var student = await _studentRepository.GetByUserIdAsync(userId.Value);
 
             if (student != null)
             {

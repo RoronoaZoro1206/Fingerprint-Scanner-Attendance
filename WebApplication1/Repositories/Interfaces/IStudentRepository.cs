@@ -15,4 +15,6 @@ public interface IStudentRepository
     Task<IEnumerable<StudentListDto>> GetAllWithDetailsAsync();
     Task<StudentDetailDto?> GetDetailByIdAsync(int studId);
     Task<IEnumerable<StudentUserDto>> GetAvailableStudentUsersAsync();
+    Task<StudentProfileDto?> GetStudentProfileByUserIdAsync(int userId);
+    Task<Student?> GetByUserIdAsync(int userId);
 }

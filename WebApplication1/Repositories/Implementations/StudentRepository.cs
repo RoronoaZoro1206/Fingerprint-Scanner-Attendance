@@ -258,5 +258,93 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 HasStudentRecord = Convert.ToInt32(row["has_student_record"]) == 1
             });
         }
+
+        public async Task<StudentProfileDto?> GetStudentProfileByUserIdAsync(int userId)
+        {
+            string query = @"
+                SELECT 
+                    u.user_id,
+                    u.user_profile_image,
+                    u.user_first_name,
+                    u.user_middle_name,
+                    u.user_last_name,
+                    u.user_email,
+                    u.user_phone,
+                    u.user_gender,
+                    u.user_birthdate,
+                    u.user_address,
+                    s.stud_id,
+                    s.stud_number,
+                    s.program_id,
+                    s.stud_year_level,
+                    s.section_id,
+                    s.profile_submitted,
+                    s.profile_submitted_at,
+                    p.program_name,
+                    sec.section_name
+                FROM users u
+                LEFT JOIN students s ON u.user_id = s.user_id
+                LEFT JOIN programs p ON s.program_id = p.program_id
+                LEFT JOIN sections sec ON s.section_id = sec.section_id
+                WHERE u.user_id = @userId
+                LIMIT 1;";
+
+            var parameters = new Dictionary<string, object> { { "@userId", userId } };
+            var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+            if (dt.Rows.Count == 0) return null;
+
+            var row = dt.Rows[0];
+            return new StudentProfileDto
+            {
+                UserId = Convert.ToInt32(row["user_id"]),
+                UserProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
+                UserFirstName = row["user_first_name"]?.ToString() ?? "",
+                UserMiddleName = row["user_middle_name"]?.ToString(),
+                UserLastName = row["user_last_name"]?.ToString() ?? "",
+                UserEmail = row["user_email"]?.ToString() ?? "",
+                UserPhone = row["user_phone"]?.ToString(),
+                UserGender = row["user_gender"]?.ToString(),
+                UserBirthdate = row["user_birthdate"] != DBNull.Value 
+                    ? Convert.ToDateTime(row["user_birthdate"]).ToString("yyyy-MM-dd") 
+                    : null,
+                UserAddress = row["user_address"]?.ToString(),
+                StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : null,
+                StudNumber = row["stud_number"]?.ToString(),
+                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+                ProgramName = row["program_name"]?.ToString(),
+                StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
+                SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
+                SectionName = row["section_name"]?.ToString(),
+                ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
+                ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value 
+                    ? Convert.ToDateTime(row["profile_submitted_at"]).ToString("yyyy-MM-dd HH:mm:ss") 
+                    : null,
+                HasStudentProfile = row["stud_id"] != DBNull.Value
+            };
+        }
+
+        public async Task<Student?> GetByUserIdAsync(int userId)
+        {
+            string query = "SELECT * FROM students WHERE user_id = @userId LIMIT 1;";
+            var parameters = new Dictionary<string, object> { { "@userId", userId } };
+
+            var dt = await _db.ExecuteQueryAsync(query, parameters);
+            if (dt.Rows.Count == 0) return null;
+
+            var row = dt.Rows[0];
+            return new Student
+            {
+                StudId = Convert.ToInt32(row["stud_id"]),
+                UserId = Convert.ToInt32(row["user_id"]),
+                StudNumber = row["stud_number"]?.ToString() ?? string.Empty,
+                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+                StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
+                SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
+                ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
+                ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value ? Convert.ToDateTime(row["profile_submitted_at"]) : null,
+                StudCreatedAt = Convert.ToDateTime(row["stud_created_at"])
+            };
+        }
     }
 }
