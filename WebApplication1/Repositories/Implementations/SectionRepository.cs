@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations
@@ -116,6 +117,73 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             string query = "SELECT COUNT(*) FROM sections WHERE section_id = @id;";
             var parameters = new Dictionary<string, object> { { "@id", sectionId } };
             return await _db.RecordExistsAsync(query, parameters);
+        }
+
+        // Optimized DTO methods
+        public async Task<IEnumerable<SectionListDto>> GetAllWithDetailsAsync()
+        {
+            string query = @"
+                SELECT 
+                    s.section_id,
+                    s.section_name,
+                    s.program_id,
+                    s.year_level,
+                    s.section_created_at,
+                    COALESCE(p.program_name, 'N/A') AS program_name
+                FROM sections s
+                LEFT JOIN programs p ON s.program_id = p.program_id
+                ORDER BY s.section_id;";
+
+            var dt = await _db.ExecuteQueryAsync(query);
+
+            return dt.AsEnumerable().Select(row => new SectionListDto
+            {
+                SectionId = Convert.ToInt32(row["section_id"]),
+                SectionName = row["section_name"]?.ToString() ?? "",
+                ProgramId = Convert.ToInt32(row["program_id"]),
+                ProgramName = row["program_name"]?.ToString() ?? "N/A",
+                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : null,
+                SectionCreatedAt = Convert.ToDateTime(row["section_created_at"])
+            });
+        }
+
+        public async Task<SectionDetailDto?> GetDetailByIdAsync(int sectionId)
+        {
+            string query = @"
+                SELECT 
+                    s.section_id,
+                    s.section_name,
+                    s.program_id,
+                    s.year_level,
+                    s.section_created_at,
+                    p.program_name,
+                    p.program_code,
+                    p.dept_id,
+                    d.dept_name
+                FROM sections s
+                LEFT JOIN programs p ON s.program_id = p.program_id
+                LEFT JOIN departments d ON p.dept_id = d.dept_id
+                WHERE s.section_id = @id
+                LIMIT 1;";
+
+            var parameters = new Dictionary<string, object> { { "@id", sectionId } };
+            var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+            if (dt.Rows.Count == 0) return null;
+
+            var row = dt.Rows[0];
+            return new SectionDetailDto
+            {
+                SectionId = Convert.ToInt32(row["section_id"]),
+                SectionName = row["section_name"]?.ToString() ?? "",
+                ProgramId = Convert.ToInt32(row["program_id"]),
+                ProgramName = row["program_name"]?.ToString() ?? "",
+                ProgramCode = row["program_code"]?.ToString(),
+                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : null,
+                DeptId = row["dept_id"] != DBNull.Value ? Convert.ToInt32(row["dept_id"]) : null,
+                DeptName = row["dept_name"]?.ToString(),
+                SectionCreatedAt = Convert.ToDateTime(row["section_created_at"])
+            };
         }
     }
 }

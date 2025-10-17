@@ -1,4 +1,5 @@
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 
 namespace Fingerprint_Attendance_System.Repositories.Interfaces
 {
@@ -11,5 +12,9 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         Task<bool> UpdateAsync(Section section);
         Task<bool> DeleteAsync(int sectionId);
         Task<bool> ExistsAsync(int sectionId);
+        
+        // Optimized DTO methods
+        Task<IEnumerable<SectionListDto>> GetAllWithDetailsAsync();
+        Task<SectionDetailDto?> GetDetailByIdAsync(int sectionId);
     }
 }

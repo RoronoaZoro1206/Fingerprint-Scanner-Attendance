@@ -34,22 +34,21 @@ public class AdminSectionController : Controller
         return View("~/Views/Admin/Sections.cshtml");
     }
 
-    // GET: Section/GetAll - DataTables AJAX endpoint
+    // GET: Section/GetAll - DataTables AJAX endpoint (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         try
         {
-            var sections = await _sectionRepository.GetAllAsync();
-            var programs = await _programRepository.GetAllAsync();
+            var sections = await _sectionRepository.GetAllWithDetailsAsync();
             
             var sectionData = sections.Select(s => new
             {
-                s.SectionId,
-                s.SectionName,
-                s.ProgramId,
-                ProgramName = programs.FirstOrDefault(p => p.ProgramId == s.ProgramId)?.ProgramName ?? "N/A",
-                s.YearLevel
+                sectionId = s.SectionId,
+                sectionName = s.SectionName,
+                programId = s.ProgramId,
+                programName = s.ProgramName,
+                yearLevel = s.YearLevel
             });
             
             return Json(new { data = sectionData });
@@ -61,13 +60,13 @@ public class AdminSectionController : Controller
         }
     }
 
-    // GET: Section/GetById/{id}
+    // GET: Section/GetById/{id} (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetById(int id)
     {
         try
         {
-            var section = await _sectionRepository.GetByIdAsync(id);
+            var section = await _sectionRepository.GetDetailByIdAsync(id);
             if (section == null)
             {
                 return Json(new { success = false, message = "Section not found" });
