@@ -43,57 +43,33 @@ public class AdminStudentController : Controller
         return View("~/Views/Admin/Students.cshtml");
     }
 
-    // GET: Student/GetAll - DataTables AJAX endpoint
+    // GET: Student/GetAll - DataTables AJAX endpoint (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         try
         {
-            _logger.LogInformation("Fetching all students...");
+            _logger.LogInformation("Fetching all students with details...");
 
-            var students = await _studentRepository.GetAllAsync();
-            _logger.LogInformation($"Found {students.Count()} students");
+            var studentList = await _studentRepository.GetAllWithDetailsAsync();
 
-            // Fetch all related data once
-            var allUsers = await _userRepository.GetAllAsync();
-            var allPrograms = await _programRepository.GetAllAsync();
-            var allSections = await _sectionRepository.GetAllAsync();
-
-            _logger.LogInformation($"Found {allUsers.Count()} users, {allPrograms.Count()} programs, {allSections.Count()} sections");
-
-            // Create lookup dictionaries for better performance
-            var userDict = allUsers.ToDictionary(u => u.UserId);
-            var programDict = allPrograms.ToDictionary(p => p.ProgramId);
-            var sectionDict = allSections.ToDictionary(s => s.SectionId);
-
-            var studentList = students.Select(student =>
+            var result = studentList.Select(s => new
             {
-                var user = userDict.ContainsKey(student.UserId) ? userDict[student.UserId] : null;
-                var program = student.ProgramId.HasValue && programDict.ContainsKey(student.ProgramId.Value)
-                    ? programDict[student.ProgramId.Value]
-                    : null;
-                var section = student.SectionId.HasValue && sectionDict.ContainsKey(student.SectionId.Value)
-                    ? sectionDict[student.SectionId.Value]
-                    : null;
-
-                return new
-                {
-                    studId = student.StudId,
-                    userId = student.UserId,
-                    studName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown",
-                    userEmail = user?.UserEmail ?? "",
-                    studNumber = student.StudNumber,
-                    programId = student.ProgramId,
-                    programName = program?.ProgramName ?? "No Program",
-                    studYearLevel = student.StudYearLevel,
-                    sectionId = student.SectionId,
-                    sectionName = section?.SectionName ?? "No Section",
-                    studCreatedAt = student.StudCreatedAt
-                };
+                studId = s.StudId,
+                userId = s.UserId,
+                studName = s.StudName,
+                userEmail = s.UserEmail,
+                studNumber = s.StudNumber,
+                programId = s.ProgramId,
+                programName = s.ProgramName,
+                studYearLevel = s.StudYearLevel,
+                sectionId = s.SectionId,
+                sectionName = s.SectionName,
+                studCreatedAt = s.StudCreatedAt
             }).ToList();
 
-            _logger.LogInformation($"Returning {studentList.Count} student records");
-            return Json(new { data = studentList });
+            _logger.LogInformation($"Returning {result.Count} student records");
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -102,19 +78,17 @@ public class AdminStudentController : Controller
         }
     }
 
-    // GET: Student/GetById/{id}
+    // GET: Student/GetById/{id} (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetById(int id)
     {
         try
         {
-            var student = await _studentRepository.GetByIdAsync(id);
+            var student = await _studentRepository.GetDetailByIdAsync(id);
             if (student == null)
             {
                 return Json(new { success = false, message = "Student not found" });
             }
-
-            var user = await _userRepository.GetByIdAsync(student.UserId);
 
             return Json(new
             {
@@ -127,7 +101,7 @@ public class AdminStudentController : Controller
                     programId = student.ProgramId,
                     studYearLevel = student.StudYearLevel,
                     sectionId = student.SectionId,
-                    userEmail = user?.UserEmail ?? ""
+                    userEmail = student.UserEmail
                 }
             });
         }
@@ -138,21 +112,23 @@ public class AdminStudentController : Controller
         }
     }
 
-    // GET: Student/GetUsers - Get users with Student role
+    // GET: Student/GetUsers - Get users with Student role (Optimized with single query)
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
         try
         {
-            var users = await _userRepository.GetAllAsync();
-            var studentUsers = users.Where(u => u.RoleId == 3).Select(u => new
+            var studentUsers = await _studentRepository.GetAvailableStudentUsersAsync();
+
+            var result = studentUsers.Select(u => new
             {
                 userId = u.UserId,
-                userName = $"{u.UserFirstName} {u.UserLastName}".Trim(),
-                userEmail = u.UserEmail
+                userName = u.UserName,
+                userEmail = u.UserEmail,
+                hasStudentRecord = u.HasStudentRecord
             });
 
-            return Json(new { success = true, data = studentUsers });
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

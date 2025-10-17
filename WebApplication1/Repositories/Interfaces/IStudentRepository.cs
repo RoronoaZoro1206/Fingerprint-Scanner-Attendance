@@ -12,4 +12,7 @@ public interface IStudentRepository
     
     // Optimized methods
     Task<StudentInfoDto?> GetStudentInfoByUserIdAsync(int userId);
+    Task<IEnumerable<StudentListDto>> GetAllWithDetailsAsync();
+    Task<StudentDetailDto?> GetDetailByIdAsync(int studId);
+    Task<IEnumerable<StudentUserDto>> GetAvailableStudentUsersAsync();
 }
