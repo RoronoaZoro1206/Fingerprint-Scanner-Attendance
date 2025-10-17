@@ -1,4 +1,5 @@
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 
 namespace Fingerprint_Attendance_System.Repositories.Interfaces;
 public interface IUserRepository
@@ -13,4 +14,5 @@ public interface IUserRepository
     Task<bool> AdminExistsAsync();
     Task<User?> GetByEmailWithRoleCheckAsync(string email, int roleId);
     Task<bool> EmailExistsAsync(string email);
+    Task<IEnumerable<UserListDto>> GetUsersWithRolesAsync();
 }

@@ -26,7 +26,7 @@ public class AdminUserController : Controller
     {
         _logger = logger;
         _userRepository = userRepository;
-        _userRoleRepository = userRoleRepository;
+        _userRoleRepository = userRoleRepository; // Still needed for GetRoles endpoint
         _administrationRepository = administrationRepository;
         _auditService = auditService;
     }
@@ -43,21 +43,8 @@ public class AdminUserController : Controller
     {
         try
         {
-            var users = await _userRepository.GetAllAsync();
-            var roles = await _userRoleRepository.GetAllAsync();
-
-            var userData = users.Select(u => new
-            {
-                u.UserId,
-                u.UserProfileImage,
-                FullName = $"{u.UserFirstName} {u.UserLastName}".Trim(),
-                u.UserEmail,
-                u.UserPhone,
-                u.RoleId,
-                RoleName = roles.FirstOrDefault(r => r.RoleId == u.RoleId)?.RoleName ?? "N/A",
-                u.IsActive,
-                StatusText = u.IsActive ? "Active" : "Inactive"
-            });
+            // Optimized: Single query with JOIN to get users with roles
+            var userData = await _userRepository.GetUsersWithRolesAsync();
 
             return Json(new { data = userData });
         }
@@ -128,6 +115,13 @@ public class AdminUserController : Controller
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
+            }
+
+            // Check if email already exists
+            var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
+            if (emailExists)
+            {
+                return Json(new { success = false, message = "This email address is already registered." });
             }
 
             // Hash password before saving
@@ -206,6 +200,16 @@ public class AdminUserController : Controller
             if (existingUser == null)
             {
                 return Json(new { success = false, message = "User not found" });
+            }
+
+            // Check if email is being changed and if new email already exists
+            if (existingUser.UserEmail != user.UserEmail)
+            {
+                var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
+                if (emailExists)
+                {
+                    return Json(new { success = false, message = "This email address is already registered." });
+                }
             }
 
             // Check if role changed to/from admin

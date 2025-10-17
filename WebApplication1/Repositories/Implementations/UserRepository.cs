@@ -1,6 +1,7 @@
 using System.Data;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations;
@@ -232,5 +233,38 @@ public class UserRepository : IUserRepository
         string query = "SELECT COUNT(*) FROM users WHERE LOWER(user_email) = LOWER(@email) LIMIT 1;";
         var parameters = new Dictionary<string, object> { { "@email", email } };
         return await _db.RecordExistsAsync(query, parameters);
+    }
+
+    public async Task<IEnumerable<UserListDto>> GetUsersWithRolesAsync()
+    {
+        string query = @"
+            SELECT 
+                u.user_id,
+                u.user_profile_image,
+                CONCAT(u.user_first_name, ' ', u.user_last_name) as full_name,
+                u.user_email,
+                u.user_phone,
+                u.role_id,
+                r.role_name,
+                u.is_active,
+                CASE WHEN u.is_active THEN 'Active' ELSE 'Inactive' END as status_text
+            FROM users u
+            INNER JOIN user_roles r ON u.role_id = r.role_id
+            ORDER BY u.user_id;";
+
+        var dt = await _db.ExecuteQueryAsync(query);
+
+        return dt.AsEnumerable().Select(row => new UserListDto
+        {
+            UserId = Convert.ToInt32(row["user_id"]),
+            UserProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
+            FullName = row["full_name"]?.ToString() ?? string.Empty,
+            UserEmail = row["user_email"]?.ToString() ?? string.Empty,
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"]?.ToString(),
+            RoleId = Convert.ToInt32(row["role_id"]),
+            RoleName = row["role_name"]?.ToString() ?? "N/A",
+            IsActive = Convert.ToBoolean(row["is_active"]),
+            StatusText = row["status_text"]?.ToString() ?? "Inactive"
+        });
     }
 }
