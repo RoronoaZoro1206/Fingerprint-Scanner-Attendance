@@ -171,6 +171,9 @@ public class StudentProfileController : Controller
             if (!userResult)
                 return Json(new { success = false, message = "Failed to update user information" });
 
+            // Update session with new name
+            HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
+
             // Update or create student profile
             var student = (await _studentRepository.GetAllAsync())
                 .FirstOrDefault(s => s.UserId == userId.Value);

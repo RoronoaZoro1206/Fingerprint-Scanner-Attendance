@@ -121,8 +121,9 @@ function uploadProfilePicture(file) {
         success: function (response) {
             if (response.success) {
                 Toast.success(response.message);
-                // Update sidebar profile image
+                // Update sidebar profile image (both desktop and mobile)
                 $('.sidebar .profile-image').attr('src', `/images/profile/${response.fileName}`);
+                $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}`);
             } else {
                 Toast.error(response.message);
                 // Revert preview
@@ -183,11 +184,13 @@ function handleProfileSubmit(e) {
             if (response.success) {
                 Toast.success(response.message);
                 originalData = { ...originalData, ...formData };
-                // Update sidebar name
-                $('.sidebar .user-name').text(`${formData.firstName} ${formData.lastName}`);
+                // Update sidebar name (both desktop and mobile)
+                const fullName = `${formData.firstName} ${formData.lastName}`;
+                $('.sidebar .user-name').text(fullName);
+                $('#sidebarOffcanvas .user-name').text(fullName);
                 // Update header display
-                const fullName = `${formData.firstName} ${formData.middleName || ''} ${formData.lastName}`.trim();
-                $('#profileDisplayName').text(fullName);
+                const fullNameWithMiddle = `${formData.firstName} ${formData.middleName || ''} ${formData.lastName}`.trim();
+                $('#profileDisplayName').text(fullNameWithMiddle);
             } else {
                 Toast.error(response.message);
             }

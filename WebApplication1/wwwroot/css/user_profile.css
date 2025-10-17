@@ -218,9 +218,23 @@ textarea.form-input {
 }
 
 .btn-primary:hover {
-    background: #2d2d2d;
+    background: #374151;
     transform: translateY(-1px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:focus,
+.btn-primary:focus-visible {
+    background-color: #1f2937; /* darker shade */
+    color: #fff;
+    box-shadow: none !important; /* removes Bootstrap’s blue outline */
+    outline: none !important;
+}
+
+.btn-primary:active {
+    background-color: #111827 !important;
+    color: #fff !important;
+    box-shadow: none !important;
 }
 
 .btn-primary:disabled {
@@ -236,6 +250,7 @@ textarea.form-input {
 }
 
 .btn-secondary:hover {
+    color: #000;
     background: #e5e7eb;
 }
 

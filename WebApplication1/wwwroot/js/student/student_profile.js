@@ -278,6 +278,7 @@ function submitProfileUpdate() {
             if (response.success) {
                 Toast.success(response.message);
                 loadProfile(); // Reload to show updated data
+                updateSidebarName(profileUpdate.UserFirstName, profileUpdate.UserLastName);
             } else {
                 Toast.error(response.message);
             }
@@ -292,4 +293,20 @@ function submitProfileUpdate() {
             }
         }
     });
+}
+
+/**
+ * Update sidebar username in real-time
+ */
+function updateSidebarName(firstName, lastName) {
+    const fullName = `${firstName} ${lastName}`;
+    
+    // Update desktop sidebar
+    $('.sidebar .user-name').text(fullName);
+    
+    // Update mobile offcanvas sidebar
+    $('#sidebarOffcanvas .user-name').text(fullName);
+    
+    // Update navbar if it has user name display
+    $('.navbar .user-name').text(fullName);
 }
