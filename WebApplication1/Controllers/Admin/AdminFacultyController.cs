@@ -37,49 +37,30 @@ public class AdminFacultyController : Controller
         return View("~/Views/Admin/Faculties.cshtml");
     }
 
-    // GET: Faculty/GetAll - DataTables AJAX endpoint
+    // GET: Faculty/GetAll - DataTables AJAX endpoint (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         try
         {
-            _logger.LogInformation("Fetching all faculties...");
+            _logger.LogInformation("Fetching all faculties with details...");
             
-            var faculties = await _facultyRepository.GetAllAsync();
-            _logger.LogInformation($"Found {faculties.Count()} faculties");
+            var facultyList = await _facultyRepository.GetAllWithDetailsAsync();
             
-            // Fetch all users and departments once
-            var allUsers = await _userRepository.GetAllAsync();
-            var allDepartments = await _departmentRepository.GetAllAsync();
-            
-            _logger.LogInformation($"Found {allUsers.Count()} users and {allDepartments.Count()} departments");
-            
-            // Create lookup dictionaries for better performance
-            var userDict = allUsers.ToDictionary(u => u.UserId);
-            var deptDict = allDepartments.ToDictionary(d => d.DeptId);
-
-            var facultyList = faculties.Select(faculty =>
+            var result = facultyList.Select(f => new
             {
-                var user = userDict.ContainsKey(faculty.UserId) ? userDict[faculty.UserId] : null;
-                var department = faculty.DeptId.HasValue && deptDict.ContainsKey(faculty.DeptId.Value) 
-                    ? deptDict[faculty.DeptId.Value] 
-                    : null;
-
-                return new
-                {
-                    facId = faculty.FacId,
-                    userId = faculty.UserId,
-                    facName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown",
-                    userEmail = user?.UserEmail ?? "",
-                    deptId = faculty.DeptId,
-                    deptName = department?.DeptName ?? "No Department",
-                    facRank = faculty.FacRank ?? "Not Specified",
-                    facCreatedAt = faculty.FacCreatedAt
-                };
+                facId = f.FacId,
+                userId = f.UserId,
+                facName = f.FacName,
+                userEmail = f.UserEmail,
+                deptId = f.DeptId,
+                deptName = f.DeptName,
+                facRank = f.FacRank,
+                facCreatedAt = f.FacCreatedAt
             }).ToList();
 
-            _logger.LogInformation($"Returning {facultyList.Count} faculty records");
-            return Json(new { data = facultyList });
+            _logger.LogInformation($"Returning {result.Count} faculty records");
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -88,19 +69,17 @@ public class AdminFacultyController : Controller
         }
     }
 
-    // GET: Faculty/GetById/{id}
+    // GET: Faculty/GetById/{id} (Optimized with single JOIN query)
     [HttpGet]
     public async Task<IActionResult> GetById(int id)
     {
         try
         {
-            var faculty = await _facultyRepository.GetByIdAsync(id);
+            var faculty = await _facultyRepository.GetDetailByIdAsync(id);
             if (faculty == null)
             {
                 return Json(new { success = false, message = "Faculty not found" });
             }
-
-            var user = await _userRepository.GetByIdAsync(faculty.UserId);
             
             return Json(new { 
                 success = true, 
@@ -109,7 +88,7 @@ public class AdminFacultyController : Controller
                     userId = faculty.UserId,
                     deptId = faculty.DeptId,
                     facRank = faculty.FacRank,
-                    userEmail = user?.UserEmail ?? ""
+                    userEmail = faculty.UserEmail
                 }
             });
         }
@@ -120,21 +99,23 @@ public class AdminFacultyController : Controller
         }
     }
 
-    // GET: Faculty/GetUsers - Get users with Faculty role
+    // GET: Faculty/GetUsers - Get users with Faculty role (Optimized with single query)
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
         try
         {
-            var users = await _userRepository.GetAllAsync();
-            var facultyUsers = users.Where(u => u.RoleId == 2).Select(u => new
+            var facultyUsers = await _facultyRepository.GetAvailableFacultyUsersAsync();
+            
+            var result = facultyUsers.Select(u => new
             {
                 userId = u.UserId,
-                userName = $"{u.UserFirstName} {u.UserLastName}".Trim(),
-                userEmail = u.UserEmail
+                userName = u.UserName,
+                userEmail = u.UserEmail,
+                hasFacultyRecord = u.HasFacultyRecord
             });
 
-            return Json(new { success = true, data = facultyUsers });
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {
