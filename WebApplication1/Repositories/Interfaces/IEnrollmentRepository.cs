@@ -16,4 +16,5 @@ public interface IEnrollmentRepository
     // Optimized methods to reduce N+1 queries
     Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId);
     Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId);
+    Task<IEnumerable<StudentClassDto>> GetStudentClassesAsync(int studId);
 }

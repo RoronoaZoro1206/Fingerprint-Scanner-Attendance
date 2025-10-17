@@ -244,4 +244,69 @@ public class EnrollmentRepository : IEnrollmentRepository
             Schedule = row["schedule"]?.ToString() ?? "No schedule"
         });
     }
+
+    public async Task<IEnumerable<StudentClassDto>> GetStudentClassesAsync(int studId)
+    {
+        string query = @"
+            SELECT 
+                cl.class_id,
+                COALESCE(co.course_code, 'N/A') AS course_code,
+                COALESCE(co.course_name, 'N/A') AS course_name,
+                COALESCE(co.course_units, 0) AS course_units,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'N/A') AS faculty_name,
+                COALESCE(r.room_code, 'N/A') AS room_code,
+                COALESCE(
+                    STRING_AGG(
+                        cs.sched_day_of_week || ' ' || 
+                        TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                        TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
+                        ', ' ORDER BY 
+                            CASE cs.sched_day_of_week
+                                WHEN 'Monday' THEN 1
+                                WHEN 'Tuesday' THEN 2
+                                WHEN 'Wednesday' THEN 3
+                                WHEN 'Thursday' THEN 4
+                                WHEN 'Friday' THEN 5
+                                WHEN 'Saturday' THEN 6
+                                WHEN 'Sunday' THEN 7
+                            END,
+                            cs.sched_start_time
+                    ),
+                    ''
+                ) AS schedule,
+                COALESCE(
+                    ROUND(
+                        (COUNT(CASE WHEN a.attend_status = 'present' THEN 1 END)::DECIMAL / 
+                         NULLIF(COUNT(a.attend_id), 0)) * 100
+                    ),
+                    0
+                ) AS attendance_rate
+            FROM enrollment e
+            INNER JOIN classes cl ON e.class_id = cl.class_id
+            LEFT JOIN courses co ON cl.course_id = co.course_id
+            LEFT JOIN rooms r ON cl.room_id = r.room_id
+            LEFT JOIN faculty f ON cl.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            LEFT JOIN class_schedules cs ON cl.class_id = cs.class_id
+            LEFT JOIN attendance a ON cl.class_id = a.class_id AND a.stud_id = e.stud_id
+            WHERE e.stud_id = @studId
+            GROUP BY cl.class_id, co.course_code, co.course_name, co.course_units,
+                     u.user_first_name, u.user_last_name, r.room_code
+            ORDER BY co.course_code;";
+
+        var parameters = new Dictionary<string, object> { { "@studId", studId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new StudentClassDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            CourseUnits = Convert.ToInt32(row["course_units"]),
+            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
+            RoomCode = row["room_code"]?.ToString() ?? "N/A",
+            Schedule = row["schedule"]?.ToString() ?? "",
+            AttendanceRate = Convert.ToInt32(row["attendance_rate"])
+        });
+    }
 }

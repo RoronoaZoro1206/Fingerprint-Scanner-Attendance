@@ -64,8 +64,7 @@ public class StudentClassController : Controller
                 return Json(new { success = false, message = "User not authenticated" });
             }
 
-            var student = (await _studentRepository.GetAllAsync())
-                .FirstOrDefault(s => s.UserId == userId.Value);
+            var student = await _studentRepository.GetByUserIdAsync(userId.Value);
 
             if (student == null)
             {
@@ -75,58 +74,22 @@ public class StudentClassController : Controller
 
             _logger.LogInformation($"GetMyClasses - Student: {student.StudId}");
 
-            var enrollments = await _enrollmentRepository.GetByStudentIdAsync(student.StudId);
-            var classes = await _classRepository.GetAllAsync();
-            var courses = await _courseRepository.GetAllAsync();
-            var rooms = await _roomRepository.GetAllAsync();
-            var faculties = await _facultyRepository.GetAllAsync();
-            var users = await _userRepository.GetAllAsync();
-            var schedules = await _classScheduleRepository.GetAllAsync();
-            var allAttendances = await _attendanceRepository.GetAllAsync();
+            var classList = await _enrollmentRepository.GetStudentClassesAsync(student.StudId);
 
-            _logger.LogInformation($"GetMyClasses - Found {enrollments.Count()} enrollments");
-
-            var classList = new List<object>();
-
-            foreach (var enrollment in enrollments)
+            var result = classList.Select(c => new
             {
-                var classItem = classes.FirstOrDefault(c => c.ClassId == enrollment.ClassId);
-                if (classItem == null) continue;
+                classId = c.ClassId,
+                courseCode = c.CourseCode,
+                courseName = c.CourseName,
+                courseUnits = c.CourseUnits,
+                facultyName = c.FacultyName,
+                schedule = c.Schedule,
+                roomCode = c.RoomCode,
+                attendanceRate = c.AttendanceRate
+            });
 
-                var course = courses.FirstOrDefault(c => c.CourseId == classItem.CourseId);
-                var room = rooms.FirstOrDefault(r => r.RoomId == classItem.RoomId);
-                var faculty = faculties.FirstOrDefault(f => f.FacId == classItem.FacId);
-                var facultyUser = faculty != null ? users.FirstOrDefault(u => u.UserId == faculty.UserId) : null;
-
-                var classSchedules = schedules.Where(s => s.ClassId == classItem.ClassId).ToList();
-                var scheduleText = string.Join(", ", classSchedules.Select(s =>
-                {
-                    var startTime = DateTime.Today.Add(s.SchedStartTime).ToString("hh:mm tt");
-                    var endTime = DateTime.Today.Add(s.SchedEndTime).ToString("hh:mm tt");
-                    return $"{s.SchedDayOfWeek} {startTime}-{endTime}";
-                }));
-
-                // Calculate attendance rate
-                var classAttendances = allAttendances.Where(a => a.ClassId == classItem.ClassId && a.StudId == student.StudId).ToList();
-                var totalSessions = classAttendances.Count();
-                var presentSessions = classAttendances.Count(a => a.AttendStatus == AttendanceStatus.Present);
-                var attendanceRate = totalSessions > 0 ? (int)Math.Round((double)presentSessions / totalSessions * 100) : 0;
-
-                classList.Add(new
-                {
-                    classId = classItem.ClassId,
-                    courseCode = course?.CourseCode ?? "N/A",
-                    courseName = course?.CourseName ?? "N/A",
-                    courseUnits = course?.CourseUnits ?? 0,
-                    facultyName = facultyUser != null ? $"{facultyUser.UserFirstName} {facultyUser.UserLastName}" : "N/A",
-                    schedule = scheduleText,
-                    roomCode = room?.RoomCode ?? "N/A",
-                    attendanceRate = attendanceRate
-                });
-            }
-
-            _logger.LogInformation($"GetMyClasses - Returning {classList.Count} classes");
-            return Json(new { success = true, data = classList });
+            _logger.LogInformation($"GetMyClasses - Returning {result.Count()} classes");
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {
