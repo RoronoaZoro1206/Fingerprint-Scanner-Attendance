@@ -97,20 +97,21 @@ function displayProfile(data) {
         $('#section').val(data.sectionId);
     }
 
-    // Lock academic fields if profile is submitted
+    // Lock program field if profile is submitted (year level and section remain editable)
     if (data.profileSubmitted) {
         $('#program').prop('disabled', true);
-        $('#yearLevel').prop('disabled', true);
-        $('#section').prop('disabled', true);
+        $('#yearLevel').prop('disabled', false);
+        $('#section').prop('disabled', false);
         
         // Add visual indicator
         if (!$('#academicLockNotice').length) {
             $('.form-section:has(#program)').prepend(`
                 <div id="academicLockNotice" class="alert alert-info" style="margin-bottom: 1rem;">
                     <i data-lucide="lock" style="width: 16px; height: 16px; vertical-align: middle;"></i>
-                    <strong>Academic Information Locked</strong><br>
-                    Your academic information was submitted on ${new Date(data.profileSubmittedAt).toLocaleString()}.
-                    Contact administration if you need to make changes.
+                    <strong>Program Locked</strong><br>
+                    Your program was locked on ${new Date(data.profileSubmittedAt).toLocaleString()}.
+                    You can still update your year level and section as you progress.
+                    Contact administration if you need to change your program.
                 </div>
             `);
             if (typeof lucide !== 'undefined') {

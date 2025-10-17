@@ -180,23 +180,22 @@ public class StudentProfileController : Controller
 
             if (student != null)
             {
-                // Check if profile is already submitted and trying to update academic info
+                // Check if profile is already submitted and trying to change PROGRAM
                 if (student.ProfileSubmitted)
                 {
-                    // If profile is locked, only allow personal info updates (already done above)
-                    // Check if trying to change academic information
-                    bool academicInfoChanged = student.ProgramId != request.ProgramId ||
-                                              student.StudYearLevel != request.StudYearLevel ||
-                                              student.SectionId != request.SectionId;
+                    // Only lock the PROGRAM - allow year level and section updates
+                    bool programChanged = student.ProgramId != request.ProgramId;
 
-                    if (academicInfoChanged)
+                    if (programChanged)
                     {
                         return Json(new 
                         { 
                             success = false, 
-                            message = "Your academic information is locked after first submission. Please contact administration if you need to make changes." 
+                            message = "Your program is locked after first submission. Please contact administration if you need to change your program." 
                         });
                     }
+                    
+                    // Year level and section can be updated freely
                 }
                 else
                 {
@@ -208,7 +207,7 @@ public class StudentProfileController : Controller
                     }
                 }
 
-                // Update student profile
+                // Update student profile (year level and section can always be updated)
                 student.ProgramId = request.ProgramId;
                 student.StudYearLevel = request.StudYearLevel;
                 student.SectionId = request.SectionId;
@@ -226,7 +225,7 @@ public class StudentProfileController : Controller
 
             string message = student.ProfileSubmitted 
                 ? "Profile updated successfully" 
-                : "Profile updated successfully. Your academic information is now locked.";
+                : "Profile updated successfully. Your program is now locked.";
 
             return Json(new { success = true, message = message });
         }
