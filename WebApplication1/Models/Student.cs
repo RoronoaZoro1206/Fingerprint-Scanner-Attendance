@@ -8,6 +8,8 @@ namespace Fingerprint_Attendance_System.Models
         public int? ProgramId { get; set; }
         public int? StudYearLevel { get; set; }
         public int? SectionId { get; set; }
+        public bool ProfileSubmitted { get; set; } = false;
+        public DateTime? ProfileSubmittedAt { get; set; }
         public DateTime StudCreatedAt { get; set; } = DateTime.Now;
 
         // Navigation properties

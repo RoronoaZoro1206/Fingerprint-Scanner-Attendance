@@ -169,13 +169,27 @@
 }
 
 .btn-primary {
-    background-color: #667eea;
+    background-color: #000;
     color: #fff;
 }
 
 .btn-primary:hover {
-    background-color: #5568d3;
+    background-color: #374151;
     color: #fff;
+}
+
+.btn-primary:focus,
+.btn-primary:focus-visible {
+    background-color: #1f2937; /* darker shade */
+    color: #fff;
+    box-shadow: none !important; /* removes Bootstrap’s blue outline */
+    outline: none !important;
+}
+
+.btn-primary:active {
+    background-color: #111827 !important;
+    color: #fff !important;
+    box-shadow: none !important;
 }
 
 .btn-primary:disabled {
@@ -190,8 +204,19 @@
 }
 
 .btn-secondary:hover {
+    color: #000;
     background-color: #f3f4f6;
     border-color: #9ca3af;
+}
+
+.btn-secondary:focus,
+.btn-secondary:focus-visible,
+.btn-secondary:active {
+    background-color: #e5e7eb;
+    color: #111827;
+    border-color: #9ca3af;
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 .icon-sm {

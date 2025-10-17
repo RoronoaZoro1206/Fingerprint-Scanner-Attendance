@@ -86,6 +86,8 @@ public class StudentProfileController : Controller
                     studYearLevel = student?.StudYearLevel,
                     sectionId = student?.SectionId,
                     sectionName = sectionName,
+                    profileSubmitted = student?.ProfileSubmitted ?? false,
+                    profileSubmittedAt = student?.ProfileSubmittedAt?.ToString("yyyy-MM-dd HH:mm:ss"),
                     hasStudentProfile = student != null
                 }
             });
@@ -175,7 +177,35 @@ public class StudentProfileController : Controller
 
             if (student != null)
             {
-                // Update existing student profile
+                // Check if profile is already submitted and trying to update academic info
+                if (student.ProfileSubmitted)
+                {
+                    // If profile is locked, only allow personal info updates (already done above)
+                    // Check if trying to change academic information
+                    bool academicInfoChanged = student.ProgramId != request.ProgramId ||
+                                              student.StudYearLevel != request.StudYearLevel ||
+                                              student.SectionId != request.SectionId;
+
+                    if (academicInfoChanged)
+                    {
+                        return Json(new 
+                        { 
+                            success = false, 
+                            message = "Your academic information is locked after first submission. Please contact administration if you need to make changes." 
+                        });
+                    }
+                }
+                else
+                {
+                    // First time submitting with complete academic info - lock the profile
+                    if (request.ProgramId.HasValue)
+                    {
+                        student.ProfileSubmitted = true;
+                        student.ProfileSubmittedAt = DateTime.Now;
+                    }
+                }
+
+                // Update student profile
                 student.ProgramId = request.ProgramId;
                 student.StudYearLevel = request.StudYearLevel;
                 student.SectionId = request.SectionId;
@@ -191,7 +221,11 @@ public class StudentProfileController : Controller
                 return Json(new { success = false, message = "Student profile not found. Please contact administration." });
             }
 
-            return Json(new { success = true, message = "Profile updated successfully" });
+            string message = student.ProfileSubmitted 
+                ? "Profile updated successfully" 
+                : "Profile updated successfully. Your academic information is now locked.";
+
+            return Json(new { success = true, message = message });
         }
         catch (Exception ex)
         {

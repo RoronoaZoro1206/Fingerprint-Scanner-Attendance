@@ -143,6 +143,8 @@ CREATE TABLE students (
                           program_id        INT REFERENCES programs(program_id),
                           stud_year_level   INT,
                           section_id        INT REFERENCES sections(section_id),
+                          profile_submitted BOOLEAN NOT NULL DEFAULT FALSE,
+                          profile_submitted_at TIMESTAMP,
                           stud_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

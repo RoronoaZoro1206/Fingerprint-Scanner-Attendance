@@ -28,6 +28,8 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
                 StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
                 SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
+                ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
+                ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value ? Convert.ToDateTime(row["profile_submitted_at"]) : null,
                 StudCreatedAt = Convert.ToDateTime(row["stud_created_at"])
             });
         }
@@ -49,6 +51,8 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
                 StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
                 SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
+                ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
+                ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value ? Convert.ToDateTime(row["profile_submitted_at"]) : null,
                 StudCreatedAt = Convert.ToDateTime(row["stud_created_at"])
             };
         }
@@ -79,7 +83,9 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 SET stud_number = @num,
                     program_id = @program,
                     stud_year_level = @year,
-                    section_id = @section
+                    section_id = @section,
+                    profile_submitted = @submitted,
+                    profile_submitted_at = @submittedAt
                 WHERE stud_id = @id;";
 
             var parameters = new Dictionary<string, object>
@@ -88,7 +94,9 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 { "@num", student.StudNumber },
                 { "@program", student.ProgramId ?? (object)DBNull.Value },
                 { "@year", student.StudYearLevel ?? (object)DBNull.Value },
-                { "@section", student.SectionId ?? (object)DBNull.Value }
+                { "@section", student.SectionId ?? (object)DBNull.Value },
+                { "@submitted", student.ProfileSubmitted },
+                { "@submittedAt", student.ProfileSubmittedAt ?? (object)DBNull.Value }
             };
 
             return await _db.ExecuteNonQueryAsync(query, parameters) > 0;

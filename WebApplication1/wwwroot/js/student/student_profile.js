@@ -25,6 +25,16 @@ $(document).ready(function () {
 
     // Filter sections by program and year level
     $('#program, #yearLevel').on('change', filterSections);
+
+    // Confirm lock button in modal
+    $('#btnConfirmLock').on('click', function () {
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('profileLockModal'));
+        modal.hide();
+        
+        // Proceed with save
+        submitProfileUpdate();
+    });
 });
 
 /**
@@ -85,6 +95,33 @@ function displayProfile(data) {
     }
     if (data.sectionId) {
         $('#section').val(data.sectionId);
+    }
+
+    // Lock academic fields if profile is submitted
+    if (data.profileSubmitted) {
+        $('#program').prop('disabled', true);
+        $('#yearLevel').prop('disabled', true);
+        $('#section').prop('disabled', true);
+        
+        // Add visual indicator
+        if (!$('#academicLockNotice').length) {
+            $('.form-section:has(#program)').prepend(`
+                <div id="academicLockNotice" class="alert alert-info" style="margin-bottom: 1rem;">
+                    <i data-lucide="lock" style="width: 16px; height: 16px; vertical-align: middle;"></i>
+                    <strong>Academic Information Locked</strong><br>
+                    Your academic information was submitted on ${new Date(data.profileSubmittedAt).toLocaleString()}.
+                    Contact administration if you need to make changes.
+                </div>
+            `);
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+    } else {
+        $('#program').prop('disabled', false);
+        $('#yearLevel').prop('disabled', false);
+        $('#section').prop('disabled', false);
+        $('#academicLockNotice').remove();
     }
 
     // Filter sections after loading
@@ -199,6 +236,21 @@ function saveProfile() {
         return;
     }
 
+    // Show confirmation modal if this is the first submission
+    if (!profileData.profileSubmitted && programId) {
+        const modal = new bootstrap.Modal(document.getElementById('profileLockModal'));
+        modal.show();
+        return;
+    }
+
+    // If already submitted or no modal needed, proceed with save
+    submitProfileUpdate();
+}
+
+/**
+ * Submit profile update to server
+ */
+function submitProfileUpdate() {
     const profileUpdate = {
         UserFirstName: $('#firstName').val().trim(),
         UserMiddleName: $('#middleName').val().trim() || null,
@@ -208,7 +260,7 @@ function saveProfile() {
         UserBirthdate: $('#birthdate').val() || null,
         UserAddress: $('#address').val().trim() || null,
         StudNumber: profileData?.studNumber || null,
-        ProgramId: parseInt(programId),
+        ProgramId: $('#program').val() ? parseInt($('#program').val()) : null,
         StudYearLevel: $('#yearLevel').val() ? parseInt($('#yearLevel').val()) : null,
         SectionId: $('#section').val() ? parseInt($('#section').val()) : null
     };
