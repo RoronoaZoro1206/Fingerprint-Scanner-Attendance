@@ -3,7 +3,10 @@
         <button class="hamburger-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
             <i data-lucide="menu"></i>
         </button>
-        <div class="navbar-brand">School Attendance System</div>
+        <a href="@Url.Action("Index", "Home")" class="navbar-brand-link">
+            <i data-lucide="fingerprint" class="brand-icon"></i>
+            <span class="navbar-brand">School Attendance System</span>
+        </a>
     </div>
     <div class="navbar-right">
         <div class="academic-term-badge" id="academicTermBadge">

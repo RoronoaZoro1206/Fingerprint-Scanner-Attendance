@@ -1,6 +1,6 @@
 /* Main Layout Styles */
 :root {
-    --sidebar-width: 285px;
+    --sidebar-width: 270px;
     --navbar-height: 72px;
 }
 
@@ -63,12 +63,25 @@ body {
     transform: translateY(-1px);
 }
 
-.profile-image {
+.profile-image,
+.avatar-hash {
     width: 48px;
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #e5e5e5;
+    flex-shrink: 0;
+}
+
+.avatar-hash {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.125rem;
+    color: #fff;
+    text-transform: uppercase;
+    user-select: none;
 }
 
 .user-details {
@@ -282,6 +295,26 @@ body {
     color: #000;
 }
 
+.navbar-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: #000;
+    cursor: pointer;
+}
+
+.navbar-brand-link:hover {
+    color: #000;
+    text-decoration: none;
+}
+
+.navbar-brand-link .brand-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
 .navbar-brand {
     font-size: 1.125rem;
     font-weight: 600;
@@ -416,27 +449,41 @@ body {
 }
 
 @media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1rem;
+    }
+
     .content-section {
         padding: 1rem;
     }
-    
-    .profile-image {
+
+    .profile-image,
+    .avatar-hash {
         width: 40px;
         height: 40px;
     }
     
+    .avatar-hash {
+        font-size: 0.875rem;
+    }
+
     .user-details .user-name {
         font-size: 0.9rem;
     }
-    
+
     .user-details .user-role {
         font-size: 0.8rem;
     }
 }
 
 @media (max-width: 576px) {
+    .navbar-brand-link .brand-icon {
+        width: 20px;
+        height: 20px;
+    }
+
     .navbar-brand {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 
     .logout-btn span {
@@ -452,16 +499,21 @@ body {
     .content-section {
         padding: 0.75rem;
     }
-    
+
     .sidebar-header {
         padding: 1rem 0.75rem;
     }
-    
-    .profile-image {
+
+    .profile-image,
+    .avatar-hash {
         width: 36px;
         height: 36px;
     }
     
+    .avatar-hash {
+        font-size: 0.75rem;
+    }
+
     .page-title {
         font-size: 1.5rem;
     }
