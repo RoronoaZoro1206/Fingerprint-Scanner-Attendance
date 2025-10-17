@@ -20,6 +20,34 @@
     align-items: center;
 }
 
+.navbar-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: #000;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.navbar-brand-link:hover {
+    color: #000;
+    text-decoration: none;
+}
+
+.navbar-brand-link .brand-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.navbar-brand {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #000;
+    line-height: 1;
+}
+
 /* Fingerprint Scanner Section */
 .scanner-section {
     display: flex;
