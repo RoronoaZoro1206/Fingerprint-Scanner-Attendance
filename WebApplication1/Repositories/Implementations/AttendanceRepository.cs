@@ -224,4 +224,96 @@ public class AttendanceRepository : IAttendanceRepository
         
         return result;
     }
+
+    public async Task<IEnumerable<FacultyAttendanceRecordDto>> GetFacultyAttendanceRecordsAsync(int facId, int limit = 20)
+    {
+        string query = @"
+            SELECT 
+                a.attend_date,
+                COALESCE(co.course_code, 'N/A') AS course_code,
+                SUM(CASE WHEN a.attend_status = 'present' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS present,
+                SUM(CASE WHEN a.attend_status = 'late' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS late,
+                SUM(CASE WHEN a.attend_status = 'absent' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS absent,
+                SUM(CASE WHEN a.attend_status = 'excused' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS excused
+            FROM attendance a
+            INNER JOIN classes c ON a.class_id = c.class_id
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            WHERE c.fac_id = @facId
+            GROUP BY a.attend_date, a.class_id, co.course_code
+            ORDER BY a.attend_date DESC
+            LIMIT @limit;";
+
+        var parameters = new Dictionary<string, object> 
+        { 
+            { "@facId", facId },
+            { "@limit", limit }
+        };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new FacultyAttendanceRecordDto
+        {
+            Date = Convert.ToDateTime(row["attend_date"]).ToString("yyyy-MM-dd"),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            Present = Convert.ToInt32(row["present"]),
+            Late = Convert.ToInt32(row["late"]),
+            Absent = Convert.ToInt32(row["absent"]),
+            Excused = Convert.ToInt32(row["excused"])
+        });
+    }
+
+    public async Task<FacultyReportStatsDto> GetFacultyReportStatsAsync(int facId)
+    {
+        string query = @"
+            WITH faculty_classes AS (
+                SELECT class_id FROM classes WHERE fac_id = @facId
+            ),
+            attendance_stats AS (
+                SELECT 
+                    COUNT(DISTINCT CASE WHEN a.attend_status IN ('present', 'late') AND a.attend_type = 'in' 
+                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS present_sessions,
+                    COUNT(DISTINCT CASE WHEN a.attend_status = 'late' AND a.attend_type = 'in' 
+                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS late_sessions,
+                    COUNT(DISTINCT CASE WHEN a.attend_status = 'absent' AND a.attend_type = 'in' 
+                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS absent_sessions,
+                    COUNT(DISTINCT CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id)) AS total_sessions
+                FROM attendance a
+                INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
+            ),
+            student_count AS (
+                SELECT COUNT(DISTINCT e.stud_id) AS total_students
+                FROM enrollment e
+                INNER JOIN faculty_classes fc ON e.class_id = fc.class_id
+            )
+            SELECT 
+                COALESCE(ROUND((CAST(ast.present_sessions AS DECIMAL) / NULLIF(ast.total_sessions, 0)) * 100), 0) AS average_attendance,
+                COALESCE(ast.late_sessions, 0) AS late_arrivals_today,
+                COALESCE(ast.absent_sessions, 0) AS absent_students,
+                COALESCE(sc.total_students, 0) AS total_students
+            FROM attendance_stats ast
+            CROSS JOIN student_count sc;";
+
+        var parameters = new Dictionary<string, object> { { "@facId", facId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        if (dt.Rows.Count == 0)
+        {
+            return new FacultyReportStatsDto
+            {
+                AverageAttendance = 0,
+                LateArrivalsToday = 0,
+                AbsentStudents = 0,
+                TotalStudents = 0
+            };
+        }
+
+        var row = dt.Rows[0];
+        return new FacultyReportStatsDto
+        {
+            AverageAttendance = Convert.ToInt32(row["average_attendance"]),
+            LateArrivalsToday = Convert.ToInt32(row["late_arrivals_today"]),
+            AbsentStudents = Convert.ToInt32(row["absent_students"]),
+            TotalStudents = Convert.ToInt32(row["total_students"])
+        };
+    }
 }

@@ -62,107 +62,31 @@ public class FacultyReportController : Controller
 
             _logger.LogInformation($"GetReportData - Faculty: {faculty.FacId}");
 
-            // Get all classes taught by this faculty
-            var facultyClasses = await _classRepository.GetClassesByFacultyIdAsync(faculty.FacId);
-            var classIds = facultyClasses.Select(c => c.ClassId).ToList();
-
-            // Get all attendance records for these classes
-            var allAttendances = await _attendanceRepository.GetAllAsync();
-            var classAttendances = allAttendances
-                .Where(a => a.ClassId.HasValue && classIds.Contains(a.ClassId.Value))
-                .OrderByDescending(a => a.AttendDate)
-                .ThenByDescending(a => a.AttendScanTime)
-                .ToList();
-
-            _logger.LogInformation($"GetReportData - Found {classAttendances.Count} attendance records");
-
-            // Calculate statistics - group by date and class to count unique sessions
-            var uniqueSessions = classAttendances
-                .GroupBy(a => new { a.AttendDate, a.ClassId })
-                .Select(g => new
-                {
-                    Date = g.Key.AttendDate,
-                    ClassId = g.Key.ClassId,
-                    Status = g.FirstOrDefault(a => a.AttendType == ScanType.In)?.AttendStatus 
-                             ?? g.FirstOrDefault()?.AttendStatus 
-                             ?? AttendanceStatus.Pending
-                })
-                .ToList();
-
-            var totalPresent = uniqueSessions.Count(s => s.Status == AttendanceStatus.Present);
-            var totalLate = uniqueSessions.Count(s => s.Status == AttendanceStatus.Late);
-            var totalAbsent = uniqueSessions.Count(s => s.Status == AttendanceStatus.Absent);
-            
-            // Get total enrolled students across all classes
-            var allEnrollments = await _enrollmentRepository.GetAllAsync();
-            var totalStudents = allEnrollments
-                .Where(e => classIds.Contains(e.ClassId))
-                .Select(e => e.StudId)
-                .Distinct()
-                .Count();
-
-            var totalSessions = uniqueSessions.Count;
-            var attendanceRate = totalSessions > 0 
-                ? (int)Math.Round((double)(totalPresent + totalLate) / totalSessions * 100) 
-                : 0;
-
-            // Get recent attendance records with course info
-            var courses = await _courseRepository.GetAllAsync();
-
-            // Group by date and class to get attendance summary
-            var attendanceRecords = new List<object>();
-            var groupedAttendances = classAttendances
-                .GroupBy(a => new { a.AttendDate, a.ClassId })
-                .Take(20); // Get recent 20 records
-
-            foreach (var group in groupedAttendances)
-            {
-                var classItem = facultyClasses.FirstOrDefault(c => c.ClassId == group.Key.ClassId);
-                var course = classItem != null ? courses.FirstOrDefault(c => c.CourseId == classItem.CourseId) : null;
-
-                // Group by student to count each student only once per session
-                // Use the status from Time In record, or first available record
-                var studentStatuses = group
-                    .GroupBy(a => a.StudId)
-                    .Select(studentGroup => 
-                    {
-                        // Prefer Time In status, otherwise use first record
-                        var timeInRecord = studentGroup.FirstOrDefault(a => a.AttendType == ScanType.In);
-                        var status = timeInRecord?.AttendStatus ?? studentGroup.First().AttendStatus;
-                        return status;
-                    })
-                    .ToList();
-
-                // Count unique students by status
-                var presentCount = studentStatuses.Count(s => s == AttendanceStatus.Present);
-                var lateCount = studentStatuses.Count(s => s == AttendanceStatus.Late);
-                var absentCount = studentStatuses.Count(s => s == AttendanceStatus.Absent);
-                var excusedCount = studentStatuses.Count(s => s == AttendanceStatus.Excused);
-
-                attendanceRecords.Add(new
-                {
-                    date = group.Key.AttendDate.ToString("yyyy-MM-dd"),
-                    courseCode = course?.CourseCode ?? "N/A",
-                    present = presentCount,
-                    late = lateCount,
-                    absent = absentCount,
-                    excused = excusedCount
-                });
-            }
+            // Get statistics and records with optimized queries
+            var stats = await _attendanceRepository.GetFacultyReportStatsAsync(faculty.FacId);
+            var records = await _attendanceRepository.GetFacultyAttendanceRecordsAsync(faculty.FacId, 20);
 
             var result = new
             {
                 statistics = new
                 {
-                    averageAttendance = attendanceRate,
-                    lateArrivalsToday = totalLate,
-                    absentStudents = totalAbsent,
-                    totalStudents = totalStudents
+                    averageAttendance = stats.AverageAttendance,
+                    lateArrivalsToday = stats.LateArrivalsToday,
+                    absentStudents = stats.AbsentStudents,
+                    totalStudents = stats.TotalStudents
                 },
-                records = attendanceRecords
+                records = records.Select(r => new
+                {
+                    date = r.Date,
+                    courseCode = r.CourseCode,
+                    present = r.Present,
+                    late = r.Late,
+                    absent = r.Absent,
+                    excused = r.Excused
+                })
             };
 
-            _logger.LogInformation($"GetReportData - Returning stats and {attendanceRecords.Count} records");
+            _logger.LogInformation($"GetReportData - Returning stats and {records.Count()} records");
             return Json(new { success = true, data = result });
         }
         catch (Exception ex)
