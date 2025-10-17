@@ -43,7 +43,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             return View("~/Views/Faculty/Index.cshtml");
         }
 
-        // GET: FacultyClass/GetMyClasses
+        // GET: FacultyClass/GetMyClasses (Optimized with single query)
         [HttpGet]
         public async Task<IActionResult> GetMyClasses()
         {
@@ -62,57 +62,21 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     return Json(new { success = false, message = "Faculty record not found" });
                 }
 
-                // Get all classes for this faculty
-                var classes = await _classRepository.GetClassesByFacultyIdAsync(faculty.FacId);
-                
-                // Get all related data
-                var allCourses = await _courseRepository.GetAllAsync();
-                var allRooms = await _roomRepository.GetAllAsync();
-                var allTerms = await _academicTermRepository.GetAllAsync();
+                // Get all classes with complete data in a single optimized query
+                var classesData = await _classRepository.GetFacultyClassesAsync(faculty.FacId);
 
-                var courseDict = allCourses.ToDictionary(c => c.CourseId);
-                var roomDict = allRooms.ToDictionary(r => r.RoomId);
-                var termDict = allTerms.ToDictionary(t => t.TermId);
-
-                // Get schedules and enrollment count for each class
-                var classesData = new List<object>();
-                foreach (var cls in classes)
+                var result = classesData.Select(c => new
                 {
-                    var schedules = await _classScheduleRepository.GetByClassIdAsync(cls.ClassId);
-                    var enrollments = await _enrollmentRepository.GetByClassIdAsync(cls.ClassId);
+                    classId = c.ClassId,
+                    courseCode = c.CourseCode,
+                    courseName = c.CourseName,
+                    roomName = c.RoomName,
+                    schedule = c.Schedule,
+                    studentCount = c.StudentCount,
+                    termName = c.TermName
+                });
 
-                    // Get course, room, and term info
-                    var course = cls.CourseId.HasValue && courseDict.ContainsKey(cls.CourseId.Value) 
-                        ? courseDict[cls.CourseId.Value] 
-                        : null;
-                    var room = cls.RoomId.HasValue && roomDict.ContainsKey(cls.RoomId.Value) 
-                        ? roomDict[cls.RoomId.Value] 
-                        : null;
-                    var term = cls.TermId.HasValue && termDict.ContainsKey(cls.TermId.Value) 
-                        ? termDict[cls.TermId.Value] 
-                        : null;
-
-                    // Format schedule string
-                    var scheduleString = "";
-                    if (schedules.Any())
-                    {
-                        var firstSchedule = schedules.First();
-                        scheduleString = $"{firstSchedule.SchedDayOfWeek} {firstSchedule.SchedStartTime:hh\\:mm} - {firstSchedule.SchedEndTime:hh\\:mm}";
-                    }
-
-                    classesData.Add(new
-                    {
-                        classId = cls.ClassId,
-                        courseCode = course?.CourseCode ?? "N/A",
-                        courseName = course?.CourseName ?? "N/A",
-                        roomName = room?.RoomCode ?? "N/A",
-                        schedule = scheduleString,
-                        studentCount = enrollments.Count(),
-                        termName = term?.TermName ?? "N/A"
-                    });
-                }
-
-                return Json(new { success = true, data = classesData });
+                return Json(new { success = true, data = result });
             }
             catch (Exception ex)
             {

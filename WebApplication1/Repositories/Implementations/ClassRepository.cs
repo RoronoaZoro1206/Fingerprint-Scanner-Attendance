@@ -316,4 +316,56 @@ public class ClassRepository : IClassRepository
             ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
         };
     }
+
+    public async Task<IEnumerable<FacultyClassDto>> GetFacultyClassesAsync(int facId)
+    {
+        string query = @"
+            SELECT 
+                c.class_id,
+                COALESCE(co.course_code, 'N/A') AS course_code,
+                COALESCE(co.course_name, 'N/A') AS course_name,
+                COALESCE(r.room_code, 'N/A') AS room_name,
+                COALESCE(t.term_name, 'N/A') AS term_name,
+                COALESCE(
+                    CONCAT(
+                        cs.sched_day_of_week, ' ',
+                        TIME_FORMAT(cs.sched_start_time, '%H:%i'), ' - ',
+                        TIME_FORMAT(cs.sched_end_time, '%H:%i')
+                    ),
+                    ''
+                ) AS schedule,
+                COALESCE(
+                    (SELECT COUNT(*) FROM enrollment e WHERE e.class_id = c.class_id),
+                    0
+                ) AS student_count
+            FROM classes c
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN academic_terms t ON c.term_id = t.term_id
+            LEFT JOIN (
+                SELECT class_id, sched_day_of_week, sched_start_time, sched_end_time
+                FROM class_schedules
+                WHERE (class_id, sched_id) IN (
+                    SELECT class_id, MIN(sched_id)
+                    FROM class_schedules
+                    GROUP BY class_id
+                )
+            ) cs ON c.class_id = cs.class_id
+            WHERE c.fac_id = @facId
+            ORDER BY c.class_id;";
+
+        var parameters = new Dictionary<string, object> { { "@facId", facId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new FacultyClassDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            RoomName = row["room_name"]?.ToString() ?? "N/A",
+            Schedule = row["schedule"]?.ToString() ?? "",
+            StudentCount = Convert.ToInt32(row["student_count"]),
+            TermName = row["term_name"]?.ToString() ?? "N/A"
+        });
+    }
 }
