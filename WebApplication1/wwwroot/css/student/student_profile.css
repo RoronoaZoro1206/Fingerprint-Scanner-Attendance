@@ -23,9 +23,9 @@
 }
 
 .profile-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #fff;
     padding: 40px 32px;
-    color: #fff;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .profile-avatar-section {
@@ -38,9 +38,9 @@
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    border: 4px solid rgba(255, 255, 255, 0.3);
+    border: 3px solid #e5e7eb;
     overflow: hidden;
-    background-color: #fff;
+    background-color: #f9fafb;
     flex-shrink: 0;
 }
 
@@ -58,23 +58,24 @@
     font-size: 28px;
     font-weight: 700;
     margin: 0 0 8px 0;
-    color: #fff;
+    color: #1a1a1a;
 }
 
 .profile-email {
     font-size: 16px;
     margin: 0 0 8px 0;
-    color: rgba(255, 255, 255, 0.9);
+    color: #6b7280;
 }
 
 .profile-student-number {
     display: inline-block;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #f3f4f6;
     padding: 6px 16px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: #374151;
+    border: 1px solid #e5e7eb;
 }
 
 .form-section {
@@ -99,7 +100,7 @@
 .section-icon {
     width: 24px;
     height: 24px;
-    color: #667eea;
+    color: #374151;
 }
 
 .form-grid {
@@ -132,8 +133,8 @@
 
 .form-control:focus,
 .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
     outline: none;
 }
 
@@ -180,9 +181,11 @@
 
 .btn-primary:focus,
 .btn-primary:focus-visible {
-    background-color: #1f2937; /* darker shade */
+    background-color: #1f2937;
+    /* darker shade */
     color: #fff;
-    box-shadow: none !important; /* removes Bootstrap’s blue outline */
+    box-shadow: none !important;
+    /* removes Bootstrap’s blue outline */
     outline: none !important;
 }
 
