@@ -316,4 +316,126 @@ public class AttendanceRepository : IAttendanceRepository
             TotalStudents = Convert.ToInt32(row["total_students"])
         };
     }
+
+    /// <summary>
+    /// Gets complete student attendance data with statistics and recent records in a single optimized query
+    /// Eliminates N+1 query problem by using JOINs and CTEs
+    /// Returns both aggregated statistics and detailed attendance records
+    /// </summary>
+    public async Task<StudentAttendanceDataDto> GetStudentAttendanceDataAsync(int studId, int limit = 20)
+    {
+        string query = @"
+            -- Calculate attendance statistics
+            WITH attendance_sessions AS (
+                SELECT 
+                    a.attend_date,
+                    a.class_id,
+                    MAX(CASE WHEN a.attend_type = 'in' THEN a.attend_status::text END) as session_status
+                FROM attendance a
+                WHERE a.stud_id = @studId
+                GROUP BY a.attend_date, a.class_id
+            ),
+            stats AS (
+                SELECT 
+                    COUNT(CASE WHEN session_status = 'present' THEN 1 END) as classes_attended,
+                    COUNT(CASE WHEN session_status = 'late' THEN 1 END) as late_arrivals,
+                    COUNT(CASE WHEN session_status = 'absent' THEN 1 END) as absences,
+                    COUNT(*) as total_sessions
+                FROM attendance_sessions
+            ),
+            -- Get recent attendance records with course information
+            recent_attendance AS (
+                SELECT 
+                    a.attend_date,
+                    a.class_id,
+                    COALESCE(co.course_code, 'N/A') as course_code,
+                    MAX(CASE WHEN a.attend_type = 'in' THEN a.attend_status::text END) as status,
+                    MAX(CASE WHEN a.attend_type = 'in' THEN TO_CHAR(a.attend_scan_time, 'HH12:MI:SS AM') END) as time_in,
+                    MAX(CASE WHEN a.attend_type = 'out' THEN TO_CHAR(a.attend_scan_time, 'HH12:MI:SS AM') END) as time_out,
+                    MAX(a.attend_scan_time) as latest_scan
+                FROM attendance a
+                INNER JOIN classes c ON a.class_id = c.class_id
+                LEFT JOIN courses co ON c.course_id = co.course_id
+                WHERE a.stud_id = @studId
+                GROUP BY a.attend_date, a.class_id, co.course_code
+                ORDER BY a.attend_date DESC, latest_scan DESC
+                LIMIT @limit
+            )
+            -- Combine statistics and records
+            SELECT 
+                'STATS' as record_type,
+                s.classes_attended,
+                s.late_arrivals,
+                s.absences,
+                CASE 
+                    WHEN s.total_sessions > 0 
+                    THEN ROUND((CAST(s.classes_attended + s.late_arrivals AS DECIMAL) / s.total_sessions) * 100)
+                    ELSE 0 
+                END as attendance_rate,
+                NULL::date as attend_date,
+                NULL::text as course_code,
+                NULL::text as status,
+                NULL::text as time_in,
+                NULL::text as time_out
+            FROM stats s
+            UNION ALL
+            SELECT 
+                'RECORD' as record_type,
+                NULL::bigint as classes_attended,
+                NULL::bigint as late_arrivals,
+                NULL::bigint as absences,
+                NULL::numeric as attendance_rate,
+                ra.attend_date,
+                ra.course_code,
+                COALESCE(ra.status, 'pending') as status,
+                COALESCE(ra.time_in, '-') as time_in,
+                COALESCE(ra.time_out, '-') as time_out
+            FROM recent_attendance ra
+            ORDER BY record_type, attend_date DESC;";
+
+        var parameters = new Dictionary<string, object> 
+        { 
+            { "@studId", studId },
+            { "@limit", limit }
+        };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        var result = new StudentAttendanceDataDto
+        {
+            Statistics = new StudentAttendanceStatsDto(),
+            Records = new List<StudentAttendanceRecordDto>()
+        };
+
+        foreach (DataRow row in dt.Rows)
+        {
+            var recordType = row["record_type"]?.ToString();
+            
+            if (recordType == "STATS")
+            {
+                result.Statistics = new StudentAttendanceStatsDto
+                {
+                    ClassesAttended = row["classes_attended"] != DBNull.Value ? Convert.ToInt32(row["classes_attended"]) : 0,
+                    LateArrivals = row["late_arrivals"] != DBNull.Value ? Convert.ToInt32(row["late_arrivals"]) : 0,
+                    Absences = row["absences"] != DBNull.Value ? Convert.ToInt32(row["absences"]) : 0,
+                    AttendanceRate = row["attendance_rate"] != DBNull.Value ? Convert.ToInt32(row["attendance_rate"]) : 0
+                };
+            }
+            else if (recordType == "RECORD")
+            {
+                result.Records.Add(new StudentAttendanceRecordDto
+                {
+                    Date = row["attend_date"] != DBNull.Value 
+                        ? Convert.ToDateTime(row["attend_date"]).ToString("yyyy-MM-dd") 
+                        : string.Empty,
+                    CourseCode = row["course_code"]?.ToString() ?? "N/A",
+                    Status = row["status"]?.ToString() ?? "pending",
+                    TimeIn = row["time_in"]?.ToString() ?? "-",
+                    TimeOut = row["time_out"]?.ToString() ?? "-"
+                });
+            }
+        }
+
+        return result;
+    }
 }
