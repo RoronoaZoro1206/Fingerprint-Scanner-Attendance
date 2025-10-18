@@ -1,0 +1,106 @@
+﻿ZKFinger Reader SDK C# – Developer Summary (Version 2.0, Sep 2016)
+
+1. OVERVIEW
+ZKFinger Reader SDK provides a C# interface for managing ZKTeco fingerprint readers. It allows initialization, image capture, template extraction, fingerprint matching, and database management.
+
+2. PRIVACY POLICY
+You may use the SDK under the terms of this guide. You may not copy, modify, lease, or transfer any part of the SDK outside the stated terms.
+
+3. SYSTEM REQUIREMENTS
+- OS: Windows XP or later
+- Framework: .NET Framework 3.5
+- Language: C#
+
+4. INSTALLATION
+1. Install ZKFinger SDK 5.x or ZKOnline SDK 5.x.
+2. Include the dynamic library:
+   - File: Libzkfpcsharp.dll (found in System32 or SysWOW64)
+   - Namespace: libzkfpcsharp
+   - Main class: zkfp2
+
+5. SDK INTERFACE REFERENCE
+Each function is public static and part of the zkfp2 class.
+
+--- Initialization and Cleanup ---
+Init() - Initialize SDK/device. (0 = success)
+Terminate() - Release SDK resources. (0 = success)
+
+--- Device Management ---
+GetDeviceCount() - Returns connected device count.
+OpenDevice(int index) - Connect to device (0–n−1). Returns handle.
+CloseDevice(IntPtr devHandle) - Disconnect device. (0 = success)
+
+--- Parameter Handling ---
+SetParameters(IntPtr devHandle, int code, byte[] value, int size) - Set parameter.
+GetParameters(IntPtr devHandle, int code, byte[] value, ref int size) - Retrieve parameter.
+
+--- Fingerprint Capture and Templates ---
+AcquireFingerprint(IntPtr dev, byte[] imgBuffer, byte[] template, ref int size) - Capture fingerprint image and template (2048 bytes recommended).
+AcquireFingerprintImage(IntPtr dev, byte[] imgBuffer) - Capture only fingerprint image.
+
+--- Fingerprint Database Management ---
+DBInit() - Create algorithm cache (returns handle).
+DBFree(IntPtr db) - Release cache.
+DBMerge(IntPtr db, byte[] t1, byte[] t2, byte[] t3, byte[] regTemp, ref int len) - Merge 3 templates.
+DBAdd(IntPtr db, int fid, byte[] regTemp) - Add registered template.
+DBDel(IntPtr db, int fid) - Delete a registered template.
+DBClear(IntPtr db) - Remove all templates.
+DBIdentify(IntPtr db, byte[] temp, ref int fid, ref int score) - 1:N comparison.
+DBMatch(IntPtr db, byte[] t1, byte[] t2) - 1:1 comparison; returns score ≥ 0.
+
+--- Data Conversion Utilities ---
+Blob2Base64String(byte[] buf, int len, ref string base64) - Byte array → Base64 string.
+Base64String2Blob(string base64) - Base64 string → Byte array.
+ByteArray2Int(byte[] buf, ref int value) - 4-byte array → int.
+Int2ByteArray(int value, byte[] buf) - int → 4-byte array.
+ExtractFromImage(IntPtr db, string fileName, int DPI, byte[] template, ref int size) - Extract fingerprint template from BMP/JPG (standard SDK only).
+
+6. APPENDIX
+
+--- Parameter Codes ---
+1: Image width (int, read-only)
+2: Image height (int, read-only)
+3: Image DPI (int, R/W, recommended 750/1000)
+106: Image data size (int, read-only)
+1015: VID & PID (byte[4])
+2002: Anti-fake (int, 1 enable / 0 disable)
+2004: True image check (value & 31 == 31)
+1101: Vendor info (string)
+1102: Product name (string)
+1103: Device SN (string)
+101: White light blink (int, 1 on / 0 off)
+102: Green light blink (int, 1 on / 0 off)
+103: Red light blink (int, 1 on / 0 off)
+104: Buzz (int, 1 on / 0 off)
+
+--- Error Codes ---
+ZKFP_ERR_OK = 0 (Operation succeeded)
+ZKFP_ERR_ALREADY_INIT = 1 (Already initialized)
+ZKFP_ERR_INITLIB = -1 (Algorithm library init failed)
+ZKFP_ERR_INIT = -2 (Capture library init failed)
+ZKFP_ERR_NO_DEVICE = -3 (No device connected)
+ZKFP_ERR_NOT_SUPPORT = -4 (Interface not supported)
+ZKFP_ERR_INVALID_PARAM = -5 (Invalid parameter)
+ZKFP_ERR_OPEN = -6 (Failed to start device)
+ZKFP_ERR_INVALID_HANDLE = -7 (Invalid handle)
+ZKFP_ERR_CAPTURE = -8 (Image capture failed)
+ZKFP_ERR_EXTRACT_FP = -9 (Template extraction failed)
+ZKFP_ERR_ABSORT = -10 (Operation suspended)
+ZKFP_ERR_MEMORY_NOT_ENOUGH = -11 (Insufficient memory)
+ZKFP_ERR_BUSY = -12 (Device busy)
+ZKFP_ERR_ADD_FINGER = -13 (Failed to add template)
+ZKFP_ERR_DEL_FINGER = -14 (Failed to delete template)
+ZKFP_ERR_FAIL = -17 (General failure)
+ZKFP_ERR_CANCEL = -18 (Capture canceled)
+ZKFP_ERR_VERIFY_FP = -20 (Verification failed)
+ZKFP_ERR_MERGE = -22 (Failed to merge templates)
+ZKFP_ERR_NOT_OPENED = -23 (Device not opened)
+ZKFP_ERR_NOT_INIT = -24 (SDK not initialized)
+ZKFP_ERR_ALREADY_OPENED = -25 (Device already started)
+
+NOTES:
+- Always call Init() before any device function.
+- Always call Terminate() when done.
+- Pre-allocate 2048 bytes for fingerprint templates.
+- Only the standard SDK supports ExtractFromImage().
+- Check non-zero error codes and handle them.
