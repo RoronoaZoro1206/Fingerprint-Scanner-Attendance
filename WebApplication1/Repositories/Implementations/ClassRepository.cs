@@ -329,8 +329,8 @@ public class ClassRepository : IClassRepository
                 COALESCE(
                     CONCAT(
                         cs.sched_day_of_week, ' ',
-                        TIME_FORMAT(cs.sched_start_time, '%H:%i'), ' - ',
-                        TIME_FORMAT(cs.sched_end_time, '%H:%i')
+                        TO_CHAR(cs.sched_start_time, 'HH24:MI'), ' - ',
+                        TO_CHAR(cs.sched_end_time, 'HH24:MI')
                     ),
                     ''
                 ) AS schedule,
