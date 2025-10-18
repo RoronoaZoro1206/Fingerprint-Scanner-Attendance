@@ -78,6 +78,9 @@ public class AuthController : Controller
                 return View("Index", model);
             }
 
+            // Update last login timestamp
+            await _userRepository.UpdateLastLoginAsync(user.UserId);
+
             // Store user information in session
             HttpContext.Session.SetInt32("UserId", user.UserId);
             HttpContext.Session.SetString("UserEmail", user.UserEmail);
@@ -103,8 +106,8 @@ public class AuthController : Controller
             return user.RoleType switch
             {
                 USER_ROLES.ADMIN => RedirectToAction("Users", "Admin"),
-                USER_ROLES.FACULTY => RedirectToAction("MyClasses", "Faculty"),
-                USER_ROLES.STUDENT => RedirectToAction("Index", "AdminStudent"),
+                USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
+                USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
                 _ => RedirectToAction("Index", "Auth")
             };
         }

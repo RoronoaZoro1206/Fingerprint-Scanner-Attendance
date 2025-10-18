@@ -15,4 +15,5 @@ public interface IUserRepository
     Task<User?> GetByEmailWithRoleCheckAsync(string email, int roleId);
     Task<bool> EmailExistsAsync(string email);
     Task<IEnumerable<UserListDto>> GetUsersWithRolesAsync();
+    Task<bool> UpdateLastLoginAsync(int userId);
 }

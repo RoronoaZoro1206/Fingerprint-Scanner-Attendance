@@ -267,4 +267,24 @@ public class UserRepository : IUserRepository
             StatusText = row["status_text"]?.ToString() ?? "Inactive"
         });
     }
+
+    /// <summary>
+    /// Updates the user's last login timestamp to the current time
+    /// Called after successful authentication
+    /// </summary>
+    public async Task<bool> UpdateLastLoginAsync(int userId)
+    {
+        string query = @"
+            UPDATE users 
+            SET user_last_login = @loginTime 
+            WHERE user_id = @userId;";
+
+        var parameters = new Dictionary<string, object>
+        {
+            { "@userId", userId },
+            { "@loginTime", DateTime.Now }
+        };
+
+        return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
+    }
 }
