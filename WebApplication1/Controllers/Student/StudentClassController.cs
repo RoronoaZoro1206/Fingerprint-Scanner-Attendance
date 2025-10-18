@@ -13,13 +13,6 @@ public class StudentClassController : Controller
     private readonly ILogger<StudentClassController> _logger;
     private readonly IEnrollmentRepository _enrollmentRepository;
     private readonly IStudentRepository _studentRepository;
-    private readonly IClassRepository _classRepository;
-    private readonly ICourseRepository _courseRepository;
-    private readonly IRoomRepository _roomRepository;
-    private readonly IFacultyRepository _facultyRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly IClassScheduleRepository _classScheduleRepository;
-    private readonly IAttendanceRepository _attendanceRepository;
 
     public StudentClassController(
         ILogger<StudentClassController> logger,
@@ -36,13 +29,6 @@ public class StudentClassController : Controller
         _logger = logger;
         _enrollmentRepository = enrollmentRepository;
         _studentRepository = studentRepository;
-        _classRepository = classRepository;
-        _courseRepository = courseRepository;
-        _roomRepository = roomRepository;
-        _facultyRepository = facultyRepository;
-        _userRepository = userRepository;
-        _classScheduleRepository = classScheduleRepository;
-        _attendanceRepository = attendanceRepository;
     }
 
     public IActionResult Classes()

@@ -11,30 +11,15 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         private readonly ILogger<FacultyClassController> _logger;
         private readonly IFacultyRepository _facultyRepository;
         private readonly IClassRepository _classRepository;
-        private readonly IEnrollmentRepository _enrollmentRepository;
-        private readonly IClassScheduleRepository _classScheduleRepository;
-        private readonly ICourseRepository _courseRepository;
-        private readonly IRoomRepository _roomRepository;
-        private readonly IAcademicTermRepository _academicTermRepository;
 
         public FacultyClassController(
             ILogger<FacultyClassController> logger,
             IFacultyRepository facultyRepository,
-            IClassRepository classRepository,
-            IEnrollmentRepository enrollmentRepository,
-            IClassScheduleRepository classScheduleRepository,
-            ICourseRepository courseRepository,
-            IRoomRepository roomRepository,
-            IAcademicTermRepository academicTermRepository)
+            IClassRepository classRepository)
         {
             _logger = logger;
             _facultyRepository = facultyRepository;
             _classRepository = classRepository;
-            _enrollmentRepository = enrollmentRepository;
-            _classScheduleRepository = classScheduleRepository;
-            _courseRepository = courseRepository;
-            _roomRepository = roomRepository;
-            _academicTermRepository = academicTermRepository;
         }
 
         // GET: FacultyClass/Index

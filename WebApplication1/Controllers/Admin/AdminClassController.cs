@@ -17,7 +17,6 @@ public class AdminClassController : Controller
     private readonly IRoomRepository _roomRepository;
     private readonly IFacultyRepository _facultyRepository;
     private readonly IAcademicTermRepository _academicTermRepository;
-    private readonly IUserRepository _userRepository;
     private readonly AdminAuditService _auditService;
 
     public AdminClassController(
@@ -36,7 +35,6 @@ public class AdminClassController : Controller
         _roomRepository = roomRepository;
         _facultyRepository = facultyRepository;
         _academicTermRepository = academicTermRepository;
-        _userRepository = userRepository;
         _auditService = auditService;
     }
 

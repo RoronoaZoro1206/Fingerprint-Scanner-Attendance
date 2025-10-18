@@ -12,29 +12,11 @@ namespace Fingerprint_Attendance_System.Controllers.Student;
 public class StudentController : Controller
 {
     private readonly ILogger<StudentController> _logger;
-    private readonly IStudentRepository _studentRepo;
-    private readonly IEnrollmentRepository _enrollmentRepo;
-    private readonly IClassRepository _classRepo;
-    private readonly IClassScheduleRepository _scheduleRepo;
-    private readonly ICourseRepository _courseRepo;
-    private readonly IProgramRepository _programRepo;
 
     public StudentController(
-        ILogger<StudentController> logger,
-        IStudentRepository studentRepo,
-        IEnrollmentRepository enrollmentRepo,
-        IClassRepository classRepo,
-        IClassScheduleRepository scheduleRepo,
-        ICourseRepository courseRepo,
-        IProgramRepository programRepo)
+        ILogger<StudentController> logger)
     {
         _logger = logger;
-        _studentRepo = studentRepo;
-        _enrollmentRepo = enrollmentRepo;
-        _classRepo = classRepo;
-        _scheduleRepo = scheduleRepo;
-        _courseRepo = courseRepo;
-        _programRepo = programRepo;
     }
 
     public IActionResult Index()

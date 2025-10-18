@@ -11,7 +11,10 @@ public class AuthController : Controller
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
 
-    public AuthController(IUserRepository userRepository, IStudentRepository studentRepository, IStudentIdPoolRepository studentIdPoolRepository)
+    public AuthController(
+        IUserRepository userRepository, 
+        IStudentRepository studentRepository, 
+        IStudentIdPoolRepository studentIdPoolRepository)
     {
         _userRepository = userRepository;
         _studentRepository = studentRepository;

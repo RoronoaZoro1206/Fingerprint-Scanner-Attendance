@@ -13,24 +13,15 @@ public class FacultyReportController : Controller
     private readonly ILogger<FacultyReportController> _logger;
     private readonly IFacultyRepository _facultyRepository;
     private readonly IAttendanceRepository _attendanceRepository;
-    private readonly IClassRepository _classRepository;
-    private readonly ICourseRepository _courseRepository;
-    private readonly IEnrollmentRepository _enrollmentRepository;
 
     public FacultyReportController(
         ILogger<FacultyReportController> logger,
         IFacultyRepository facultyRepository,
-        IAttendanceRepository attendanceRepository,
-        IClassRepository classRepository,
-        ICourseRepository courseRepository,
-        IEnrollmentRepository enrollmentRepository)
+        IAttendanceRepository attendanceRepository)
     {
         _logger = logger;
         _facultyRepository = facultyRepository;
         _attendanceRepository = attendanceRepository;
-        _classRepository = classRepository;
-        _courseRepository = courseRepository;
-        _enrollmentRepository = enrollmentRepository;
     }
 
     public IActionResult Records()
