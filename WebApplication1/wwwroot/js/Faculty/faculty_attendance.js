@@ -51,7 +51,7 @@ $(document).ready(function () {
  */
 function loadClassesDropdown() {
     $.ajax({
-        url: '/Faculty/GetMyClasses',
+        url: '/FacultyClass/GetMyClasses',
         type: 'GET',
         success: function (response) {
             if (response.success && response.data) {
