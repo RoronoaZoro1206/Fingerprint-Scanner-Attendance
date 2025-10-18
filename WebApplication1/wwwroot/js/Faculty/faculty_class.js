@@ -26,7 +26,7 @@ function loadClasses() {
     `);
 
     $.ajax({
-        url: '/Faculty/GetMyClasses',
+        url: '/FacultyClass/GetMyClasses',
         type: 'GET',
         success: function (response) {
             if (response.success && response.data && response.data.length > 0) {
@@ -105,7 +105,7 @@ function showEmptyState() {
     container.html(`
         <div class="empty-state">
             <i data-lucide="book-open"></i>
-            <h3>No Classes Assigned</h3>
+            <h3>Assigned</h3>
             <p>You don't have any classes assigned yet. Please contact administration.</p>
         </div>
     `);

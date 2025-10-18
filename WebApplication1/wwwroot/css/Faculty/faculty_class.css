@@ -16,6 +16,7 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
+    min-height: 500px;
 }
 
 .class-card {
@@ -119,12 +120,19 @@
 }
 
 .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    min-height: 500px;
     padding: 4rem 2rem;
     color: #6b7280;
 }
 
-.empty-state i {
+.empty-state i,
+.empty-state svg {
     width: 64px;
     height: 64px;
     color: #d1d5db;
@@ -132,22 +140,28 @@
 }
 
 .empty-state h3 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: #374151;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    margin-top: 0;
 }
 
 .empty-state p {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     color: #6b7280;
+    max-width: 500px;
+    line-height: 1.6;
+    margin: 0;
 }
 
 /* Loading State */
 .loading-container {
+    grid-column: 1 / -1;
     display: flex;
     justify-content: center;
     align-items: center;
+    min-height: 500px;
     padding: 4rem 2rem;
 }
 
