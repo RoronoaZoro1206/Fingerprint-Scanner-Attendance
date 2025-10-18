@@ -1,0 +1,179 @@
+/**
+ * Common Badge Styles
+ * Shared badge/status styles across all roles
+ */
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.status-badge.present {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.late {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.absent {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.excused {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-badge.pending {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.status-badge.active {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.inactive {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
+.status-badge.available {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.used {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.status-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-badge.active .status-dot {
+    background-color: #10b981;
+}
+
+.status-badge.inactive .status-dot {
+    background-color: #9ca3af;
+}
+
+/* Action Badges */
+.action-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.action-badge.create {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.action-badge.update {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.action-badge.delete {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.action-badge.view {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.action-badge.other {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+/* Count Badges */
+.count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.count-badge.present {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.count-badge.late {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.count-badge.absent {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.count-badge.excused {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Role Badges */
+.badge-admin {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-faculty {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-student {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-active {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-inactive {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Status Badge Icon */
+.status-badge-icon {
+    width: 12px;
+    height: 12px;
+}

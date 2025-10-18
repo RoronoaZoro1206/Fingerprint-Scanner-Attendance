@@ -1,0 +1,52 @@
+/**
+ * Common Dropdown Styles
+ * Shared dropdown styles across all roles
+ */
+
+/* Dropdown Toggle */
+.dropdown-toggle::after {
+    margin-left: 8px;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 8px;
+    min-width: 160px;
+}
+
+/* Dropdown Items */
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+.dropdown-item .icon-sm {
+    width: 16px;
+    height: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dropdown {
+        flex: 1;
+    }
+
+    .dropdown .btn-outline {
+        width: 100%;
+    }
+}

@@ -1,0 +1,191 @@
+/**
+ * Common Button Styles
+ * Shared button styles across all roles
+ */
+
+/* Primary Buttons */
+.btn-add,
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    border-radius: 8px;
+    background-color: #000;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add:hover,
+.btn-primary:hover {
+    background-color: #333;
+    color: #fff;
+}
+
+.btn-primary:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Outline Buttons */
+.btn-outline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    border-radius: 8px;
+    background-color: #fff;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.btn-outline:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+    color: #1f2937;
+}
+
+/* Secondary Buttons */
+.btn-secondary {
+    background-color: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    color: #000;
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+}
+
+.btn-action {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action:hover {
+    background-color: #f3f4f6;
+}
+
+.btn-action.btn-edit:hover,
+.btn-action.btn-view:hover {
+    background-color: #dbeafe;
+    border-color: #3b82f6;
+}
+
+.btn-action.btn-delete:hover {
+    background-color: #fee2e2;
+    border-color: #ef4444;
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Enrollment/Enroll Buttons */
+.btn-enroll,
+.btn-unenroll {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-enroll {
+    background: #1a1a1a;
+    color: white;
+}
+
+.btn-enroll:hover {
+    background: #2d2d2d;
+}
+
+.btn-enroll:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.btn-unenroll {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-unenroll:hover {
+    background: #dc2626;
+}
+
+.btn-unenroll:disabled {
+    background: #fca5a5;
+    cursor: not-allowed;
+}
+
+/* Print Button */
+.btn-print {
+    white-space: nowrap;
+}
+
+/* Icon Sizes */
+.icon-sm {
+    width: 16px;
+    height: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .btn-add,
+    .btn-outline,
+    .btn-primary,
+    .btn-secondary {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+    }
+
+    .action-buttons {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .btn-add,
+    .btn-outline,
+    .btn-primary,
+    .btn-secondary {
+        padding: 8px 16px;
+        font-size: 14px;
+        width: 100%;
+    }
+}
