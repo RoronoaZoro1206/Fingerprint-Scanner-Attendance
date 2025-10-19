@@ -15,16 +15,17 @@
         </div>
 
         <div class="fingerprint-scanner">
-            <div class="scanner-circle">
-                <i data-lucide="fingerprint" size="200"></i>
+            <div class="scanner-circle" id="fingerprintScanner">
+                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
             </div>
         </div>
 
-        <p class="scanner-instruction">Place your finger on the scanner</p>
+        <ul class="scanner-instructions">
+            <li>Place your finger on the scanner above</li>
+            <li>Touch the scanner circle to begin</li>
+        </ul>
 
-        <button type="button" class="start-scan-btn" id="startScanBtn">
-            Start Scan
-        </button>
+        <div class="scan-status-message" id="scanStatusMessage"></div>
     </div>
 </div>
 
