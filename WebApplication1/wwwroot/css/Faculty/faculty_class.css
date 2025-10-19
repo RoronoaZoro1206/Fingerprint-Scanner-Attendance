@@ -10,7 +10,7 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
-    min-height: 300px;
+    min-height: 295px;
 }
 
 /* Class Card - Page Specific */
