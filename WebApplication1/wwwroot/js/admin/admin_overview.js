@@ -1,77 +1,89 @@
-$(document).ready(function() {
+/**
+ * Admin Dashboard Overview - Refactored to use common utilities
+ * Uses common AJAX utilities and UI helpers
+ */
+
+$(document).ready(function () {
+    // Initialize icons
+    initializeLucideIcons();
+
+    // Load dashboard data
     loadStats();
     loadRecentActivity();
     checkDatabaseConnection();
-    
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
 });
 
-async function loadStats() {
-    try {
-        const response = await fetch('/AdminOverview/GetStats');
-        const result = await response.json();
-        
-        if (result.success) {
-            const stats = result.data;
-            document.getElementById('totalUsers').textContent = stats.totalUsers;
-            document.getElementById('totalCourses').textContent = stats.totalCourses;
-            document.getElementById('totalFaculty').textContent = stats.totalFaculty;
-            document.getElementById('totalRooms').textContent = stats.totalRooms;
+/**
+ * Load dashboard statistics
+ */
+function loadStats() {
+    ajaxGet('/AdminOverview/GetStats',
+        function (response) {
+            const stats = response.data;
+            $('#totalUsers').text(stats.totalUsers);
+            $('#totalCourses').text(stats.totalCourses);
+            $('#totalFaculty').text(stats.totalFaculty);
+            $('#totalRooms').text(stats.totalRooms);
+        },
+        function (error) {
+            console.error('Error loading stats:', error);
         }
-    } catch (error) {
-        console.error('Error loading stats:', error);
-    }
+    );
 }
 
-async function loadRecentActivity() {
-    try {
-        const response = await fetch('/AdminOverview/GetRecentActivity');
-        const result = await response.json();
-        
-        if (result.success) {
-            const container = document.getElementById('recentActivity');
-            
-            if (result.data.length === 0) {
-                container.innerHTML = '<p style="color: #9ca3af; text-align: center;">No recent activity</p>';
+/**
+ * Load recent activity
+ */
+function loadRecentActivity() {
+    ajaxGet('/AdminOverview/GetRecentActivity',
+        function (response) {
+            const container = $('#recentActivity');
+
+            if (response.data.length === 0) {
+                showEmptyState('recentActivity', 'No Activity', 'No recent activity to display', 'activity');
                 return;
             }
-            
-            container.innerHTML = result.data.map(activity => `
+
+            const html = response.data.map(activity => `
                 <div class="activity-item">
                     <div class="activity-action">${escapeHtml(activity.action)}</div>
                     <div class="activity-details">${escapeHtml(activity.details || '')}</div>
                     <div class="activity-time">${escapeHtml(activity.timestamp)}</div>
                 </div>
             `).join('');
+
+            container.html(html);
+        },
+        function (error) {
+            showErrorState('recentActivity', 'Failed to load recent activity');
         }
-    } catch (error) {
-        console.error('Error loading activity:', error);
-    }
+    );
 }
 
-async function checkDatabaseConnection() {
-    try {
-        const response = await fetch('/AdminOverview/CheckDatabaseConnection');
-        const result = await response.json();
-        
-        const badge = document.getElementById('dbStatus');
-        if (result.success && result.status === 'Online') {
-            badge.textContent = 'Online';
-            badge.className = 'status-badge status-online';
-        } else {
-            badge.textContent = 'Offline';
-            badge.className = 'status-badge status-offline';
+/**
+ * Check database connection status
+ */
+function checkDatabaseConnection() {
+    const $badge = $('#dbStatus');
+    $badge.text('Checking...').removeClass().addClass('status-badge');
+
+    ajaxGet('/AdminOverview/CheckDatabaseConnection',
+        function (response) {
+            if (response.status === 'Online') {
+                $badge.text('Online').addClass('status-online');
+            } else {
+                $badge.text('Offline').addClass('status-offline');
+            }
+        },
+        function (error) {
+            $badge.text('Offline').addClass('status-offline');
         }
-    } catch (error) {
-        const badge = document.getElementById('dbStatus');
-        badge.textContent = 'Offline';
-        badge.className = 'status-badge status-offline';
-    }
+    );
 }
 
+/**
+ * Escape HTML to prevent XSS
+ */
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');

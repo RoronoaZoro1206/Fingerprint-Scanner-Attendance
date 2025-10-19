@@ -1,14 +1,13 @@
 /**
- * Student Enrollment Management
+ * Student Enrollment Management - Refactored to use common utilities
+ * Manage class enrollments and unenrollments
  */
 
 let studentInfo = null;
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Load student info and enrollments
     loadStudentInfo();
@@ -18,9 +17,7 @@ $(document).ready(function () {
 
     // Reinitialize icons when modal is shown
     $('#unenrollModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        initializeLucideIcons();
     });
 });
 
@@ -42,8 +39,8 @@ function loadStudentInfo() {
                 showNoProfileMessage(response.message);
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error loading student info:', error);
+        error: function () {
+            console.error('Error loading student info');
             showNoProfileMessage('Failed to load student information. Please try again.');
         }
     });
@@ -60,15 +57,12 @@ function showNoProfileMessage(message) {
             <p class="empty-state-description">${message}</p>
         </div>
     `;
-    
+
     $('#currentEnrollments').html(html);
     $('#availableClasses').html(html);
     $('#currentCount').text('0 Classes');
     $('#availableCount').text('0 Classes');
-    
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
 /**
@@ -87,8 +81,8 @@ function loadCurrentEnrollments() {
                 $('#currentEnrollments').html('<div class="empty-state"><p>Failed to load enrollments</p></div>');
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error loading enrollments:', error);
+        error: function () {
+            console.error('Error loading enrollments');
             $('#currentEnrollments').html('<div class="empty-state"><p>Failed to load enrollments</p></div>');
         }
     });
@@ -109,9 +103,7 @@ function displayCurrentEnrollments(enrollments) {
                 <p class="empty-state-description">You haven't enrolled in any classes yet. Browse available classes below to get started.</p>
             </div>
         `);
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        initializeLucideIcons();
         return;
     }
 
@@ -148,9 +140,7 @@ function displayCurrentEnrollments(enrollments) {
     });
 
     container.html(html);
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
 /**
@@ -169,8 +159,8 @@ function loadAvailableClasses() {
                 $('#availableClasses').html('<div class="empty-state"><p>Failed to load available classes</p></div>');
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error loading available classes:', error);
+        error: function () {
+            console.error('Error loading available classes');
             $('#availableClasses').html('<div class="empty-state"><p>Failed to load available classes</p></div>');
         }
     });
@@ -191,9 +181,7 @@ function displayAvailableClasses(classes) {
                 <p class="empty-state-description">There are no classes available for enrollment at this time, or you're already enrolled in all available classes.</p>
             </div>
         `);
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        initializeLucideIcons();
         return;
     }
 
@@ -239,7 +227,7 @@ function displayAvailableClasses(classes) {
  * Enroll in a class
  */
 function enrollInClass(classId) {
-    const $btn = event.target.closest('button');
+    const $btn = window.event.target.closest('button');
     const originalHtml = $btn.innerHTML;
     $btn.disabled = true;
     $btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enrolling...';
@@ -258,19 +246,15 @@ function enrollInClass(classId) {
                 Toast.error(response.message);
                 $btn.disabled = false;
                 $btn.innerHTML = originalHtml;
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
+                initializeLucideIcons();
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error enrolling:', error);
+        error: function () {
+            console.error('Error enrolling');
             Toast.error('Failed to enroll in class');
             $btn.disabled = false;
             $btn.innerHTML = originalHtml;
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            initializeLucideIcons();
         }
     });
 }
@@ -289,7 +273,7 @@ function showUnenrollModal(enrollId) {
 function confirmUnenroll() {
     const enrollId = $('#unenrollId').val();
     const $btn = $('#btnConfirmUnenroll');
-    
+
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Unenrolling...');
 
     $.ajax({
@@ -307,15 +291,13 @@ function confirmUnenroll() {
                 Toast.error(response.message);
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error unenrolling:', error);
+        error: function () {
+            console.error('Error unenrolling');
             Toast.error('Failed to unenroll from class');
         },
         complete: function () {
             $btn.prop('disabled', false).html('<i data-lucide="x-circle" class="icon-sm"></i> Unenroll');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            initializeLucideIcons();
         }
     });
 }

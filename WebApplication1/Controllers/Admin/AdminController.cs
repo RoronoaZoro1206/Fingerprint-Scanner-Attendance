@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using Fingerprint_Attendance_System.Attributes;
+using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
+using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Admin;
@@ -11,11 +13,20 @@ public class AdminController : Controller
 {
     private readonly ILogger<AdminController> _logger;
 
+    public AdminController(
+        ILogger<AdminController> logger,
+        IAdminOverviewRepository overviewRepo,
+        DatabaseHelper db)
+    {
+        _logger = logger;
+    }
+
     public IActionResult Index()
     {
         return View();
     }
     
+
     public IActionResult Users()
     {
         return View();

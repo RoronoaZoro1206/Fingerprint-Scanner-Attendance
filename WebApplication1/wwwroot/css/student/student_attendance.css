@@ -1,86 +1,8 @@
-/* My Attendance Styles */
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.page-title {
-    font-size: 24px;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.btn-outline {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    font-weight: 500;
-    border-radius: 8px;
-    background-color: #fff;
-    border: 1px solid #d1d5db;
-    color: #374151;
-    transition: all 0.2s;
-}
-
-.btn-outline:hover {
-    background-color: #f3f4f6;
-    border-color: #9ca3af;
-    color: #1f2937;
-}
-
-.btn-print {
-    white-space: nowrap;
-}
-
-.dropdown-toggle::after {
-    margin-left: 8px;
-}
-
-.dropdown-menu {
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    padding: 8px;
-    min-width: 160px;
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    color: #374151;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.dropdown-item:hover {
-    background-color: #f3f4f6;
-    color: #1f2937;
-}
-
-.dropdown-item .icon-sm {
-    width: 16px;
-    height: 16px;
-}
-
-.icon-sm {
-    width: 16px;
-    height: 16px;
-}
+/**
+ * Student Attendance - Page-Specific Styles
+ * Common styles are in common CSS files
+ * This file only contains page-specific customizations
+ */
 
 /* Statistics Grid */
 .stats-grid {
@@ -154,159 +76,7 @@
     font-weight: 500;
 }
 
-/* Card Styles */
-.card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: 2rem;
-}
-
-.card-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.card-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-/* Table Styles */
-.table-responsive {
-    overflow-x: auto;
-}
-
-.table {
-    width: 100%;
-    margin-bottom: 0;
-}
-
-.table thead th {
-    background: #f9fafb;
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.table tbody tr {
-    border-bottom: 1px solid #e5e7eb;
-    transition: background-color 0.2s;
-}
-
-.table tbody tr:hover {
-    background: #f9fafb;
-}
-
-.table tbody td {
-    padding: 1rem;
-    font-size: 0.875rem;
-    color: #374151;
-    vertical-align: middle;
-}
-
-/* DataTables Customization */
-.dataTables_wrapper {
-    padding: 0;
-}
-
-.dataTables_length,
-.dataTables_filter {
-    margin-bottom: 1rem;
-}
-
-.dataTables_length label,
-.dataTables_filter label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: #6b7280;
-}
-
-.dataTables_length select {
-    padding: 0.375rem 2rem 0.375rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-    background-size: 16px 12px;
-}
-
-.search-input-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.search-input-wrapper input {
-    padding: 0.5rem 0.75rem 0.5rem 2.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    width: 250px;
-}
-
-.search-input-wrapper .search-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    color: #9ca3af;
-}
-
-.dataTables_info {
-    font-size: 0.875rem;
-    color: #6b7280;
-    padding-top: 1rem;
-}
-
-.dataTables_paginate {
-    padding-top: 1rem;
-}
-
-.paginate_button {
-    padding: 0.375rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    color: #374151;
-    cursor: pointer;
-    font-size: 0.875rem;
-}
-
-.paginate_button:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-}
-
-.paginate_button.current {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: white;
-}
-
-.paginate_button.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Status Badge */
+/* Status Badge - Page Specific */
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -348,51 +118,8 @@
     height: 14px;
 }
 
-
-
-/* Print Styles */
-@media print {
-    .page-header .header-actions,
-    .dataTables_length,
-    .dataTables_filter,
-    .dataTables_info,
-    .dataTables_paginate {
-        display: none !important;
-    }
-
-    .card {
-        box-shadow: none;
-        border: 1px solid #e5e7eb;
-    }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-    .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
-    }
-
-    .header-actions {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .btn-outline {
-        flex: 1;
-        justify-content: center;
-        min-width: 120px;
-    }
-
-    .dropdown {
-        flex: 1;
-    }
-
-    .dropdown .btn-outline {
-        width: 100%;
-    }
-
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -401,41 +128,9 @@
         flex-direction: column;
         text-align: center;
     }
-
-    .table {
-        font-size: 0.75rem;
-    }
-
-    .table th,
-    .table td {
-        padding: 0.5rem;
-    }
-
-    .card-title {
-        font-size: 1.125rem;
-    }
 }
 
 @media (max-width: 576px) {
-    .page-title {
-        font-size: 20px;
-    }
-
-    .btn-outline {
-        padding: 8px 16px;
-        font-size: 14px;
-    }
-
-    .header-actions {
-        gap: 8px;
-        flex-direction: column;
-    }
-
-    .btn-outline,
-    .dropdown {
-        width: 100%;
-    }
-
     .stats-grid {
         grid-template-columns: 1fr;
     }

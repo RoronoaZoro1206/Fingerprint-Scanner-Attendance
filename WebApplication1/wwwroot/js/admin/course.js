@@ -1,21 +1,19 @@
 /**
- * Course Management - CRUD Operations with DataTables
- * Uses AJAX for all operations and toast notifications
+ * Course Management - Refactored to use common utilities
+ * Uses common AJAX, modal, export, and DataTable utilities
  */
 
 let coursesTable;
 let programsData = [];
 
 $(document).ready(function () {
+    // Initialize icons
+    initializeLucideIcons();
+
     // Load programs first, then initialize DataTable
     loadPrograms().then(() => {
         initializeDataTable();
     });
-
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
 
     // Event Handlers
     $('#btnAddCourse').on('click', showAddModal);
@@ -24,44 +22,34 @@ $(document).ready(function () {
     $('#btnConfirmDelete').on('click', confirmDeleteCourse);
 
     // Export button handlers
-    $('#btnPrint').on('click', function(e) {
+    $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        printCourses();
+        printData('Courses', getCoursesData());
     });
 
-    $('#btnExportExcel').on('click', function(e) {
+    $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        exportToExcel();
+        exportToExcelFile('courses', getCoursesData());
     });
 
-    $('#btnExportCSV').on('click', function(e) {
+    $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        exportToCSV();
+        exportToCSVFile('courses', getCoursesData());
     });
 
-    $('#btnExportPDF').on('click', function(e) {
+    $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        exportToPDF();
+        exportToPDFFile('Courses', getCoursesData());
     });
 
     // Reinitialize icons when dropdown is shown
-    $('#exportDropdown').on('shown.bs.dropdown', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    $('#exportDropdown').on('shown.bs.dropdown', initializeLucideIcons);
 
-    // Modal events - reinitialize icons when modal is shown
-    $('#addCourseModal, #editCourseModal, #deleteCourseModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['addCourseModal', 'editCourseModal', 'deleteCourseModal']);
 
     // Clear form when modal is hidden
-    $('#addCourseModal').on('hidden.bs.modal', function () {
-        $('#addCourseForm')[0].reset();
-    });
+    setupFormClearOnHide('addCourseModal', 'addCourseForm');
 });
 
 /**
@@ -90,11 +78,9 @@ function populateProgramDropdowns() {
     const addSelect = $('#addProgramId');
     const editSelect = $('#editProgramId');
 
-    // Clear existing options except the first one
     addSelect.find('option:not(:first)').remove();
     editSelect.find('option:not(:first)').remove();
 
-    // Add program options
     programsData.forEach(program => {
         const option = `<option value="${program.programId}">${program.programName}</option>`;
         addSelect.append(option);
@@ -103,15 +89,14 @@ function populateProgramDropdowns() {
 }
 
 /**
- * Initialize DataTable with export options
+ * Initialize DataTable
  */
 function initializeDataTable() {
     coursesTable = $('#coursesTable').DataTable({
         ajax: {
             url: '/AdminCourse/GetAll',
             dataSrc: 'data',
-            error: function (xhr, error, thrown) {
-                console.error('DataTables error:', error);
+            error: function () {
                 Toast.error('Failed to load courses data.');
             }
         },
@@ -138,13 +123,13 @@ function initializeDataTable() {
                 width: '20%',
                 orderable: false,
                 searchable: false,
-                render: function (data, type, row) {
+                render: function (data) {
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${row.courseId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.courseId})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteCourse(${row.courseId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteCourse(${data.courseId})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -153,86 +138,8 @@ function initializeDataTable() {
             }
         ],
         order: [[0, 'asc']],
-        pageLength: 10,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excel',
-                text: '<i data-lucide="file-spreadsheet" class="icon-sm"></i> Excel',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3]
-                }
-            },
-            {
-                extend: 'csv',
-                text: '<i data-lucide="file-text" class="icon-sm"></i> CSV',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3]
-                }
-            },
-            {
-                extend: 'pdf',
-                text: '<i data-lucide="file" class="icon-sm"></i> PDF',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3]
-                },
-                customize: function (doc) {
-                    doc.content[1].table.widths = ['12%', '30%', '8%', '50%'];
-                    doc.styles.tableHeader.fillColor = '#f9fafb';
-                    doc.styles.tableHeader.color = '#374151';
-                }
-            },
-            {
-                extend: 'print',
-                text: '<i data-lucide="printer" class="icon-sm"></i> Print',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3]
-                }
-            }
-        ],
-        drawCallback: function () {
-            // Reinitialize Lucide icons after table redraw
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        },
-        language: {
-            search: "",
-            searchPlaceholder: "Search courses...",
-            lengthMenu: "Show _MENU_ courses",
-            info: "Showing _START_ to _END_ of _TOTAL_ courses",
-            infoEmpty: "No courses available",
-            infoFiltered: "(filtered from _MAX_ total courses)",
-            zeroRecords: "No matching courses found",
-            emptyTable: "No courses available in the system"
-        },
-        initComplete: function () {
-            // Add search icon to the search input
-            const searchInput = $('.dataTables_filter input');
-            
-            // Check if icon hasn't been added yet
-            if (searchInput.parent().find('.search-icon').length === 0) {
-                // Wrap input in a container
-                searchInput.wrap('<div class="search-input-wrapper"></div>');
-                
-                // Add search icon before the input
-                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-                
-                // Reinitialize Lucide icons
-                setTimeout(function() {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('courses', 'course')
     });
 }
 
@@ -241,35 +148,28 @@ function initializeDataTable() {
  */
 function showAddModal() {
     $('#addCourseForm')[0].reset();
-    $('#addCourseModal').modal('show');
+    showModal('addCourseModal');
 }
 
 /**
  * Show Edit Course Modal
  */
 function showEditModal(courseId) {
-    $.ajax({
-        url: `/AdminCourse/GetById/${courseId}`,
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                const course = response.data;
-                $('#editCourseId').val(course.courseId);
-                $('#editCourseCode').val(course.courseCode);
-                $('#editCourseName').val(course.courseName);
-                $('#editCourseUnits').val(course.courseUnits);
-                $('#editProgramId').val(course.programId || '');
-                $('#editCourseDesc').val(course.courseDesc || '');
-                $('#editCourseModal').modal('show');
-            } else {
-                Toast.error(response.message || 'Failed to load course data.');
-            }
+    ajaxGet(`/AdminCourse/GetById/${courseId}`,
+        function (response) {
+            const course = response.data;
+            $('#editCourseId').val(course.courseId);
+            $('#editCourseCode').val(course.courseCode);
+            $('#editCourseName').val(course.courseName);
+            $('#editCourseUnits').val(course.courseUnits);
+            $('#editProgramId').val(course.programId || '');
+            $('#editCourseDesc').val(course.courseDesc || '');
+            showModal('editCourseModal');
         },
-        error: function (xhr) {
+        function () {
             Toast.error('Failed to load course data.');
-            console.error('Error:', xhr);
         }
-    });
+    );
 }
 
 /**
@@ -278,23 +178,13 @@ function showEditModal(courseId) {
 function saveCourse() {
     const form = $('#addCourseForm')[0];
     
-    // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
 
     const courseCode = $('#addCourseCode').val().trim();
-    const courseName = $('#addCourseName').val().trim();
     const courseUnits = parseInt($('#addCourseUnits').val());
-    const programId = $('#addProgramId').val();
-    const courseDesc = $('#addCourseDesc').val().trim();
-
-    // Additional validation
-    if (!courseCode || !courseName) {
-        Toast.warning('Course code and name are required.');
-        return;
-    }
 
     if (courseCode.length < 2) {
         Toast.warning('Course code must be at least 2 characters.');
@@ -308,45 +198,27 @@ function saveCourse() {
 
     const courseData = {
         CourseCode: courseCode.toUpperCase(),
-        CourseName: courseName,
+        CourseName: $('#addCourseName').val().trim(),
         CourseUnits: courseUnits,
-        ProgramId: programId ? parseInt(programId) : null,
-        CourseDesc: courseDesc || null
+        ProgramId: $('#addProgramId').val() ? parseInt($('#addProgramId').val()) : null,
+        CourseDesc: $('#addCourseDesc').val().trim() || null
     };
 
-    // Disable button to prevent double submission
     const $btn = $('#btnSaveCourse');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+    setButtonLoading($btn, 'Saving...');
 
-    $.ajax({
-        url: '/AdminCourse/Create',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(courseData),
-        success: function (response) {
-            if (response.success) {
-                Toast.created('Course');
-                $('#addCourseModal').modal('hide');
-                coursesTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to create course.');
-            }
+    ajaxPost('/AdminCourse/Create', courseData,
+        function () {
+            Toast.created('Course');
+            hideModal('addCourseModal');
+            coursesTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 400) {
-                Toast.error('Invalid data provided. Please check your input.');
-            } else {
-                Toast.createError('Course');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save Course');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPost
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
 /**
@@ -355,24 +227,13 @@ function saveCourse() {
 function updateCourse() {
     const form = $('#editCourseForm')[0];
     
-    // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
 
-    const courseId = $('#editCourseId').val();
     const courseCode = $('#editCourseCode').val().trim();
-    const courseName = $('#editCourseName').val().trim();
     const courseUnits = parseInt($('#editCourseUnits').val());
-    const programId = $('#editProgramId').val();
-    const courseDesc = $('#editCourseDesc').val().trim();
-
-    // Additional validation
-    if (!courseCode || !courseName) {
-        Toast.warning('Course code and name are required.');
-        return;
-    }
 
     if (courseCode.length < 2) {
         Toast.warning('Course code must be at least 2 characters.');
@@ -385,58 +246,37 @@ function updateCourse() {
     }
 
     const courseData = {
-        CourseId: parseInt(courseId),
+        CourseId: parseInt($('#editCourseId').val()),
         CourseCode: courseCode.toUpperCase(),
-        CourseName: courseName,
+        CourseName: $('#editCourseName').val().trim(),
         CourseUnits: courseUnits,
-        ProgramId: programId ? parseInt(programId) : null,
-        CourseDesc: courseDesc || null
+        ProgramId: $('#editProgramId').val() ? parseInt($('#editProgramId').val()) : null,
+        CourseDesc: $('#editCourseDesc').val().trim() || null
     };
 
-    // Disable button to prevent double submission
     const $btn = $('#btnUpdateCourse');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+    setButtonLoading($btn, 'Updating...');
 
-    $.ajax({
-        url: '/AdminCourse/Update',
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(courseData),
-        success: function (response) {
-            if (response.success) {
-                Toast.updated('Course');
-                $('#editCourseModal').modal('hide');
-                coursesTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to update course.');
-            }
+    ajaxPut('/AdminCourse/Update', courseData,
+        function () {
+            Toast.updated('Course');
+            hideModal('editCourseModal');
+            coursesTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 400) {
-                Toast.error('Invalid data provided. Please check your input.');
-            } else {
-                Toast.updateError('Course');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update Course');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPut
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
 /**
  * Show Delete Confirmation Modal
  */
 function deleteCourse(courseId) {
-    // Store the course ID
     $('#deleteCourseId').val(courseId);
-    
-    // Show the confirmation modal
-    $('#deleteCourseModal').modal('show');
+    showModal('deleteCourseModal');
 }
 
 /**
@@ -450,41 +290,26 @@ function confirmDeleteCourse() {
         return;
     }
 
-    // Disable button to prevent double submission
     const $btn = $('#btnConfirmDelete');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
+    setButtonLoading($btn, 'Deleting...');
 
-    $.ajax({
-        url: `/AdminCourse/Delete/${courseId}`,
-        type: 'DELETE',
-        success: function (response) {
-            if (response.success) {
-                Toast.deleted('Course');
-                $('#deleteCourseModal').modal('hide');
-                coursesTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to delete course.');
-            }
+    ajaxDelete(`/AdminCourse/Delete/${courseId}`,
+        function () {
+            Toast.deleted('Course');
+            hideModal('deleteCourseModal');
+            coursesTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 409) {
-                Toast.error('Cannot delete course. It may be in use by other records.');
-            } else {
-                Toast.deleteError('Course');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxDelete
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
-
-// Export Functions
+/**
+ * Get courses data for export
+ */
 function getCoursesData() {
     const data = [];
     coursesTable.rows({ search: 'applied' }).every(function () {
@@ -497,123 +322,4 @@ function getCoursesData() {
         });
     });
     return data;
-}
-
-function printCourses() {
-    const printWindow = window.open('', '_blank');
-    const data = getCoursesData();
-    
-    let html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Courses</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { color: #1a1a1a; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
-                th { background-color: #f9fafb; font-weight: 600; }
-                tr:nth-child(even) { background-color: #f9fafb; }
-                @media print {
-                    button { display: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Courses</h1>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <th>Units</th>
-                        <th>Program</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    data.forEach(row => {
-        html += `<tr>
-            <td>${row.Code}</td>
-            <td>${row.Name}</td>
-            <td>${row.Units}</td>
-            <td>${row.Program}</td>
-        </tr>`;
-    });
-    
-    html += `
-                </tbody>
-            </table>
-            <script>
-                window.onload = function() { window.print(); }
-            </script>
-        </body>
-        </html>`;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-function exportToCSV() {
-    const data = getCoursesData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let csv = headers.join(',') + '\n';
-    
-    data.forEach(row => {
-        const values = headers.map(header => {
-            const value = row[header] || '';
-            return `"${value.toString().replace(/"/g, '""')}"`;
-        });
-        csv += values.join(',') + '\n';
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `courses_${new Date().getTime()}.csv`;
-    link.click();
-    Toast.success('CSV exported successfully');
-}
-
-function exportToExcel() {
-    const data = getCoursesData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let html = '<table><thead><tr>';
-    headers.forEach(header => {
-        html += `<th>${header}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-    
-    data.forEach(row => {
-        html += '<tr>';
-        headers.forEach(header => {
-            html += `<td>${row[header] || ''}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `courses_${new Date().getTime()}.xls`;
-    link.click();
-    Toast.success('Excel exported successfully');
-}
-
-function exportToPDF() {
-    Toast.info('PDF export requires additional library. Using print instead.');
-    printCourses();
 }

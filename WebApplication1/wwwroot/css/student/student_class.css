@@ -1,15 +1,8 @@
-/* My Classes Styles */
-
-.page-header {
-    margin-bottom: 2rem;
-}
-
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
+/**
+ * Student My Classes - Page-Specific Styles
+ * Common styles are in common CSS files
+ * This file only contains page-specific customizations
+ */
 
 /* Classes Grid */
 .classes-grid {
@@ -80,7 +73,7 @@
 
 .detail-row {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     gap: 0.5rem;
 }
 
@@ -89,6 +82,8 @@
     color: #9ca3af;
     min-width: 70px;
     font-weight: 500;
+    background: none !important;
+    padding: 0 !important;
 }
 
 .detail-value {
@@ -96,6 +91,9 @@
     color: #374151;
     font-weight: 500;
     flex: 1;
+    background: none !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
 /* Attendance Section */
@@ -159,55 +157,7 @@
     color: #ef4444;
 }
 
-/* Loading State */
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 1rem;
-    text-align: center;
-}
 
-.loading-container p {
-    color: #6b7280;
-    margin-top: 1rem;
-}
-
-/* Empty State */
-.empty-state-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 1rem;
-    text-align: center;
-}
-
-.empty-icon {
-    width: 64px;
-    height: 64px;
-    color: #d1d5db;
-    margin-bottom: 1rem;
-}
-
-.empty-state-container h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
-}
-
-.empty-state-container p {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin-bottom: 1rem;
-}
-
-.icon-sm {
-    width: 16px;
-    height: 16px;
-}
 
 /* Responsive Design */
 @media (max-width: 1024px) {

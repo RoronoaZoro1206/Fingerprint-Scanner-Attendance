@@ -302,18 +302,21 @@ function saveSchedules() {
         success: function (response) {
             console.log('Response:', response);
             if (response.success) {
-                Toast.success(response.message);
+                Toast.success(response.message || 'Schedules created successfully');
                 $('#addScheduleModal').modal('hide');
-                location.reload();
+                // Delay reload to allow toast to display
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
             } else {
                 Toast.error(response.message);
+                $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save Schedules');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         },
         error: function (xhr, status, error) {
             console.error('Error:', xhr.responseText);
             Toast.error('Failed to create schedules: ' + error);
-        },
-        complete: function () {
             $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save Schedules');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
@@ -347,15 +350,18 @@ function updateSchedule() {
             if (response.success) {
                 Toast.updated('Schedule');
                 $('#editScheduleModal').modal('hide');
-                location.reload();
+                // Delay reload to allow toast to display
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
             } else {
                 Toast.error(response.message);
+                $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         },
         error: function () {
             Toast.updateError('Schedule');
-        },
-        complete: function () {
             $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
@@ -379,15 +385,18 @@ function confirmDelete() {
             if (response.success) {
                 Toast.deleted('Schedule');
                 $('#deleteScheduleModal').modal('hide');
-                location.reload();
+                // Delay reload to allow toast to display
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
             } else {
                 Toast.error(response.message);
+                $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         },
         error: function () {
             Toast.deleteError('Schedule');
-        },
-        complete: function () {
             $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }

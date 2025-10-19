@@ -1,58 +1,64 @@
+/**
+ * Admin Audit - Refactored to use common utilities
+ * Uses common AJAX, modal, and DataTable utilities
+ * Read-only page with view and delete functionality
+ */
+
 let auditTable;
 
-$(document).ready(function() {
+$(document).ready(function () {
+    // Initialize icons
+    initializeLucideIcons();
+
+    // Initialize DataTable and load statistics
     initializeDataTable();
     loadStatistics();
-    
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-    
+
     // Event handler for confirm delete button
     $('#btnConfirmDelete').on('click', confirmDeleteAudit);
-    
-    // Reinitialize icons when modal is shown
-    $('#deleteAuditModal, #viewModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['deleteAuditModal', 'viewModal']);
 });
 
+/**
+ * Initialize DataTable
+ */
 function initializeDataTable() {
     auditTable = $('#auditTable').DataTable({
         ajax: {
             url: '/AdminAudit/GetAll',
             dataSrc: 'data',
-            error: function(xhr, error, code) {
-                console.error('DataTables AJAX error:', error, code);
-                console.error('Response:', xhr.responseText);
+            error: function () {
+                Toast.error('Failed to load audit logs.');
             }
         },
         columns: [
-            { data: 'audId' },
-            { data: 'adminName' },
-            { data: 'adminCode' },
-            { 
+            { data: 'audId', width: '8%' },
+            { data: 'adminName', width: '15%' },
+            { data: 'adminCode', width: '12%' },
+            {
                 data: 'audAction',
-                render: function(data) {
+                width: '15%',
+                render: function (data) {
                     return formatActionBadge(data);
                 }
             },
-            { 
+            {
                 data: 'audDetails',
-                render: function(data) {
+                width: '30%',
+                render: function (data) {
                     if (!data || data === '') return '<span class="text-muted">No details</span>';
                     return data.length > 50 ? data.substring(0, 50) + '...' : data;
                 }
             },
-            { data: 'audActionTime' },
+            { data: 'audActionTime', width: '15%' },
             {
                 data: null,
+                width: '10%',
                 orderable: false,
                 searchable: false,
-                render: function(data, type, row) {
+                render: function (data, type, row) {
                     return `
                         <div class="action-buttons">
                             <button class="btn-action btn-view" onclick="viewAudit(${row.audId})" title="View Details">
@@ -66,31 +72,20 @@ function initializeDataTable() {
                 }
             }
         ],
-        order: [[5, 'desc']],
+        order: [[5, 'desc']], // Order by date/time descending
         pageLength: 25,
-        responsive: true,
-        language: {
-            search: "",
-            searchPlaceholder: "Search logs...",
-            lengthMenu: "Show _MENU_ logs per page",
-            info: "Showing _START_ to _END_ of _TOTAL_ logs",
-            infoEmpty: "No logs available",
-            infoFiltered: "(filtered from _MAX_ total logs)",
-            zeroRecords: "No matching logs found"
-        },
-        drawCallback: function() {
-            // Reinitialize Lucide icons after table draw
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('logs', 'log')
     });
 }
 
+/**
+ * Format action badge with color coding
+ */
 function formatActionBadge(action) {
     const lowerAction = action.toLowerCase();
     let badgeClass = 'other';
-    
+
     if (lowerAction.includes('create') || lowerAction.includes('add')) {
         badgeClass = 'create';
     } else if (lowerAction.includes('update') || lowerAction.includes('edit')) {
@@ -100,20 +95,20 @@ function formatActionBadge(action) {
     } else if (lowerAction.includes('view') || lowerAction.includes('read')) {
         badgeClass = 'view';
     }
-    
+
     return `<span class="action-badge ${badgeClass}">${escapeHtml(action)}</span>`;
 }
 
+/**
+ * Load audit statistics
+ */
 async function loadStatistics() {
     try {
         const response = await fetch('/AdminAudit/GetStats');
         const result = await response.json();
-        
-        console.log('Stats response:', result);
-        
+
         if (result.success) {
             const stats = result.data;
-            console.log('Stats data:', stats);
             document.getElementById('totalLogs').textContent = stats.totalLogs;
             document.getElementById('todayLogs').textContent = stats.todayLogs;
             document.getElementById('weekLogs').textContent = stats.weekLogs;
@@ -126,11 +121,14 @@ async function loadStatistics() {
     }
 }
 
+/**
+ * View audit log details
+ */
 async function viewAudit(id) {
     try {
         const response = await fetch(`/AdminAudit/GetById?id=${id}`);
         const result = await response.json();
-        
+
         if (result.success) {
             const audit = result.data;
             document.getElementById('viewAudId').textContent = audit.audId;
@@ -139,72 +137,63 @@ async function viewAudit(id) {
             document.getElementById('viewAction').textContent = audit.audAction;
             document.getElementById('viewDetails').textContent = audit.audDetails || 'No details provided';
             document.getElementById('viewDateTime').textContent = audit.audActionTime;
-            
-            const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-            modal.show();
-            
-            // Reinitialize Lucide icons in modal
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+
+            showModal('viewModal');
         } else {
-            showToast(result.message || 'Failed to load audit log', 'error');
+            Toast.error(result.message || 'Failed to load audit log');
         }
     } catch (error) {
         console.error('Error viewing audit:', error);
-        showToast('Failed to load audit log', 'error');
+        Toast.error('Failed to load audit log');
     }
 }
 
+/**
+ * Show delete confirmation modal
+ */
 function deleteAudit(id) {
-    // Store the ID and show the modal
     document.getElementById('deleteAudId').value = id;
-    const modal = new bootstrap.Modal(document.getElementById('deleteAuditModal'));
-    modal.show();
-    
-    // Reinitialize Lucide icons in modal
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    showModal('deleteAuditModal');
 }
 
+/**
+ * Confirm and delete audit log
+ */
 async function confirmDeleteAudit() {
     const id = document.getElementById('deleteAudId').value;
-    
+
+    const $btn = $('#btnConfirmDelete');
+    setButtonLoading($btn, 'Deleting...');
+
     try {
         const response = await fetch(`/AdminAudit/Delete?id=${id}`, {
             method: 'DELETE'
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
-            // Close the modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAuditModal'));
-            modal.hide();
-            
-            showToast('Audit log deleted successfully', 'success');
-            auditTable.ajax.reload();
+            Toast.deleted('Audit log');
+            hideModal('deleteAuditModal');
+            auditTable.ajax.reload(null, false);
             loadStatistics();
+            resetButton($btn);
         } else {
-            showToast(result.message || 'Failed to delete audit log', 'error');
+            Toast.error(result.message || 'Failed to delete audit log');
+            resetButton($btn);
         }
     } catch (error) {
         console.error('Error deleting audit:', error);
-        showToast('Failed to delete audit log', 'error');
+        Toast.error('Failed to delete audit log');
+        resetButton($btn);
     }
 }
 
+/**
+ * Escape HTML to prevent XSS
+ */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-function showToast(message, type = 'info') {
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    } else {
-        alert(message);
-    }
 }

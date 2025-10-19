@@ -35,6 +35,12 @@
     padding: 24px;
 }
 
+/* Centered modal body (for delete/confirmation modals) */
+.modal-body.text-center .modal-title {
+    justify-content: center;
+    width: 100%;
+}
+
 /* Modal Footer */
 .modal-footer {
     border-top: 1px solid #e5e7eb;

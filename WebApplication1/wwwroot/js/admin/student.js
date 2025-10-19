@@ -1,5 +1,6 @@
 /**
- * Student Management - CRUD Operations with DataTables
+ * Student Management - Refactored to use common utilities
+ * Uses common AJAX, modal, export, and DataTable utilities
  */
 
 let studentsTable;
@@ -9,70 +10,239 @@ let sectionsData = [];
 let searchTimeout = null;
 
 $(document).ready(function () {
-    initializeDataTable();
-    loadUsers();
-    loadPrograms();
-    loadSections();
+    // Initialize icons
+    initializeLucideIcons();
 
-    // Setup student ID search for add modal
+    // Load data, then initialize DataTable
+    Promise.all([loadUsers(), loadPrograms(), loadSections()]).then(() => {
+        initializeDataTable();
+    });
+
+    // Setup student ID search for add and edit modals
     setupStudentIdSearch('#addStudNumber', '#addStudNumberDropdown');
-
-    // Setup student ID search for edit modal
     setupStudentIdSearch('#editStudNumber', '#editStudNumberDropdown');
 
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
-
+    // Event Handlers
     $('#btnAddStudent').on('click', showAddModal);
     $('#btnSaveStudent').on('click', saveStudent);
     $('#btnUpdateStudent').on('click', updateStudent);
     $('#btnConfirmDelete').on('click', confirmDeleteStudent);
 
+    // Export button handlers
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        printStudents();
+        printData('Students', getStudentsData());
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        exportToExcel();
+        exportToExcelFile('students', getStudentsData());
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        exportToCSV();
+        exportToCSVFile('students', getStudentsData());
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        exportToPDF();
+        exportToPDFFile('Students', getStudentsData());
     });
 
-    $('#exportDropdown').on('shown.bs.dropdown', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    // Reinitialize icons when dropdown is shown
+    $('#exportDropdown').on('shown.bs.dropdown', initializeLucideIcons);
 
-    $('#addStudentModal, #editStudentModal, #deleteStudentModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['addStudentModal', 'editStudentModal', 'deleteStudentModal']);
 
-    $('#addStudentModal').on('hidden.bs.modal', function () {
-        $('#addStudentForm')[0].reset();
-    });
+    // Clear form when modal is hidden
+    setupFormClearOnHide('addStudentModal', 'addStudentForm');
 });
 
+/**
+ * Load users with Student role
+ */
+async function loadUsers() {
+    try {
+        const response = await $.ajax({
+            url: '/AdminStudent/GetUsers',
+            type: 'GET'
+        });
+
+        if (response.success) {
+            usersData = response.data;
+            populateUserDropdown();
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+/**
+ * Load programs
+ */
+async function loadPrograms() {
+    try {
+        const response = await $.ajax({
+            url: '/AdminStudent/GetPrograms',
+            type: 'GET'
+        });
+
+        if (response.success) {
+            programsData = response.data;
+            populateProgramDropdowns();
+        }
+    } catch (error) {
+        console.error('Error loading programs:', error);
+    }
+}
+
+/**
+ * Load sections
+ */
+async function loadSections() {
+    try {
+        const response = await $.ajax({
+            url: '/AdminStudent/GetSections',
+            type: 'GET'
+        });
+
+        if (response.success) {
+            sectionsData = response.data;
+            populateSectionDropdowns();
+        }
+    } catch (error) {
+        console.error('Error loading sections:', error);
+    }
+}
+
+/**
+ * Setup student ID search with autocomplete
+ */
+function setupStudentIdSearch(inputSelector, dropdownSelector) {
+    const $input = $(inputSelector);
+    const $dropdown = $(dropdownSelector);
+
+    // Search on input
+    $input.on('input', function () {
+        const searchTerm = $(this).val().trim();
+
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Debounce search
+        searchTimeout = setTimeout(function () {
+            searchStudentIds(searchTerm, $dropdown);
+        }, 300);
+    });
+
+    // Show dropdown on focus
+    $input.on('focus', function () {
+        const searchTerm = $(this).val().trim();
+        searchStudentIds(searchTerm, $dropdown);
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('.student-id-search-wrapper').length) {
+            $dropdown.removeClass('show');
+        }
+    });
+}
+
+/**
+ * Search available student IDs
+ */
+function searchStudentIds(searchTerm, $dropdown) {
+    $dropdown.html('<div class="student-id-dropdown-loading">Searching...</div>');
+    $dropdown.addClass('show');
+
+    ajaxGet('/AdminStudent/SearchAvailableStudentIds?search=' + encodeURIComponent(searchTerm),
+        function (response) {
+            displayStudentIdResults(response.data, $dropdown);
+        },
+        function () {
+            $dropdown.html('<div class="student-id-dropdown-empty">Error loading student IDs</div>');
+        }
+    );
+}
+
+/**
+ * Display student ID search results
+ */
+function displayStudentIdResults(results, $dropdown) {
+    $dropdown.empty();
+
+    if (results.length === 0) {
+        $dropdown.html('<div class="student-id-dropdown-empty">No available student IDs found</div>');
+    } else {
+        results.forEach(function (item) {
+            const $item = $('<div class="student-id-dropdown-item"></div>')
+                .text(item.studentIdCode)
+                .on('click', function () {
+                    const $input = $dropdown.siblings('input');
+                    $input.val(item.studentIdCode);
+                    $dropdown.removeClass('show');
+                });
+            $dropdown.append($item);
+        });
+    }
+
+    $dropdown.addClass('show');
+}
+
+/**
+ * Populate user dropdown
+ */
+function populateUserDropdown() {
+    const $select = $('#addUserId');
+    $select.find('option:not(:first)').remove();
+    usersData.forEach(user => {
+        $select.append(`<option value="${user.userId}">${user.userName} (${user.userEmail})</option>`);
+    });
+}
+
+/**
+ * Populate program dropdowns
+ */
+function populateProgramDropdowns() {
+    const $addSelect = $('#addProgramId');
+    const $editSelect = $('#editProgramId');
+    $addSelect.find('option:not(:first)').remove();
+    $editSelect.find('option:not(:first)').remove();
+    programsData.forEach(program => {
+        const option = `<option value="${program.programId}">${program.programName}</option>`;
+        $addSelect.append(option);
+        $editSelect.append(option);
+    });
+}
+
+/**
+ * Populate section dropdowns
+ */
+function populateSectionDropdowns() {
+    const $addSelect = $('#addSectionId');
+    const $editSelect = $('#editSectionId');
+    $addSelect.find('option:not(:first)').remove();
+    $editSelect.find('option:not(:first)').remove();
+    sectionsData.forEach(section => {
+        const option = `<option value="${section.sectionId}">${section.sectionName}</option>`;
+        $addSelect.append(option);
+        $editSelect.append(option);
+    });
+}
+
+/**
+ * Initialize DataTable
+ */
 function initializeDataTable() {
     studentsTable = $('#studentsTable').DataTable({
         ajax: {
             url: '/AdminStudent/GetAll',
             dataSrc: 'data',
-            error: function (xhr, error, thrown) {
-                console.error('DataTables error:', error);
+            error: function () {
                 Toast.error('Failed to load students data.');
             }
         },
@@ -107,13 +277,13 @@ function initializeDataTable() {
                 width: '10%',
                 orderable: false,
                 searchable: false,
-                render: function (data, type, row) {
+                render: function (data) {
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${row.studId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.studId})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteStudent(${row.studId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteStudent(${data.studId})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -122,238 +292,46 @@ function initializeDataTable() {
             }
         ],
         order: [[0, 'asc']],
-        pageLength: 10,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-            '<"row"<"col-sm-12"tr>>' +
-            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excel',
-                exportOptions: { columns: [0, 1, 2, 3, 4, 5] }
-            },
-            {
-                extend: 'csv',
-                exportOptions: { columns: [0, 1, 2, 3, 4, 5] }
-            },
-            {
-                extend: 'pdf',
-                exportOptions: { columns: [0, 1, 2, 3, 4, 5] }
-            },
-            {
-                extend: 'print',
-                exportOptions: { columns: [0, 1, 2, 3, 4, 5] }
-            }
-        ],
-        drawCallback: function () {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        },
-        language: {
-            search: "",
-            searchPlaceholder: "Search students...",
-            lengthMenu: "Show _MENU_ students",
-            info: "Showing _START_ to _END_ of _TOTAL_ students",
-            infoEmpty: "No students available",
-            infoFiltered: "(filtered from _MAX_ total students)",
-            zeroRecords: "No matching students found",
-            emptyTable: "No students available in the system"
-        },
-        initComplete: function () {
-            const searchInput = $('.dataTables_filter input');
-            if (searchInput.parent().find('.search-icon').length === 0) {
-                searchInput.wrap('<div class="search-input-wrapper"></div>');
-                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-                setTimeout(function () {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('students', 'student')
     });
 }
 
-function loadUsers() {
-    $.ajax({
-        url: '/AdminStudent/GetUsers',
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                usersData = response.data;
-                populateUserDropdown();
-            }
-        }
-    });
-}
-
-function loadPrograms() {
-    $.ajax({
-        url: '/AdminStudent/GetPrograms',
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                programsData = response.data;
-                populateProgramDropdowns();
-            }
-        }
-    });
-}
-
-function loadSections() {
-    $.ajax({
-        url: '/AdminStudent/GetSections',
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                sectionsData = response.data;
-                populateSectionDropdowns();
-            }
-        }
-    });
-}
-
-function setupStudentIdSearch(inputSelector, dropdownSelector) {
-    const $input = $(inputSelector);
-    const $dropdown = $(dropdownSelector);
-
-    // Search on input
-    $input.on('input', function () {
-        const searchTerm = $(this).val().trim();
-
-        // Clear previous timeout
-        if (searchTimeout) {
-            clearTimeout(searchTimeout);
-        }
-
-        // Debounce search
-        searchTimeout = setTimeout(function () {
-            searchStudentIds(searchTerm, $dropdown);
-        }, 300);
-    });
-
-    // Show dropdown on focus
-    $input.on('focus', function () {
-        const searchTerm = $(this).val().trim();
-        searchStudentIds(searchTerm, $dropdown);
-    });
-
-    // Hide dropdown when clicking outside
-    $(document).on('click', function (e) {
-        if (!$(e.target).closest('.student-id-search-wrapper').length) {
-            $dropdown.removeClass('show');
-        }
-    });
-}
-
-function searchStudentIds(searchTerm, $dropdown) {
-    $dropdown.html('<div class="student-id-dropdown-loading">Searching...</div>');
-    $dropdown.addClass('show');
-
-    $.ajax({
-        url: '/AdminStudent/SearchAvailableStudentIds',
-        type: 'GET',
-        data: { search: searchTerm },
-        success: function (response) {
-            if (response.success) {
-                displayStudentIdResults(response.data, $dropdown);
-            } else {
-                $dropdown.html('<div class="student-id-dropdown-empty">Error loading student IDs</div>');
-            }
-        },
-        error: function () {
-            $dropdown.html('<div class="student-id-dropdown-empty">Error loading student IDs</div>');
-        }
-    });
-}
-
-function displayStudentIdResults(results, $dropdown) {
-    $dropdown.empty();
-
-    if (results.length === 0) {
-        $dropdown.html('<div class="student-id-dropdown-empty">No available student IDs found</div>');
-    } else {
-        results.forEach(function (item) {
-            const $item = $('<div class="student-id-dropdown-item"></div>')
-                .text(item.studentIdCode)
-                .on('click', function () {
-                    // Get the input associated with this dropdown
-                    const $input = $dropdown.siblings('input');
-                    $input.val(item.studentIdCode);
-                    $dropdown.removeClass('show');
-                });
-            $dropdown.append($item);
-        });
-    }
-
-    $dropdown.addClass('show');
-}
-
-function populateUserDropdown() {
-    const $select = $('#addUserId');
-    $select.find('option:not(:first)').remove();
-    usersData.forEach(user => {
-        $select.append(`<option value="${user.userId}">${user.userName} (${user.userEmail})</option>`);
-    });
-}
-
-function populateProgramDropdowns() {
-    const $addSelect = $('#addProgramId');
-    const $editSelect = $('#editProgramId');
-    $addSelect.find('option:not(:first)').remove();
-    $editSelect.find('option:not(:first)').remove();
-    programsData.forEach(program => {
-        const option = `<option value="${program.programId}">${program.programName}</option>`;
-        $addSelect.append(option);
-        $editSelect.append(option);
-    });
-}
-
-function populateSectionDropdowns() {
-    const $addSelect = $('#addSectionId');
-    const $editSelect = $('#editSectionId');
-    $addSelect.find('option:not(:first)').remove();
-    $editSelect.find('option:not(:first)').remove();
-    sectionsData.forEach(section => {
-        const option = `<option value="${section.sectionId}">${section.sectionName}</option>`;
-        $addSelect.append(option);
-        $editSelect.append(option);
-    });
-}
-
+/**
+ * Show Add Student Modal
+ */
 function showAddModal() {
     $('#addStudentForm')[0].reset();
     $('#addStudNumberDropdown').removeClass('show').empty();
-    $('#addStudentModal').modal('show');
+    showModal('addStudentModal');
 }
 
+/**
+ * Show Edit Student Modal
+ */
 function showEditModal(studId) {
-    $.ajax({
-        url: `/AdminStudent/GetById/${studId}`,
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                const student = response.data;
-                $('#editStudId').val(student.studId);
-                $('#editUserId').val(student.userId);
-                $('#editUserEmail').val(student.userEmail);
-                $('#editStudNumber').val(student.studNumber);
-                $('#editProgramId').val(student.programId || '');
-                $('#editStudYearLevel').val(student.studYearLevel || '');
-                $('#editSectionId').val(student.sectionId || '');
-                $('#editStudNumberDropdown').removeClass('show').empty();
-                $('#editStudentModal').modal('show');
-            } else {
-                Toast.error(response.message || 'Failed to load student data.');
-            }
+    ajaxGet(`/AdminStudent/GetById/${studId}`,
+        function (response) {
+            const student = response.data;
+            $('#editStudId').val(student.studId);
+            $('#editUserId').val(student.userId);
+            $('#editUserEmail').val(student.userEmail);
+            $('#editStudNumber').val(student.studNumber);
+            $('#editProgramId').val(student.programId || '');
+            $('#editStudYearLevel').val(student.studYearLevel || '');
+            $('#editSectionId').val(student.sectionId || '');
+            $('#editStudNumberDropdown').removeClass('show').empty();
+            showModal('editStudentModal');
         },
-        error: function (xhr) {
+        function () {
             Toast.error('Failed to load student data.');
         }
-    });
+    );
 }
 
+/**
+ * Save New Student
+ */
 function saveStudent() {
     const form = $('#addStudentForm')[0];
     if (!form.checkValidity()) {
@@ -376,34 +354,25 @@ function saveStudent() {
     };
 
     const $btn = $('#btnSaveStudent');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+    setButtonLoading($btn, 'Saving...');
 
-    $.ajax({
-        url: '/AdminStudent/Create',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(studentData),
-        success: function (response) {
-            if (response.success) {
-                Toast.created('Student');
-                $('#addStudentModal').modal('hide');
-                studentsTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to create student.');
-            }
+    ajaxPost('/AdminStudent/Create', studentData,
+        function () {
+            Toast.created('Student');
+            hideModal('addStudentModal');
+            studentsTable.ajax.reload(null, false);
         },
-        error: function () {
-            Toast.createError('Student');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save Student');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPost
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
+/**
+ * Update Existing Student
+ */
 function updateStudent() {
     const form = $('#editStudentForm')[0];
     if (!form.checkValidity()) {
@@ -421,70 +390,55 @@ function updateStudent() {
     };
 
     const $btn = $('#btnUpdateStudent');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+    setButtonLoading($btn, 'Updating...');
 
-    $.ajax({
-        url: '/AdminStudent/Update',
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(studentData),
-        success: function (response) {
-            if (response.success) {
-                Toast.updated('Student');
-                $('#editStudentModal').modal('hide');
-                studentsTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to update student.');
-            }
+    ajaxPut('/AdminStudent/Update', studentData,
+        function () {
+            Toast.updated('Student');
+            hideModal('editStudentModal');
+            studentsTable.ajax.reload(null, false);
         },
-        error: function () {
-            Toast.updateError('Student');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update Student');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPut
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
+/**
+ * Show Delete Confirmation Modal
+ */
 function deleteStudent(studId) {
     $('#deleteStudId').val(studId);
-    $('#deleteStudentModal').modal('show');
+    showModal('deleteStudentModal');
 }
 
+/**
+ * Confirm and Delete Student
+ */
 function confirmDeleteStudent() {
     const studId = $('#deleteStudId').val();
     const $btn = $('#btnConfirmDelete');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
+    setButtonLoading($btn, 'Deleting...');
 
-    $.ajax({
-        url: `/AdminStudent/Delete/${studId}`,
-        type: 'DELETE',
-        success: function (response) {
-            if (response.success) {
-                Toast.deleted('Student');
-                $('#deleteStudentModal').modal('hide');
-                studentsTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to delete student.');
-            }
+    ajaxDelete(`/AdminStudent/Delete/${studId}`,
+        function () {
+            Toast.deleted('Student');
+            hideModal('deleteStudentModal');
+            studentsTable.ajax.reload(null, false);
         },
-        error: function () {
-            Toast.deleteError('Student');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxDelete
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
-
-// Export Functions
+/**
+ * Get students data for export
+ */
 function getStudentsData() {
     const data = [];
     studentsTable.rows({ search: 'applied' }).every(function () {
@@ -502,127 +456,4 @@ function getStudentsData() {
         });
     });
     return data;
-}
-
-function printStudents() {
-    const printWindow = window.open('', '_blank');
-    const data = getStudentsData();
-    
-    let html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Students</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { color: #1a1a1a; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
-                th { background-color: #f9fafb; font-weight: 600; }
-                tr:nth-child(even) { background-color: #f9fafb; }
-                @media print {
-                    button { display: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Students</h1>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Student Number</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Program</th>
-                        <th>Year Level</th>
-                        <th>Section</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    data.forEach(row => {
-        html += `<tr>
-            <td>${row['Student Number']}</td>
-            <td>${row.Name}</td>
-            <td>${row.Email}</td>
-            <td>${row.Program}</td>
-            <td>${row['Year Level']}</td>
-            <td>${row.Section}</td>
-        </tr>`;
-    });
-    
-    html += `
-                </tbody>
-            </table>
-            <script>
-                window.onload = function() { window.print(); }
-            </script>
-        </body>
-        </html>`;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-function exportToCSV() {
-    const data = getStudentsData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let csv = headers.join(',') + '\n';
-    
-    data.forEach(row => {
-        const values = headers.map(header => {
-            const value = row[header] || '';
-            return `"${value.toString().replace(/"/g, '""')}"`;
-        });
-        csv += values.join(',') + '\n';
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `students_${new Date().getTime()}.csv`;
-    link.click();
-    Toast.success('CSV exported successfully');
-}
-
-function exportToExcel() {
-    const data = getStudentsData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let html = '<table><thead><tr>';
-    headers.forEach(header => {
-        html += `<th>${header}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-    
-    data.forEach(row => {
-        html += '<tr>';
-        headers.forEach(header => {
-            html += `<td>${row[header] || ''}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `students_${new Date().getTime()}.xls`;
-    link.click();
-    Toast.success('Excel exported successfully');
-}
-
-function exportToPDF() {
-    Toast.info('PDF export requires additional library. Using print instead.');
-    printStudents();
 }

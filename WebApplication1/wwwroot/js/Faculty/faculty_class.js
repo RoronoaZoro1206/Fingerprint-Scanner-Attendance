@@ -1,12 +1,11 @@
 /**
- * Faculty Classes - Display faculty's assigned classes
+ * Faculty Classes - Refactored to use common utilities
+ * Display faculty's assigned classes in a grid layout
  */
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Load classes
     loadClasses();
@@ -56,9 +55,7 @@ function displayClasses(classes) {
     });
 
     // Reinitialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
 /**
@@ -105,15 +102,13 @@ function showEmptyState() {
     container.html(`
         <div class="empty-state">
             <i data-lucide="book-open"></i>
-            <h3>Assigned</h3>
+            <h3>No Classes Assigned</h3>
             <p>You don't have any classes assigned yet. Please contact administration.</p>
         </div>
     `);
 
     // Reinitialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
 /**

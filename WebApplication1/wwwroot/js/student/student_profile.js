@@ -1,5 +1,6 @@
 /**
- * Student Profile Management
+ * Student Profile Management - Refactored to use common utilities
+ * Manage student profile with program lock functionality
  */
 
 let profileData = null;
@@ -7,10 +8,8 @@ let programsData = [];
 let sectionsData = [];
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Load profile data
     loadProfile();
@@ -28,13 +27,12 @@ $(document).ready(function () {
 
     // Confirm lock button in modal
     $('#btnConfirmLock').on('click', function () {
-        // Close the modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('profileLockModal'));
-        modal.hide();
-        
-        // Proceed with save
+        hideModal('profileLockModal');
         submitProfileUpdate();
     });
+
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['profileLockModal']);
 });
 
 /**
@@ -114,9 +112,7 @@ function displayProfile(data) {
                     Contact administration if you need to change your program.
                 </div>
             `);
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+            initializeLucideIcons();
         }
     } else {
         $('#program').prop('disabled', false);
@@ -239,8 +235,7 @@ function saveProfile() {
 
     // Show confirmation modal if this is the first submission
     if (!profileData.profileSubmitted && programId) {
-        const modal = new bootstrap.Modal(document.getElementById('profileLockModal'));
-        modal.show();
+        showModal('profileLockModal');
         return;
     }
 
@@ -267,33 +262,19 @@ function submitProfileUpdate() {
     };
 
     const $btn = $('#btnSaveProfile');
-    const originalHtml = $btn.html();
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+    setButtonLoading($btn, 'Saving...');
 
-    $.ajax({
-        url: '/StudentProfile/UpdateProfile',
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(profileUpdate),
-        success: function (response) {
-            if (response.success) {
-                Toast.success(response.message);
-                loadProfile(); // Reload to show updated data
-                updateSidebarName(profileUpdate.UserFirstName, profileUpdate.UserLastName);
-            } else {
-                Toast.error(response.message);
-            }
+    ajaxPut('/StudentProfile/UpdateProfile', profileUpdate,
+        function (response) {
+            Toast.success(response.message);
+            loadProfile(); // Reload to show updated data
+            updateSidebarName(profileUpdate.UserFirstName, profileUpdate.UserLastName);
+            resetButton($btn);
         },
-        error: function () {
-            Toast.error('Failed to update profile');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html(originalHtml);
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            resetButton($btn);
         }
-    });
+    );
 }
 
 /**

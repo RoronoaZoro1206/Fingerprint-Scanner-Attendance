@@ -1,116 +1,38 @@
 /**
  * Common Utility Styles
  * Shared utility classes across all roles
+ * Note: Avoids conflicts with Bootstrap classes
  */
-
-/* Text Utilities */
-.text-center {
-    text-align: center;
-}
-
-.text-muted {
-    color: #6b7280;
-}
-
-/* Spacing Utilities */
-.mb-0 {
-    margin-bottom: 0;
-}
-
-.mb-1 {
-    margin-bottom: 0.25rem;
-}
-
-.mb-2 {
-    margin-bottom: 0.5rem;
-}
-
-.mb-3 {
-    margin-bottom: 1rem;
-}
-
-.mb-4 {
-    margin-bottom: 1.5rem;
-}
-
-.mt-0 {
-    margin-top: 0;
-}
-
-.mt-1 {
-    margin-top: 0.25rem;
-}
-
-.mt-2 {
-    margin-top: 0.5rem;
-}
-
-.mt-3 {
-    margin-top: 1rem;
-}
-
-.mt-4 {
-    margin-top: 1.5rem;
-}
-
-/* Display Utilities */
-.d-none {
-    display: none !important;
-}
-
-.d-block {
-    display: block !important;
-}
-
-.d-flex {
-    display: flex !important;
-}
-
-.d-inline-flex {
-    display: inline-flex !important;
-}
-
-/* Flex Utilities */
-.flex-column {
-    flex-direction: column;
-}
-
-.flex-wrap {
-    flex-wrap: wrap;
-}
-
-.align-items-center {
-    align-items: center;
-}
-
-.justify-content-center {
-    justify-content: center;
-}
-
-.justify-content-between {
-    justify-content: space-between;
-}
-
-.gap-1 {
-    gap: 0.25rem;
-}
-
-.gap-2 {
-    gap: 0.5rem;
-}
-
-.gap-3 {
-    gap: 1rem;
-}
-
-/* Width Utilities */
-.w-100 {
-    width: 100%;
-}
 
 /* Print Utilities */
 @media print {
-    .no-print {
+    .no-print,
+    .page-header .header-actions,
+    .dataTables_length,
+    .dataTables_filter,
+    .dataTables_info,
+    .dataTables_paginate {
         display: none !important;
+    }
+
+    .card {
+        box-shadow: none;
+        border: 1px solid #e5e7eb;
+    }
+}
+
+/* Avatar Styles */
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+    .user-avatar {
+        width: 32px;
+        height: 32px;
     }
 }

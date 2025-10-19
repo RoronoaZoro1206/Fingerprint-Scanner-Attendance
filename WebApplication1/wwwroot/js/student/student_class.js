@@ -1,12 +1,11 @@
 /**
- * Student My Classes
+ * Student My Classes - Refactored to use common utilities
+ * View enrolled classes with attendance rates
  */
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Load classes
     loadMyClasses();
@@ -37,8 +36,7 @@ function loadMyClasses() {
                 $('#emptyState').show();
             }
         },
-        error: function (xhr, status, error) {
-            console.error('Error loading classes:', error);
+        error: function () {
             $('#loadingState').hide();
             Toast.error('Failed to load classes');
             $('#emptyState').show();
@@ -98,11 +96,7 @@ function displayClasses(classes) {
     });
 
     container.show();
-
-    // Reinitialize icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
 /**

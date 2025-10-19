@@ -2,8 +2,6 @@
     ViewData["Title"] = "Audit Logs";
 }
 
-<link rel="stylesheet" href="~/css/admin/admin_audit.css" />
-
 <div class="page-header">
     <h1 class="page-title">Audit Logs</h1>
 </div>
@@ -148,5 +146,7 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/admin/admin_audit.js"></script>
+    <script src="~/js/admin/admin_audit.js" asp-append-version="true"></script>
 }
+
+<link rel="stylesheet" href="~/css/admin/admin_audit.css" asp-append-version="true"/>

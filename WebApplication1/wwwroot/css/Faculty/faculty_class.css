@@ -1,24 +1,19 @@
-/* Faculty Classes Page Styles */
+/**
+ * Faculty Classes Page - Page-Specific Styles
+ * Common styles are now in common CSS files
+ * This file only contains truly page-specific customizations
+ */
 
-.page-header {
-    margin-bottom: 2rem;
-}
-
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
-
+/* Classes Grid Layout - Page Specific */
 .classes-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
-    min-height: 500px;
+    min-height: 300px;
 }
 
+/* Class Card - Page Specific */
 .class-card {
     background: white;
     border-radius: 12px;
@@ -119,6 +114,7 @@
     height: 18px;
 }
 
+/* Empty State - Page Specific */
 .empty-state {
     grid-column: 1 / -1;
     display: flex;
@@ -155,7 +151,7 @@
     margin: 0;
 }
 
-/* Loading State */
+/* Loading State - Page Specific */
 .loading-container {
     grid-column: 1 / -1;
     display: flex;
@@ -189,10 +185,6 @@
 
     .class-card {
         padding: 1.25rem;
-    }
-
-    .page-title {
-        font-size: 1.5rem;
     }
 }
 

@@ -1,86 +1,14 @@
-/* Dashboard Overview Styles */
+/**
+ * Admin Dashboard Overview - Page-Specific Styles
+ * Common styles (stats-grid, stat-card, stat-icon, etc.) are now in common/cards.css
+ * This file only contains truly page-specific customizations
+ */
 
-.stats-grid {
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon.users {
-    background: #dbeafe;
-    color: #3b82f6;
-}
-
-.stat-icon.courses {
-    background: #d1fae5;
-    color: #10b981;
-}
-
-.stat-icon.faculty {
-    background: #fef3c7;
-    color: #f59e0b;
-}
-
-.stat-icon.rooms {
-    background: #fee2e2;
-    color: #ef4444;
-}
-
-.stat-content {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1a1a1a;
-    line-height: 1;
-    margin-bottom: 0.25rem;
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 500;
-}
-
-/* Content Grid */
+/* Content Grid - Page-specific layout */
 .content-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-}
-
-.card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.card-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin-bottom: 1.5rem;
 }
 
 /* Activity List */
@@ -117,7 +45,7 @@
     color: #9ca3af;
 }
 
-/* Status List */
+/* Status List - Page-specific component */
 .status-list {
     display: flex;
     flex-direction: column;
@@ -136,28 +64,6 @@
 .status-label {
     font-weight: 500;
     color: #374151;
-}
-
-.status-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.status-online {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.status-offline {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.status-checking {
-    background: #f3f4f6;
-    color: #6b7280;
 }
 
 /* Responsive */

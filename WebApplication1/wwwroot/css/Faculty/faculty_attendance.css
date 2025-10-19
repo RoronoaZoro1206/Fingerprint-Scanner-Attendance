@@ -1,21 +1,10 @@
-/* Faculty Attendance Page Styles */
+/**
+ * Faculty Attendance - Page-Specific Styles
+ * Common styles are in common CSS files
+ * This file only contains page-specific customizations
+ */
 
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
-
+/* Page Header with Controls */
 .header-actions {
     display: flex;
     align-items: center;
@@ -64,99 +53,16 @@
     box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
 }
 
-.btn-primary {
-    background: #1a1a1a;
-    color: white;
-    border: none;
-    padding: 0.625rem 1.5rem;
-    border-radius: 8px;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+/* Student Profile Image */
+.student-profile-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
 }
 
-.btn-primary:hover {
-    background: #374151;
-}
-
-.btn-primary:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-}
-
-/* Card Styles */
-.card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: 1.5rem;
-}
-
-.card-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.card-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0 0 0.25rem 0;
-}
-
-.card-subtitle {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin: 0;
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-/* Table Styles */
-.table-responsive {
-    overflow-x: auto;
-}
-
-.table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0;
-}
-
-.table thead {
-    background: #f9fafb;
-}
-
-.table th {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.table tbody tr {
-    border-bottom: 1px solid #e5e7eb;
-    transition: background-color 0.2s;
-}
-
-.table tbody tr:hover {
-    background: #f9fafb;
-}
-
-.table td {
-    padding: 1rem;
-    font-size: 0.875rem;
-    color: #374151;
-}
-
-/* Status Badge */
+/* Status Badges - Page Specific */
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -198,52 +104,6 @@
     height: 14px;
 }
 
-/* Action Buttons */
-.action-buttons {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-action {
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-action:hover {
-    background-color: #f3f4f6;
-}
-
-.btn-action.btn-edit:hover {
-    background-color: #dbeafe;
-    border-color: #3b82f6;
-}
-
-.btn-action.btn-delete:hover {
-    background-color: #fee2e2;
-    border-color: #ef4444;
-}
-
-.icon-sm {
-    width: 16px;
-    height: 16px;
-}
-
-/* Student Profile Image */
-.student-profile-img {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #e5e7eb;
-}
-
 /* Empty State */
 .empty-state-card {
     background: white;
@@ -272,56 +132,11 @@
     color: #6b7280;
 }
 
-/* Delete Modal Icon */
-.delete-icon-wrapper {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto;
-    background: #fee2e2;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.delete-icon {
-    width: 32px;
-    height: 32px;
-    color: #ef4444;
-}
-
-/* Loading State */
-.loading-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 4rem 2rem;
-}
-
-.spinner-border {
-    width: 3rem;
-    height: 3rem;
-    border: 0.25rem solid #e5e7eb;
-    border-top-color: #1a1a1a;
-    border-radius: 50%;
-    animation: spinner-border 0.75s linear infinite;
-}
-
-@keyframes spinner-border {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-    .page-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
     .header-actions {
         flex-direction: column;
+        width: 100%;
     }
 
     .class-selector {
@@ -329,26 +144,8 @@
         min-width: auto;
     }
 
-    .attendance-table {
-        font-size: 0.875rem;
-    }
-
-    .attendance-table th,
-    .attendance-table td {
-        padding: 0.625rem 0.75rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .page-title {
-        font-size: 1.5rem;
-    }
-
-    .attendance-content {
-        padding: 1rem;
-    }
-
-    .action-buttons {
-        flex-direction: column;
+    .date-selector {
+        width: 100%;
+        min-width: auto;
     }
 }

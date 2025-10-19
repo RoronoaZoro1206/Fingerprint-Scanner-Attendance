@@ -1,21 +1,19 @@
 /**
- * User Management - CRUD Operations with DataTables
- * Uses AJAX for all operations and toast notifications
+ * User Management - Refactored to use common utilities
+ * Uses common AJAX, modal, export, and DataTable utilities
  */
 
 let usersTable;
 let rolesData = [];
 
 $(document).ready(function () {
+    // Initialize icons
+    initializeLucideIcons();
+
     // Load roles first, then initialize DataTable
     loadRoles().then(() => {
         initializeDataTable();
     });
-
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
 
     // Event Handlers
     $('#btnAddUser').on('click', showAddModal);
@@ -26,42 +24,32 @@ $(document).ready(function () {
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        printUsers();
+        printData('Users', getUsersData());
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        exportToExcel();
+        exportToExcelFile('users', getUsersData());
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        exportToCSV();
+        exportToCSVFile('users', getUsersData());
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        exportToPDF();
+        exportToPDFFile('Users', getUsersData());
     });
 
     // Reinitialize icons when dropdown is shown
-    $('#exportDropdown').on('shown.bs.dropdown', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    $('#exportDropdown').on('shown.bs.dropdown', initializeLucideIcons);
 
-    // Modal events
-    $('#addUserModal, #editUserModal, #deleteUserModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['addUserModal', 'editUserModal', 'deleteUserModal']);
 
     // Clear form when modal is hidden
-    $('#addUserModal').on('hidden.bs.modal', function () {
-        $('#addUserForm')[0].reset();
-    });
+    setupFormClearOnHide('addUserModal', 'addUserForm');
 });
 
 /**
@@ -121,15 +109,14 @@ function getStatusBadge(isActive) {
 }
 
 /**
- * Initialize DataTable with export options
+ * Initialize DataTable
  */
 function initializeDataTable() {
     usersTable = $('#usersTable').DataTable({
         ajax: {
             url: '/AdminUser/GetAll',
             dataSrc: 'data',
-            error: function (xhr, error, thrown) {
-                console.error('DataTables error:', error);
+            error: function () {
                 Toast.error('Failed to load users data.');
             }
         },
@@ -159,7 +146,7 @@ function initializeDataTable() {
             {
                 data: 'userPhone',
                 width: '25%',
-                render: function (data, type, row) {
+                render: function (data) {
                     return data || '-';
                 }
             },
@@ -188,13 +175,13 @@ function initializeDataTable() {
                 width: '18%',
                 orderable: false,
                 searchable: false,
-                render: function (data, type, row) {
+                render: function (data) {
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${row.userId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.userId})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteUser(${row.userId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteUser(${data.userId})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -203,74 +190,8 @@ function initializeDataTable() {
             }
         ],
         order: [[0, 'asc']],
-        pageLength: 10,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-            '<"row"<"col-sm-12"tr>>' +
-            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'excel',
-                text: '<i data-lucide="file-spreadsheet" class="icon-sm"></i> Excel',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3, 4]
-                }
-            },
-            {
-                extend: 'csv',
-                text: '<i data-lucide="file-text" class="icon-sm"></i> CSV',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3, 4]
-                }
-            },
-            {
-                extend: 'pdf',
-                text: '<i data-lucide="file" class="icon-sm"></i> PDF',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3, 4]
-                }
-            },
-            {
-                extend: 'print',
-                text: '<i data-lucide="printer" class="icon-sm"></i> Print',
-                className: 'btn-export',
-                exportOptions: {
-                    columns: [0, 1, 2, 3, 4]
-                }
-            }
-        ],
-        drawCallback: function () {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        },
-        language: {
-            search: "",
-            searchPlaceholder: "Search users...",
-            lengthMenu: "Show _MENU_ users",
-            info: "Showing _START_ to _END_ of _TOTAL_ users",
-            infoEmpty: "No users available",
-            infoFiltered: "(filtered from _MAX_ total users)",
-            zeroRecords: "No matching users found",
-            emptyTable: "No users available in the system"
-        },
-        initComplete: function () {
-            const searchInput = $('.dataTables_filter input');
-
-            if (searchInput.parent().find('.search-icon').length === 0) {
-                searchInput.wrap('<div class="search-input-wrapper"></div>');
-                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-
-                setTimeout(function () {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('users', 'user')
     });
 }
 
@@ -279,40 +200,33 @@ function initializeDataTable() {
  */
 function showAddModal() {
     $('#addUserForm')[0].reset();
-    $('#addUserModal').modal('show');
+    showModal('addUserModal');
 }
 
 /**
  * Show Edit User Modal
  */
 function showEditModal(userId) {
-    $.ajax({
-        url: `/AdminUser/GetById/${userId}`,
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                const user = response.data;
-                $('#editUserId').val(user.userId);
-                $('#editUserFirstName').val(user.userFirstName);
-                $('#editUserLastName').val(user.userLastName);
-                $('#editUserEmail').val(user.userEmail);
-                $('#editUserPhone').val(user.userPhone || '');
-                $('#editUserGender').val(user.userGender || '');
-                $('#editUserBirthdate').val(user.userBirthdate || '');
-                $('#editUserAddress').val(user.userAddress || '');
-                $('#editRoleId').val(user.roleId);
-                $('#editIsActive').val(user.isActive.toString());
-                $('#editUserPassword').val(''); // Clear password field
-                $('#editUserModal').modal('show');
-            } else {
-                Toast.error(response.message || 'Failed to load user data.');
-            }
+    ajaxGet(`/AdminUser/GetById/${userId}`,
+        function (response) {
+            const user = response.data;
+            $('#editUserId').val(user.userId);
+            $('#editUserFirstName').val(user.userFirstName);
+            $('#editUserLastName').val(user.userLastName);
+            $('#editUserEmail').val(user.userEmail);
+            $('#editUserPhone').val(user.userPhone || '');
+            $('#editUserGender').val(user.userGender || '');
+            $('#editUserBirthdate').val(user.userBirthdate || '');
+            $('#editUserAddress').val(user.userAddress || '');
+            $('#editRoleId').val(user.roleId);
+            $('#editIsActive').val(user.isActive.toString());
+            $('#editUserPassword').val('');
+            showModal('editUserModal');
         },
-        error: function (xhr) {
+        function () {
             Toast.error('Failed to load user data.');
-            console.error('Error:', xhr);
         }
-    });
+    );
 }
 
 /**
@@ -326,66 +240,39 @@ function saveUser() {
         return;
     }
 
-    const firstName = $('#addUserFirstName').val().trim();
-    const lastName = $('#addUserLastName').val().trim();
-    const email = $('#addUserEmail').val().trim();
-    const phone = $('#addUserPhone').val().trim();
-    const gender = $('#addUserGender').val();
-    const birthdate = $('#addUserBirthdate').val();
-    const address = $('#addUserAddress').val().trim();
-    const roleId = $('#addRoleId').val();
-    const password = $('#addUserPassword').val();
+    const userData = {
+        UserFirstName: $('#addUserFirstName').val().trim(),
+        UserLastName: $('#addUserLastName').val().trim(),
+        UserEmail: $('#addUserEmail').val().trim(),
+        UserPhone: $('#addUserPhone').val().trim() || null,
+        UserGender: $('#addUserGender').val() || null,
+        UserBirthdate: $('#addUserBirthdate').val() || null,
+        UserAddress: $('#addUserAddress').val().trim() || null,
+        RoleId: parseInt($('#addRoleId').val()),
+        UserPassword: $('#addUserPassword').val(),
+        IsActive: true
+    };
 
-    if (!firstName || !lastName || !email || !roleId || !password) {
+    if (!userData.UserFirstName || !userData.UserLastName || !userData.UserEmail || !userData.RoleId || !userData.UserPassword) {
         Toast.warning('Please fill in all required fields.');
         return;
     }
 
-    const userData = {
-        UserFirstName: firstName,
-        UserLastName: lastName,
-        UserEmail: email,
-        UserPhone: phone || null,
-        UserGender: gender || null,
-        UserBirthdate: birthdate || null,
-        UserAddress: address || null,
-        RoleId: parseInt(roleId),
-        UserPassword: password,
-        IsActive: true
-    };
-
     const $btn = $('#btnSaveUser');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Saving...');
+    setButtonLoading($btn, 'Saving...');
 
-    $.ajax({
-        url: '/AdminUser/Create',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(userData),
-        success: function (response) {
-            if (response.success) {
-                Toast.created('User');
-                $('#addUserModal').modal('hide');
-                usersTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to create user.');
-            }
+    ajaxPost('/AdminUser/Create', userData,
+        function () {
+            Toast.created('User');
+            hideModal('addUserModal');
+            usersTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 400) {
-                Toast.error('Invalid data provided. Please check your input.');
-            } else {
-                Toast.createError('User');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save User');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPost
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
 /**
@@ -399,69 +286,40 @@ function updateUser() {
         return;
     }
 
-    const userId = $('#editUserId').val();
-    const firstName = $('#editUserFirstName').val().trim();
-    const lastName = $('#editUserLastName').val().trim();
-    const email = $('#editUserEmail').val().trim();
-    const phone = $('#editUserPhone').val().trim();
-    const gender = $('#editUserGender').val();
-    const birthdate = $('#editUserBirthdate').val();
-    const address = $('#editUserAddress').val().trim();
-    const roleId = $('#editRoleId').val();
-    const isActive = $('#editIsActive').val() === 'true';
-    const password = $('#editUserPassword').val();
+    const userData = {
+        UserId: parseInt($('#editUserId').val()),
+        UserFirstName: $('#editUserFirstName').val().trim(),
+        UserLastName: $('#editUserLastName').val().trim(),
+        UserEmail: $('#editUserEmail').val().trim(),
+        UserPhone: $('#editUserPhone').val().trim() || null,
+        UserGender: $('#editUserGender').val() || null,
+        UserBirthdate: $('#editUserBirthdate').val() || null,
+        UserAddress: $('#editUserAddress').val().trim() || null,
+        RoleId: parseInt($('#editRoleId').val()),
+        UserPassword: $('#editUserPassword').val() || '',
+        IsActive: $('#editIsActive').val() === 'true'
+    };
 
-    if (!firstName || !lastName || !email || !roleId) {
+    if (!userData.UserFirstName || !userData.UserLastName || !userData.UserEmail || !userData.RoleId) {
         Toast.warning('Please fill in all required fields.');
         return;
     }
 
-    const userData = {
-        UserId: parseInt(userId),
-        UserFirstName: firstName,
-        UserLastName: lastName,
-        UserEmail: email,
-        UserPhone: phone || null,
-        UserGender: gender || null,
-        UserBirthdate: birthdate || null,
-        UserAddress: address || null,
-        RoleId: parseInt(roleId),
-        UserPassword: password || '', // Empty string if not changing password
-        IsActive: isActive
-    };
-
     const $btn = $('#btnUpdateUser');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+    setButtonLoading($btn, 'Updating...');
 
-    $.ajax({
-        url: '/AdminUser/Update',
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(userData),
-        success: function (response) {
-            if (response.success) {
-                Toast.updated('User');
-                $('#editUserModal').modal('hide');
-                usersTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to update user.');
-            }
+    ajaxPut('/AdminUser/Update', userData,
+        function () {
+            Toast.updated('User');
+            hideModal('editUserModal');
+            usersTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 400) {
-                Toast.error('Invalid data provided. Please check your input.');
-            } else {
-                Toast.updateError('User');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update User');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxPut
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
 /**
@@ -469,7 +327,7 @@ function updateUser() {
  */
 function deleteUser(userId) {
     $('#deleteUserId').val(userId);
-    $('#deleteUserModal').modal('show');
+    showModal('deleteUserModal');
 }
 
 /**
@@ -484,38 +342,25 @@ function confirmDeleteUser() {
     }
 
     const $btn = $('#btnConfirmDelete');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
+    setButtonLoading($btn, 'Deleting...');
 
-    $.ajax({
-        url: `/AdminUser/Delete/${userId}`,
-        type: 'DELETE',
-        success: function (response) {
-            if (response.success) {
-                Toast.deleted('User');
-                $('#deleteUserModal').modal('hide');
-                usersTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to delete user.');
-            }
+    ajaxDelete(`/AdminUser/Delete/${userId}`,
+        function () {
+            Toast.deleted('User');
+            hideModal('deleteUserModal');
+            usersTable.ajax.reload(null, false);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            if (xhr.status === 409) {
-                Toast.error('Cannot delete user. It may be in use by other records.');
-            } else {
-                Toast.deleteError('User');
-            }
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            // Error already handled by ajaxDelete
         }
-    });
+    );
+
+    resetButton($btn);
 }
 
-// Export Functions
+/**
+ * Get users data for export
+ */
 function getUsersData() {
     const data = [];
     usersTable.rows({ search: 'applied' }).every(function () {
@@ -529,125 +374,4 @@ function getUsersData() {
         });
     });
     return data;
-}
-
-function printUsers() {
-    const printWindow = window.open('', '_blank');
-    const data = getUsersData();
-    
-    let html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Users</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { color: #1a1a1a; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
-                th { background-color: #f9fafb; font-weight: 600; }
-                tr:nth-child(even) { background-color: #f9fafb; }
-                @media print {
-                    button { display: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Users</h1>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    data.forEach(row => {
-        html += `<tr>
-            <td>${row.Name}</td>
-            <td>${row.Email}</td>
-            <td>${row.Phone}</td>
-            <td>${row.Role}</td>
-            <td>${row.Status}</td>
-        </tr>`;
-    });
-    
-    html += `
-                </tbody>
-            </table>
-            <script>
-                window.onload = function() { window.print(); }
-            </script>
-        </body>
-        </html>`;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-function exportToCSV() {
-    const data = getUsersData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let csv = headers.join(',') + '\n';
-    
-    data.forEach(row => {
-        const values = headers.map(header => {
-            const value = row[header] || '';
-            return `"${value.toString().replace(/"/g, '""')}"`;
-        });
-        csv += values.join(',') + '\n';
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `users_${new Date().getTime()}.csv`;
-    link.click();
-    Toast.success('CSV exported successfully');
-}
-
-function exportToExcel() {
-    const data = getUsersData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-    
-    const headers = Object.keys(data[0]);
-    let html = '<table><thead><tr>';
-    headers.forEach(header => {
-        html += `<th>${header}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-    
-    data.forEach(row => {
-        html += '<tr>';
-        headers.forEach(header => {
-            html += `<td>${row[header] || ''}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `users_${new Date().getTime()}.xls`;
-    link.click();
-    Toast.success('Excel exported successfully');
-}
-
-function exportToPDF() {
-    Toast.info('PDF export requires additional library. Using print instead.');
-    printUsers();
 }

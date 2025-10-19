@@ -21,8 +21,8 @@
 
 .btn-add:hover,
 .btn-primary:hover {
-    background-color: #333;
-    color: #fff;
+    background: #374151;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary:disabled {
@@ -49,6 +49,20 @@
     background-color: #f3f4f6;
     border-color: #9ca3af;
     color: #1f2937;
+}
+
+.btn-primary:focus,
+.btn-primary:focus-visible {
+    background-color: #1f2937; /* darker shade */
+    color: #fff;
+    box-shadow: none !important; /* removes Bootstrap’s blue outline */
+    outline: none !important;
+}
+
+.btn-primary:active {
+    background-color: #111827 !important;
+    color: #fff !important;
+    box-shadow: none !important;
 }
 
 /* Secondary Buttons */

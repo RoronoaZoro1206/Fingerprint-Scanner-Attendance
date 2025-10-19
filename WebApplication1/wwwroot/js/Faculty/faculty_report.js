@@ -1,14 +1,13 @@
 /**
- * Faculty Attendance Reports with DataTables
+ * Faculty Attendance Reports - Refactored to use common utilities
+ * View and export attendance reports with statistics
  */
 
 let attendanceTable;
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Load statistics first
     loadStatistics();
@@ -19,29 +18,27 @@ $(document).ready(function () {
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
         e.preventDefault();
-        printReports();
+        printData(getReportsData(), 'Attendance Reports', getReportColumns());
     });
 
     $('#btnExportExcel').on('click', function (e) {
         e.preventDefault();
-        exportToExcel();
+        exportToExcelFile('attendance_reports', getReportsData());
     });
 
     $('#btnExportCSV').on('click', function (e) {
         e.preventDefault();
-        exportToCSV();
+        exportToCSVFile('attendance_reports', getReportsData());
     });
 
     $('#btnExportPDF').on('click', function (e) {
         e.preventDefault();
-        exportToPDF();
+        exportToPDFFile('attendance_reports', getReportsData(), getReportColumns());
     });
 
     // Reinitialize icons when dropdown is shown
     $('#exportDropdown').on('shown.bs.dropdown', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        initializeLucideIcons();
     });
 });
 
@@ -127,46 +124,8 @@ function initializeDataTable() {
         ],
         order: [[0, 'desc']],
         pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-            '<"row"<"col-sm-12"tr>>' +
-            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        drawCallback: function () {
-            // Reinitialize Lucide icons after table redraw
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        },
-        language: {
-            search: "",
-            searchPlaceholder: "Search records...",
-            lengthMenu: "Show _MENU_ records",
-            info: "Showing _START_ to _END_ of _TOTAL_ records",
-            infoEmpty: "No records found",
-            infoFiltered: "(filtered from _MAX_ total records)",
-            zeroRecords: "No matching records found",
-            emptyTable: "No attendance records available"
-        },
-        initComplete: function () {
-            // Add search icon to the search input
-            const searchInput = $('.dataTables_filter input');
-
-            // Check if icon hasn't been added yet
-            if (searchInput.parent().find('.search-icon').length === 0) {
-                // Wrap input in a container
-                searchInput.wrap('<div class="search-input-wrapper"></div>');
-
-                // Add search icon before the input
-                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-
-                // Reinitialize Lucide icons
-                setTimeout(function () {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('records', 'record')
     });
 }
 
@@ -217,14 +176,12 @@ function displayStatistics(stats) {
     `;
 
     $('#statsGrid').html(statsHtml);
-
-    // Reinitialize icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }
 
-// Export Functions
+/**
+ * Get reports data for export
+ */
 function getReportsData() {
     const data = [];
     attendanceTable.rows({ search: 'applied' }).every(function () {
@@ -241,132 +198,11 @@ function getReportsData() {
     return data;
 }
 
-function printReports() {
-    const printWindow = window.open('', '_blank');
-    const data = getReportsData();
-
-    let html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Attendance Reports</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { color: #1a1a1a; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
-                th { background-color: #f9fafb; font-weight: 600; }
-                tr:nth-child(even) { background-color: #f9fafb; }
-                .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-                .present { background: #d1fae5; color: #065f46; }
-                .late { background: #fef3c7; color: #92400e; }
-                .absent { background: #fee2e2; color: #991b1b; }
-                .excused { background: #dbeafe; color: #1e40af; }
-                @media print {
-                    button { display: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Attendance Reports</h1>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Class</th>
-                        <th>Present</th>
-                        <th>Late</th>
-                        <th>Absent</th>
-                        <th>Excused</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-    data.forEach(row => {
-        html += `<tr>
-            <td>${row.Date}</td>
-            <td><strong>${row.Class}</strong></td>
-            <td><span class="badge present">${row.Present}</span></td>
-            <td><span class="badge late">${row.Late}</span></td>
-            <td><span class="badge absent">${row.Absent}</span></td>
-            <td><span class="badge excused">${row.Excused}</span></td>
-        </tr>`;
-    });
-
-    html += `
-                </tbody>
-            </table>
-            <script>
-                window.onload = function() { window.print(); }
-            </script>
-        </body>
-        </html>`;
-
-    printWindow.document.write(html);
-    printWindow.document.close();
-}
-
-function exportToCSV() {
-    const data = getReportsData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-
-    const headers = Object.keys(data[0]);
-    let csv = headers.join(',') + '\n';
-
-    data.forEach(row => {
-        const values = headers.map(header => {
-            const value = row[header] || '';
-            return `"${value.toString().replace(/"/g, '""')}"`;
-        });
-        csv += values.join(',') + '\n';
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `attendance_reports_${new Date().getTime()}.csv`;
-    link.click();
-    Toast.success('CSV exported successfully');
-}
-
-function exportToExcel() {
-    const data = getReportsData();
-    if (data.length === 0) {
-        Toast.warning('No data to export');
-        return;
-    }
-
-    const headers = Object.keys(data[0]);
-    let html = '<table><thead><tr>';
-    headers.forEach(header => {
-        html += `<th>${header}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    data.forEach(row => {
-        html += '<tr>';
-        headers.forEach(header => {
-            html += `<td>${row[header] || ''}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `attendance_reports_${new Date().getTime()}.xls`;
-    link.click();
-    Toast.success('Excel exported successfully');
-}
-
-function exportToPDF() {
-    Toast.info('PDF export requires additional library. Using print instead.');
-    printReports();
+/**
+ * Get report columns for export
+ */
+function getReportColumns() {
+    return ['Date', 'Class', 'Present', 'Late', 'Absent', 'Excused'];
 }
 
 /**

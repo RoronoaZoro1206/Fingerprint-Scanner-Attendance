@@ -43,8 +43,8 @@
 
     @await Html.PartialAsync("_LayoutScripts")
     <script src="~/js/fingerprint-prompt.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
     <!-- Common JavaScript Utilities (Shared across all modules) -->
-    @* @await Html.PartialAsync("_CommonScripts") *@
+    @await Html.PartialAsync("_CommonScripts")
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

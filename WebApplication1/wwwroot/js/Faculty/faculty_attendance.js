@@ -1,5 +1,6 @@
 /**
- * Faculty Attendance - Monitor and manage class attendance with DataTables
+ * Faculty Attendance - Refactored to use common utilities
+ * Monitor and manage class attendance with DataTables
  */
 
 let attendanceTable;
@@ -7,10 +8,8 @@ let currentClassId = null;
 let selectedDate = null;
 
 $(document).ready(function () {
-    // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    // Initialize icons
+    initializeLucideIcons();
 
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
@@ -27,12 +26,8 @@ $(document).ready(function () {
     $('#btnUpdateAttendance').on('click', updateAttendance);
     $('#btnConfirmDelete').on('click', confirmDeleteAttendance);
 
-    // Modal events - reinitialize icons when modal is shown
-    $('#editAttendanceModal, #deleteAttendanceModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    });
+    // Setup modal icon reinitialization
+    setupModalIconReinit(['editAttendanceModal', 'deleteAttendanceModal']);
 
     // Check if classId is in URL (from My Classes page)
     const urlParams = new URLSearchParams(window.location.search);
@@ -156,8 +151,7 @@ function initializeDataTable(classId, date) {
                 Toast.error(json.message || 'Failed to load attendance');
                 return [];
             },
-            error: function (xhr, error, thrown) {
-                console.error('DataTables error:', error);
+            error: function () {
                 Toast.error('Failed to load attendance data.');
             }
         },
@@ -170,8 +164,8 @@ function initializeDataTable(classId, date) {
                 data: 'name',
                 width: '25%',
                 render: function (data, type, row) {
-                    const profileImage = row.profileImage && row.profileImage !== 'default_profile.png' 
-                        ? `/images/profile/${row.profileImage}` 
+                    const profileImage = row.profileImage && row.profileImage !== 'default_profile.png'
+                        ? `/images/profile/${row.profileImage}`
                         : '/images/profile/default_profile.png';
                     return `
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -222,52 +216,13 @@ function initializeDataTable(classId, date) {
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
-                    `;d
+                    `;
                 }
             }
         ],
         order: [[0, 'asc']],
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-            '<"row"<"col-sm-12"tr>>' +
-            '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        drawCallback: function () {
-            // Reinitialize Lucide icons after table redraw
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        },
-        language: {
-            search: "",
-            searchPlaceholder: "Search students...",
-            lengthMenu: "Show _MENU_ students",
-            info: "Showing _START_ to _END_ of _TOTAL_ students",
-            infoEmpty: "No students found",
-            infoFiltered: "(filtered from _MAX_ total students)",
-            zeroRecords: "No matching students found",
-            emptyTable: "No students enrolled in this class"
-        },
-        initComplete: function () {
-            // Add search icon to the search input
-            const searchInput = $('.dataTables_filter input');
-
-            // Check if icon hasn't been added yet
-            if (searchInput.parent().find('.search-icon').length === 0) {
-                // Wrap input in a container
-                searchInput.wrap('<div class="search-input-wrapper"></div>');
-
-                // Add search icon before the input
-                searchInput.before('<i data-lucide="search" class="search-icon"></i>');
-
-                // Reinitialize Lucide icons
-                setTimeout(function () {
-                    if (typeof lucide !== 'undefined') {
-                        lucide.createIcons();
-                    }
-                }, 100);
-            }
-        }
+        ...commonDataTableConfig,
+        language: getDataTableLanguage('students', 'student')
     });
 }
 
@@ -293,7 +248,7 @@ function showEditModal(studId, studentName, status) {
     $('#editStudentName').val(studentName);
     $('#editStatus').val(status);
     $('#editRemarks').val('');
-    $('#editAttendanceModal').modal('show');
+    showModal('editAttendanceModal');
 }
 
 /**
@@ -309,40 +264,28 @@ function updateAttendance() {
         return;
     }
 
-    const $btn = $('#btnUpdateAttendance');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+    const attendanceData = {
+        classId: currentClassId,
+        studId: parseInt(studId),
+        status: status,
+        remarks: remarks,
+        date: selectedDate
+    };
 
-    $.ajax({
-        url: '/FacultyAttendance/UpdateAttendance',
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            classId: currentClassId,
-            studId: parseInt(studId),
-            status: status,
-            remarks: remarks,
-            date: selectedDate
-        }),
-        success: function (response) {
-            if (response.success) {
-                Toast.success('Attendance updated successfully');
-                $('#editAttendanceModal').modal('hide');
-                attendanceTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to update attendance');
-            }
+    const $btn = $('#btnUpdateAttendance');
+    setButtonLoading($btn, 'Updating...');
+
+    ajaxPut('/FacultyAttendance/UpdateAttendance', attendanceData,
+        function () {
+            Toast.success('Attendance updated successfully');
+            hideModal('editAttendanceModal');
+            attendanceTable.ajax.reload(null, false);
+            resetButton($btn);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            Toast.error('Failed to update attendance');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update Attendance');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function () {
+            resetButton($btn);
         }
-    });
+    );
 }
 
 /**
@@ -351,7 +294,7 @@ function updateAttendance() {
 function showDeleteModal(studId, studentName) {
     $('#deleteStudId').val(studId);
     $('#deleteAttendanceModalLabel').text(`Delete attendance for ${studentName}?`);
-    $('#deleteAttendanceModal').modal('show');
+    showModal('deleteAttendanceModal');
 }
 
 /**
@@ -365,38 +308,27 @@ function confirmDeleteAttendance() {
         return;
     }
 
-    const $btn = $('#btnConfirmDelete');
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Deleting...');
+    const attendanceData = {
+        classId: currentClassId,
+        studId: parseInt(studId),
+        date: selectedDate
+    };
 
-    $.ajax({
-        url: '/FacultyAttendance/DeleteAttendance',
-        type: 'DELETE',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            classId: currentClassId,
-            studId: parseInt(studId),
-            date: selectedDate
-        }),
-        success: function (response) {
-            if (response.success) {
-                Toast.success('Attendance deleted successfully');
-                $('#deleteAttendanceModal').modal('hide');
-                attendanceTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to delete attendance');
-            }
+    const $btn = $('#btnConfirmDelete');
+    setButtonLoading($btn, 'Deleting...');
+
+    ajaxDelete('/FacultyAttendance/DeleteAttendance', 
+        function () {
+            Toast.success('Attendance deleted successfully');
+            hideModal('deleteAttendanceModal');
+            attendanceTable.ajax.reload(null, false);
+            resetButton($btn);
         },
-        error: function (xhr) {
-            console.error('Error:', xhr);
-            Toast.error('Failed to delete attendance');
+        function () {
+            resetButton($btn);
         },
-        complete: function () {
-            $btn.prop('disabled', false).html('<i data-lucide="trash-2" class="icon-sm"></i> Delete');
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }
-    });
+        attendanceData
+    );
 }
 
 /**
@@ -409,29 +341,18 @@ function markAllPresent() {
     }
 
     const $btn = $('#btnMarkAllPresent');
-    $btn.prop('disabled', true).text('Marking...');
+    setButtonLoading($btn, 'Marking...');
 
-    $.ajax({
-        url: '/FacultyAttendance/MarkAllPresent',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ classId: currentClassId }),
-        success: function (response) {
-            if (response.success) {
-                Toast.success(response.message || 'All students marked as present');
-                attendanceTable.ajax.reload(null, false);
-            } else {
-                Toast.error(response.message || 'Failed to mark attendance');
-            }
+    ajaxPost('/FacultyAttendance/MarkAllPresent', { classId: currentClassId },
+        function (response) {
+            Toast.success(response.message || 'All students marked as present');
+            attendanceTable.ajax.reload(null, false);
+            resetButton($btn, 'Mark All Present');
         },
-        error: function (xhr) {
-            console.error('Error marking attendance:', xhr);
-            Toast.error('Failed to mark attendance');
-        },
-        complete: function () {
-            $btn.prop('disabled', false).text('Mark All Present');
+        function () {
+            resetButton($btn, 'Mark All Present');
         }
-    });
+    );
 }
 
 /**
@@ -447,7 +368,5 @@ function showEmptyState() {
     $('#emptyState').show();
 
     // Reinitialize Lucide icons
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    initializeLucideIcons();
 }

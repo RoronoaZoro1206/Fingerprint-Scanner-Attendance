@@ -1,15 +1,8 @@
-/* Student Enrollment Styles */
-
-.page-header {
-    margin-bottom: 2rem;
-}
-
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-}
+/**
+ * Student Enrollment - Page-Specific Styles
+ * Common styles are in common CSS files
+ * This file only contains page-specific customizations
+ */
 
 /* Enrollment Section */
 .enrollment-section {
@@ -122,12 +115,17 @@
     color: #9ca3af;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    background: none !important;
+    padding: 0 !important;
 }
 
 .detail-value {
     font-size: 0.875rem;
     color: #374151;
     font-weight: 500;
+    background: none !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
 /* Buttons */
@@ -174,60 +172,7 @@
     cursor: not-allowed;
 }
 
-.icon-sm {
-    width: 16px;
-    height: 16px;
-}
 
-/* Empty State */
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-}
-
-.empty-state-icon {
-    width: 48px;
-    height: 48px;
-    color: #d1d5db;
-    margin-bottom: 1rem;
-}
-
-.empty-state-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
-}
-
-.empty-state-description {
-    font-size: 0.875rem;
-    color: #6b7280;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-/* Loading State */
-.loading-state {
-    text-align: center;
-    padding: 3rem 1rem;
-}
-
-/* Modal Styles */
-.delete-icon-wrapper {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 64px;
-    background: #fee2e2;
-    border-radius: 50%;
-}
-
-.delete-icon {
-    width: 32px;
-    height: 32px;
-    color: #ef4444;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
