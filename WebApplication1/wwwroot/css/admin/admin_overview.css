@@ -11,6 +11,21 @@
     gap: 1.5rem;
 }
 
+/* Override card title*/
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 1.5rem;
+}
+
 /* Activity List */
 .activity-list {
     display: flex;
@@ -64,6 +79,28 @@
 .status-label {
     font-weight: 500;
     color: #374151;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-online {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-offline {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-checking {
+    background: #f3f4f6;
+    color: #6b7280;
 }
 
 /* Responsive */
