@@ -10,18 +10,18 @@
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 		<PackageReference Include="DotNetEnv" Version="3.1.1" />
 		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.9" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.9" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
 		<PackageReference Include="Npgsql" Version="9.0.4" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-		<PackageReference Include="System.Text.Json" Version="9.0.9" />
+		<PackageReference Include="System.Text.Json" Version="9.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -36,6 +36,12 @@
 	  </Reference>
 	  <Reference Include="stdole">
 	    <HintPath>..\..\..\..\..\..\..\Windows\assembly\GAC\stdole\7.0.3300.0__b03f5f7f11d50a3a\stdole.dll</HintPath>
+	  </Reference>
+	  <Reference Include="System.Deployment">
+	    <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\System.Deployment.dll</HintPath>
+	  </Reference>
+	  <Reference Include="System.Windows.Forms">
+	    <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\System.Windows.Forms.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 
