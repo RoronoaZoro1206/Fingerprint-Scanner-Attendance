@@ -17,6 +17,9 @@ public class AdminUserController : Controller
     private readonly IAdministrationRepository _administrationRepository;
     private readonly AdminAuditService _auditService;
 
+    // BCrypt work factor constant (recommended: 12 for 2024)
+    private const int BCRYPT_WORK_FACTOR = 12;
+
     public AdminUserController(
         ILogger<AdminUserController> logger,
         IUserRepository userRepository,
@@ -124,10 +127,15 @@ public class AdminUserController : Controller
                 return Json(new { success = false, message = "This email address is already registered." });
             }
 
-            // Hash password before saving
-            user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword);
+            // Hash password using BCrypt.Net-Next 4.0.3 best practices
+            // Work factor 12 = 2^12 = 4096 iterations (recommended for 2024)
+            user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
             user.UserCreatedAt = DateTime.Now;
             user.UserUpdatedAt = DateTime.Now;
+            user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
+
+            _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
+                user.UserEmail, BCRYPT_WORK_FACTOR);
 
             var result = await _userRepository.AddAsync(user);
 
@@ -135,7 +143,7 @@ public class AdminUserController : Controller
             {
                 // Get the created user to get the user_id
                 var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
-                
+
                 if (createdUser != null)
                 {
                     // Check if user role is admin (role_id = 1)
@@ -143,7 +151,7 @@ public class AdminUserController : Controller
                     {
                         // Generate unique admin code
                         var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
-                        
+
                         // Create administration record
                         var administration = new Administration
                         {
@@ -153,11 +161,11 @@ public class AdminUserController : Controller
                         };
 
                         var adminResult = await _administrationRepository.AddAsync(administration);
-                        
+
                         if (adminResult)
                         {
                             await _auditService.LogActionAsync(
-                                "Created Admin User", 
+                                "Created Admin User",
                                 $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
                         }
                         else
@@ -168,7 +176,7 @@ public class AdminUserController : Controller
                     else
                     {
                         await _auditService.LogActionAsync(
-                            "Created User", 
+                            "Created User",
                             $"Created user: {createdUser.UserEmail}");
                     }
                 }
@@ -217,10 +225,13 @@ public class AdminUserController : Controller
             var wasAdmin = existingUser.RoleId == 1;
             var isNowAdmin = user.RoleId == 1;
 
-            // If password is provided, hash it; otherwise keep existing
+            // If password is provided, hash it using BCrypt.Net-Next 4.0.3; otherwise keep existing
             if (!string.IsNullOrEmpty(user.UserPassword))
             {
-                user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword);
+                // Hash with explicit work factor for consistency and security
+                user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
+                _logger.LogInformation("Updating password for user {Email} with BCrypt work factor: {WorkFactor}",
+                    user.UserEmail, BCRYPT_WORK_FACTOR);
             }
             else
             {
@@ -253,7 +264,7 @@ public class AdminUserController : Controller
 
                             await _administrationRepository.AddAsync(administration);
                             await _auditService.LogActionAsync(
-                                "Promoted User to Admin", 
+                                "Promoted User to Admin",
                                 $"User {user.UserEmail} promoted to admin with code {adminCode}");
                         }
                     }
@@ -266,7 +277,7 @@ public class AdminUserController : Controller
                             // Note: You might want to keep the record for audit purposes
                             // await _administrationRepository.DeleteAsync(existingAdmin.AdminId);
                             await _auditService.LogActionAsync(
-                                "Demoted Admin to User", 
+                                "Demoted Admin to User",
                                 $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
                         }
                     }
@@ -274,7 +285,7 @@ public class AdminUserController : Controller
                 else
                 {
                     await _auditService.LogActionAsync(
-                        "Updated User", 
+                        "Updated User",
                         $"Updated user: {user.UserEmail}");
                 }
 
@@ -306,7 +317,7 @@ public class AdminUserController : Controller
             if (result)
             {
                 await _auditService.LogActionAsync(
-                    "Deleted User", 
+                    "Deleted User",
                     $"Deleted user: {user.UserEmail} (Role ID: {user.RoleId})");
                 return Json(new { success = true, message = "User deleted successfully" });
             }

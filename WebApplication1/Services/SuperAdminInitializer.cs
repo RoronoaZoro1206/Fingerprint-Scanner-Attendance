@@ -1,6 +1,5 @@
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
-using BCrypt.Net;
 
 namespace Fingerprint_Attendance_System.Services;
 
@@ -9,6 +8,9 @@ public class SuperAdminInitializer
     private readonly IUserRepository _userRepository;
     private readonly IAdministrationRepository _administrationRepository;
     private readonly ILogger<SuperAdminInitializer> _logger;
+
+    // BCrypt work factor constant (recommended: 12 for 2024)
+    private const int BCRYPT_WORK_FACTOR = 12;
 
     public SuperAdminInitializer(
         IUserRepository userRepository,
@@ -52,8 +54,11 @@ public class SuperAdminInitializer
                 return;
             }
 
-            // Hash the password
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+            // Hash password using BCrypt.Net-Next 4.0.3 best practices
+            // Work factor 12 = 2^12 = 4096 iterations (recommended for 2024)
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword, BCRYPT_WORK_FACTOR);
+
+            _logger.LogInformation("Password hashed with BCrypt work factor: {WorkFactor}", BCRYPT_WORK_FACTOR);
 
             // Create the user account
             var user = new User
@@ -65,7 +70,8 @@ public class SuperAdminInitializer
                 RoleId = 1, // Admin role
                 IsActive = true,
                 UserCreatedAt = DateTime.Now,
-                UserUpdatedAt = DateTime.Now
+                UserUpdatedAt = DateTime.Now,
+                UserProfileImage = "default_profile.png"
             };
 
             var userCreated = await _userRepository.AddAsync(user);
@@ -98,11 +104,16 @@ public class SuperAdminInitializer
 
             if (adminCreated)
             {
-                _logger.LogInformation($"Super admin account created successfully!");
-                _logger.LogInformation($"Email: {adminEmail}");
-                _logger.LogInformation($"Password: {adminPassword}");
-                _logger.LogInformation($"Admin Code: {adminCode}");
-                _logger.LogInformation("Please change the password after first login.");
+                _logger.LogInformation("???????????????????????????????????????????????????????");
+                _logger.LogInformation("   Super Admin Account Created Successfully!");
+                _logger.LogInformation("???????????????????????????????????????????????????????");
+                _logger.LogInformation("   Email:       {Email}", adminEmail);
+                _logger.LogInformation("   Password:    {Password}", adminPassword);
+                _logger.LogInformation("   Admin Code:  {AdminCode}", adminCode);
+                _logger.LogInformation("   BCrypt Work: {WorkFactor} (4096 iterations)", BCRYPT_WORK_FACTOR);
+                _logger.LogInformation("???????????????????????????????????????????????????????");
+                _logger.LogWarning("??  IMPORTANT: Change the password after first login!");
+                _logger.LogInformation("???????????????????????????????????????????????????????");
             }
             else
             {
