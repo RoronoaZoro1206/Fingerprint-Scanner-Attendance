@@ -1,183 +1,196 @@
-/**
- * Student Register Fingerprint
- */
+// Fingerprint Registration JavaScript
+document.addEventListener('DOMContentLoaded', function () {
+    const btnScan = document.getElementById('btnScan');
+    const btnRegister = document.getElementById('btnRegister');
+    const btnCancel = document.getElementById('btnCancel');
+    const btnConfirmCancel = document.getElementById('btnConfirmCancel');
+    const scannerStatus = document.getElementById('scannerStatus');
+    const registrationStatus = document.getElementById('registrationStatus');
+    const fingerprintScanner = document.getElementById('fingerprintScanner');
 
-let isScanning = false;
-let scanCount = 0;
-const requiredScans = 3;
+    let capturedTemplateBase64 = null;
 
-$(document).ready(function () {
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 
-    // Event handlers
-    $('#fingerprintScanner').on('click', handleScannerClick);
-    $('#btnScan').on('click', handleScannerClick);
-    $('#btnRegister').on('click', handleRegister);
-    $('#btnCancel').on('click', handleCancel);
-    $('#btnConfirmCancel').on('click', confirmCancel);
+    // Check device status on load
+    checkDeviceStatus();
+    checkRegistrationStatus();
 
-    // Modal events - reinitialize icons when modal is shown
-    $('#cancelModal').on('shown.bs.modal', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
+    // Scan button click
+    btnScan.addEventListener('click', async function () {
+        try {
+            btnScan.disabled = true;
+            btnScan.textContent = 'Scanning...';
+            fingerprintScanner.classList.add('scanning');
+
+            const response = await fetch('/Student/StudentRegisterFingerpront/CaptureFingerprint', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                capturedTemplateBase64 = result.templateBase64;
+                showToast('Fingerprint captured successfully!', 'success');
+                fingerprintScanner.classList.add('captured');
+                btnRegister.disabled = false;
+            } else {
+                showToast(result.message || 'Failed to capture fingerprint', 'error');
+                fingerprintScanner.classList.add('error');
+                setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+            }
+        } catch (error) {
+            console.error('Error capturing fingerprint:', error);
+            showToast('Error capturing fingerprint', 'error');
+        } finally {
+            btnScan.disabled = false;
+            btnScan.textContent = 'Scan Fingerprint';
+            fingerprintScanner.classList.remove('scanning');
         }
     });
 
-    // Disable register button initially
-    $('#btnRegister').prop('disabled', true);
-});
+    // Register button click
+    btnRegister.addEventListener('click', async function () {
+        if (!capturedTemplateBase64) {
+            showToast('Please scan your fingerprint first', 'warning');
+            return;
+        }
 
-/**
- * Handle scanner click
- */
-function handleScannerClick(e) {
-    if (isScanning) return;
+        try {
+            btnRegister.disabled = true;
+            btnRegister.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Registering...';
 
-    const $scanner = $('#fingerprintScanner');
-    
-    // Create ripple effect
-    if (e.clientX) {
-        createRipple(e, $scanner);
-    }
+            const response = await fetch('/Student/StudentRegisterFingerpront/RegisterFingerprint', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    templateBase64: capturedTemplateBase64,
+                    templateName: 'Primary Fingerprint'
+                })
+            });
 
-    // Start scan
-    startScan();
-}
+            const result = await response.json();
 
-/**
- * Create ripple effect
- */
-function createRipple(e, $element) {
-    const $ripple = $('<span class="ripple"></span>');
-    const rect = $element[0].getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const x = e.clientX - rect.left - size / 2;
-    const y = e.clientY - rect.top - size / 2;
-
-    $ripple.css({
-        width: size + 'px',
-        height: size + 'px',
-        left: x + 'px',
-        top: y + 'px'
+            if (result.success) {
+                showToast(result.message || 'Fingerprint registered successfully!', 'success');
+                fingerprintScanner.classList.remove('captured');
+                fingerprintScanner.classList.add('registered');
+                capturedTemplateBase64 = null;
+                checkRegistrationStatus();
+                
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/Student/StudentProfile';
+                }, 2000);
+            } else {
+                showToast(result.message || 'Failed to register fingerprint', 'error');
+            }
+        } catch (error) {
+            console.error('Error registering fingerprint:', error);
+            showToast('Error registering fingerprint', 'error');
+        } finally {
+            btnRegister.disabled = false;
+            btnRegister.innerHTML = '<i data-lucide="shield-check"></i> Register Fingerprint';
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
     });
 
-    $element.append($ripple);
+    // Cancel button click
+    btnCancel.addEventListener('click', function () {
+        const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
+        modal.show();
+    });
 
-    setTimeout(() => {
-        $ripple.remove();
-    }, 600);
-}
+    // Confirm cancel
+    btnConfirmCancel.addEventListener('click', function () {
+        window.location.href = '/Student/StudentProfile';
+    });
 
-/**
- * Start scan
- */
-function startScan() {
-    isScanning = true;
-    const $scanner = $('#fingerprintScanner');
-    const $btnScan = $('#btnScan');
+    // Check device status
+    async function checkDeviceStatus() {
+        try {
+            const response = await fetch('/Student/StudentRegisterFingerpront/GetDeviceStatus');
+            const result = await response.json();
 
-    // Update UI
-    $scanner.removeClass('success error').addClass('scanning');
-    $btnScan.prop('disabled', true).text('Scanning...');
+            if (result.isDeviceConnected) {
+                scannerStatus.textContent = 'Online';
+                scannerStatus.classList.remove('offline');
+                scannerStatus.classList.add('online');
+            } else {
+                scannerStatus.textContent = 'Offline';
+                scannerStatus.classList.remove('online');
+                scannerStatus.classList.add('offline');
+                
+                // Try to initialize
+                await initializeDevice();
+            }
+        } catch (error) {
+            console.error('Error checking device status:', error);
+            scannerStatus.textContent = 'Error';
+            scannerStatus.classList.add('offline');
+        }
+    }
 
-    // Simulate scan (2 seconds)
-    setTimeout(() => {
-        completeScan();
-    }, 2000);
-}
+    // Initialize device
+    async function initializeDevice() {
+        try {
+            const response = await fetch('/Student/StudentRegisterFingerpront/InitializeDevice', {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                checkDeviceStatus();
+            }
+        } catch (error) {
+            console.error('Error initializing device:', error);
+        }
+    }
 
-/**
- * Complete scan
- */
-function completeScan() {
-    const $scanner = $('#fingerprintScanner');
-    const $btnScan = $('#btnScan');
+    // Check registration status
+    async function checkRegistrationStatus() {
+        try {
+            const response = await fetch('/Student/StudentRegisterFingerpront/GetRegistrationStatus');
+            const result = await response.json();
 
-    // 90% success rate
-    const isSuccess = Math.random() > 0.1;
+            if (result.isRegistered) {
+                registrationStatus.textContent = 'Registered';
+                registrationStatus.classList.remove('pending');
+                registrationStatus.classList.add('registered');
+            } else {
+                registrationStatus.textContent = 'Not Registered';
+                registrationStatus.classList.remove('registered');
+                registrationStatus.classList.add('pending');
+            }
+        } catch (error) {
+            console.error('Error checking registration status:', error);
+        }
+    }
 
-    if (isSuccess) {
-        scanCount++;
-        $scanner.removeClass('scanning').addClass('success');
-        
-        if (scanCount >= requiredScans) {
-            Toast.success('All scans completed!');
-            $btnScan.text('Scan Complete');
-            $('#btnRegister').prop('disabled', false);
+    // Toast notification helper
+    function showToast(message, type = 'info') {
+        // You can implement your own toast notification here
+        // For now, using alert as fallback
+        if (typeof Toastify !== 'undefined') {
+            Toastify({
+                text: message,
+                duration: 3000,
+                gravity: 'top',
+                position: 'right',
+                backgroundColor: type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'
+            }).showToast();
         } else {
-            Toast.success(`Scan ${scanCount}/${requiredScans} complete`);
-            $btnScan.prop('disabled', false).text('Scan Fingerprint');
+            alert(message);
         }
-
-        setTimeout(() => {
-            $scanner.removeClass('success');
-        }, 1000);
-    } else {
-        $scanner.removeClass('scanning').addClass('error');
-        Toast.error('Scan failed. Please try again.');
-        $btnScan.prop('disabled', false).text('Scan Fingerprint');
-
-        setTimeout(() => {
-            $scanner.removeClass('error');
-        }, 1000);
     }
-
-    isScanning = false;
-}
-
-/**
- * Handle register
- */
-function handleRegister() {
-    if (scanCount < requiredScans) {
-        Toast.error(`Please complete ${requiredScans} scans first.`);
-        return;
-    }
-
-    const $btn = $('#btnRegister');
-    const originalHtml = $btn.html();
-    
-    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Registering...');
-
-    // Simulate registration
-    setTimeout(() => {
-        Toast.success('Fingerprint registered successfully!');
-        
-        // Reset
-        scanCount = 0;
-        $('#fingerprintScanner').removeClass('scanning success error');
-        $('#btnScan').prop('disabled', false).text('Scan Fingerprint');
-        $btn.prop('disabled', true).html(originalHtml);
-        
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    }, 2000);
-}
-
-/**
- * Handle cancel - show confirmation modal
- */
-function handleCancel() {
-    // Show the confirmation modal
-    $('#cancelModal').modal('show');
-}
-
-/**
- * Confirm cancel - reset the registration
- */
-function confirmCancel() {
-    scanCount = 0;
-    isScanning = false;
-    $('#fingerprintScanner').removeClass('scanning success error');
-    $('#btnScan').prop('disabled', false).text('Scan Fingerprint');
-    $('#btnRegister').prop('disabled', true);
-    
-    // Hide the modal
-    $('#cancelModal').modal('hide');
-    
-    Toast.info('Registration cancelled');
-}
+});

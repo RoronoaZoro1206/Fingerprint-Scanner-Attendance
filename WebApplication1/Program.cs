@@ -62,6 +62,9 @@ builder.Services.AddScoped<AdminAuditService>();
 // Add AcademicTermService
 builder.Services.AddScoped<AcademicTermService>();
 
+// Add FingerprintService as Singleton (shared across requests for device management)
+builder.Services.AddSingleton<FingerprintService>();
+
 var app = builder.Build();
 
 // Initialize super admin account
