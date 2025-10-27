@@ -7,14 +7,14 @@
         <!-- Left Side: Fingerprint Scanner -->
         <div class="scanner-section">
             <div class="fingerprint-container" id="fingerprintScanner">
-                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
+                <div class="scanner-instruction-text">Place finger here</div>
             </div>
             
             <h1 class="scanner-title">Scan your fingerprint to log your attendance</h1>
             
             <ul class="scanner-instructions">
-                <li>Place your finger on the scanner above</li>
-                <li>Touch the scanner circle to begin</li>
+                <li>Place your finger on the physical scanner</li>
+                <li>The system will automatically detect your fingerprint</li>
             </ul>
             
             <div class="scan-status-message" id="scanStatusMessage"></div>
@@ -71,5 +71,70 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Modern home page scanner - White background with colored border */
+    .fingerprint-container {
+    background: #ffffff !important; /* Pure white background */
+   border: 3px solid #e5e7eb !important; /* Gray border */
+   cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .fingerprint-container:hover {
+   background: #ffffff !important; /* Keep white */
+        border-color: #3b82f6 !important; /* Blue border */
+ }
+
+    .fingerprint-container.scanning {
+background: #ffffff !important; /* Keep white */
+        border-color: #3b82f6 !important; /* Blue border */
+   border-width: 4px !important;
+   animation: pulse 1.5s infinite;
+    }
+
+    .fingerprint-container.success {
+    background: #ffffff !important; /* Keep white */
+   border-color: #10b981 !important; /* Green border */
+        border-width: 4px !important;
+    }
+
+    .fingerprint-container.error {
+  background: #ffffff !important; /* Keep white */
+        border-color: #ef4444 !important; /* Red border */
+border-width: 4px !important;
+    }
+
+    .scanner-instruction-text {
+        font-size: 1.2rem;
+        color: rgba(107, 114, 128, 0.6);
+      font-weight: 500;
+    text-align: center;
+    }
+
+    .fingerprint-container.scanning .scanner-instruction-text {
+        color: rgba(59, 130, 246, 0.9);
+    }
+
+ /* Fingerprint image - black on white */
+    .fingerprint-container img {
+ max-width: 90%;
+        max-height: 90%;
+  object-fit: contain;
+        border-radius: 50%;
+    filter: contrast(1.2) brightness(1.1);
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+       border-color: #3b82f6;
+        }
+ 50% {
+    transform: scale(1.02);
+   border-color: #2563eb;
+        }
+    }
+</style>
 
 

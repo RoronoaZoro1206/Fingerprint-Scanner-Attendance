@@ -1,0 +1,383 @@
+using Microsoft.AspNetCore.Mvc;
+using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
+using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services;
+
+namespace Fingerprint_Attendance_System.Controllers.Student
+{
+    [Route("Student/StudentRegisterFingerprint")]
+ public class StudentRegisterFingerprintController : Controller
+    {
+        private readonly FingerprintService _fingerprintService;
+        private readonly IFingerprintTemplateRepository _fingerprintRepo;
+        private readonly IUserRepository _userRepo;
+private readonly IStudentRepository _studentRepo;
+        private readonly ILogger<StudentRegisterFingerprintController> _logger;
+
+     public StudentRegisterFingerprintController(
+            FingerprintService fingerprintService,
+          IFingerprintTemplateRepository fingerprintRepo,
+  IUserRepository userRepo,
+   IStudentRepository studentRepo,
+            ILogger<StudentRegisterFingerprintController> logger)
+        {
+            _fingerprintService = fingerprintService;
+      _fingerprintRepo = fingerprintRepo;
+ _userRepo = userRepo;
+  _studentRepo = studentRepo;
+            _logger = logger;
+        }
+
+ // GET: Student/StudentRegisterFingerprint
+  [HttpGet("")]
+[HttpGet("Index")]
+        public IActionResult Index()
+        {
+       return View("~/Views/Student/StudentRegisterFingerprint.cshtml");
+  }
+
+        // GET: Check device status
+ [HttpGet("GetDeviceStatus")]
+     public IActionResult GetDeviceStatus()
+    {
+            try
+            {
+   var status = _fingerprintService.GetStatus();
+     var isInitialized = status != "Not Initialized";
+    var isConnected = status == "Device Connected";
+
+ return Json(new DeviceStatusDto
+      {
+         IsInitialized = isInitialized,
+       IsDeviceConnected = isConnected,
+       Status = status
+  });
+            }
+      catch (Exception ex)
+     {
+       _logger.LogError(ex, "Error getting device status");
+       return Json(new DeviceStatusDto
+      {
+         IsInitialized = false,
+   IsDeviceConnected = false,
+    Status = "Error: " + ex.Message
+    });
+    }
+        }
+
+        // POST: Initialize device
+        [HttpPost("InitializeDevice")]
+        public IActionResult InitializeDevice()
+        {
+try
+     {
+      _logger.LogInformation("Attempting to initialize fingerprint device...");
+
+        var initialized = _fingerprintService.Initialize();
+          if (initialized)
+          {
+                  _logger.LogInformation("SDK initialized, opening device...");
+     var deviceOpened = _fingerprintService.TurnOnDevice();
+
+        if (deviceOpened)
+        {
+    _logger.LogInformation("Device opened successfully");
+        return Json(new { success = true, message = "Device initialized successfully" });
+        }
+      else
+          {
+_logger.LogError("Failed to open device");
+         return Json(new { success = false, message = "Failed to open device" });
+            }
+    }
+
+  _logger.LogError("Failed to initialize SDK");
+            return Json(new { success = false, message = "Failed to initialize SDK" });
+            }
+       catch (Exception ex)
+            {
+    _logger.LogError(ex, "Error initializing device");
+       return Json(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
+        // GET: Check registration status
+      [HttpGet("GetRegistrationStatus")]
+        public async Task<IActionResult> GetRegistrationStatus()
+    {
+        try
+        {
+   var userId = HttpContext.Session.GetInt32("UserId");
+ if (userId == null)
+            {
+      return Json(new { success = false, message = "User not logged in" });
+ }
+
+         var template = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
+          
+                return Json(new FingerprintStatusDto
+     {
+         IsRegistered = template != null,
+         TemplateName = template?.FtempName,
+            RegisteredAt = template?.FtempCreatedAt
+     });
+            }
+            catch (Exception ex)
+            {
+    _logger.LogError(ex, "Error checking registration status");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: Capture fingerprint
+        [HttpPost("CaptureFingerprint")]
+     public IActionResult CaptureFingerprint()
+    {
+     try
+       {
+      _logger.LogInformation("Attempting to capture fingerprint with image...");
+                
+      // Capture both image and template
+       var (imageData, width, height, template) = _fingerprintService.CaptureFingerprintWithImage();
+
+        if (template == null || imageData == null)
+       {
+            _logger.LogWarning("Failed to capture fingerprint - no data");
+   
+        // Error feedback: red light + beep sound
+ _fingerprintService.SetLedLight("red", true);
+      _fingerprintService.Beep(true);
+         _ = Task.Delay(500).ContinueWith(_ =>
+        {
+   _fingerprintService.SetLedLight("red", false);
+  _fingerprintService.Beep(false);
+});
+   
+      return Json(new { success = false, message = "Failed to capture fingerprint. Please try again." });
+           }
+
+                // Convert image to Base64 for display
+  var imageBase64 = _fingerprintService.ConvertImageToBase64(imageData, width, height);
+var templateBase64 = Convert.ToBase64String(template);
+
+         _logger.LogInformation($"Fingerprint captured successfully. Image: {width}x{height}, Template: {template.Length} bytes");
+
+ // Success feedback: green light + beep sound
+          _fingerprintService.SetLedLight("green", true);
+   _fingerprintService.Beep(true);
+      _ = Task.Delay(200).ContinueWith(_ =>
+{
+_fingerprintService.SetLedLight("green", false);
+   _fingerprintService.Beep(false);
+        });
+
+          return Json(new 
+    { 
+   success = true, 
+  templateBase64,
+ imageBase64,  // Add image data for display
+ imageWidth = width,
+     imageHeight = height
+        });
+            }
+     catch (Exception ex)
+        {
+     _logger.LogError(ex, "Error capturing fingerprint");
+
+       // Error feedback: red light + beep sound
+      _fingerprintService.SetLedLight("red", true);
+   _fingerprintService.Beep(true);
+      _ = Task.Delay(500).ContinueWith(_ =>
+          {
+          _fingerprintService.SetLedLight("red", false);
+  _fingerprintService.Beep(false);
+  });
+ 
+    return Json(new { success = false, message = "Error: " + ex.Message });
+   }
+ }
+
+        // POST: Register fingerprint
+        [HttpPost("RegisterFingerprint")]
+public async Task<IActionResult> RegisterFingerprint([FromBody] FingerprintRegistrationDto dto)
+        {
+            try
+      {
+        var userId = HttpContext.Session.GetInt32("UserId");
+         if (userId == null)
+    {
+   return Json(new { success = false, message = "User not logged in" });
+         }
+
+         if (string.IsNullOrEmpty(dto.TemplateBase64))
+        {
+  return Json(new { success = false, message = "No fingerprint data provided" });
+}
+
+   // Convert base64 to byte array
+       byte[] templateData = Convert.FromBase64String(dto.TemplateBase64);
+
+ // Check if user already has a fingerprint
+  var existingTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
+ 
+      if (existingTemplate != null)
+  {
+       // User already has a fingerprint - they can only update with password confirmation
+  return Json(new { 
+  success = false, 
+ requirePasswordConfirmation = true,
+     message = "You already have a registered fingerprint. To update it, please confirm your password first." 
+     });
+      }
+
+   // Create new template (first registration)
+     var newTemplate = new FingerprintTemplate
+  {
+     UserId = userId.Value,
+FtempData = templateData,
+      FtempName = dto.TemplateName,
+FtempCreatedAt = DateTime.UtcNow
+   };
+
+  var templateId = await _fingerprintRepo.CreateAsync(newTemplate);
+
+   if (templateId > 0)
+   {
+         // Success feedback
+    _fingerprintService.SetLedLight("green", true);
+      _fingerprintService.Beep(true);
+            _ = Task.Delay(300).ContinueWith(_ =>
+   {
+ _fingerprintService.SetLedLight("green", false);
+       _fingerprintService.Beep(false);
+      });
+  
+  return Json(new { success = true, message = "Fingerprint registered successfully" });
+}
+
+return Json(new { success = false, message = "Failed to save fingerprint" });
+   }
+catch (Exception ex)
+  {
+       _logger.LogError(ex, "Error registering fingerprint");
+
+       // Error feedback
+      _fingerprintService.SetLedLight("red", true);
+_ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", false));
+
+  return Json(new { success = false, message = "Error: " + ex.Message });
+    }
+        }
+
+ // POST: Update fingerprint with password confirmation
+     [HttpPost("UpdateFingerprint")]
+  public async Task<IActionResult> UpdateFingerprint([FromBody] FingerprintUpdateDto dto)
+    {
+   try
+       {
+ var userId = HttpContext.Session.GetInt32("UserId");
+  if (userId == null)
+    {
+  return Json(new { success = false, message = "User not logged in" });
+ }
+
+       if (string.IsNullOrEmpty(dto.TemplateBase64))
+{
+  return Json(new { success = false, message = "No fingerprint data provided" });
+    }
+
+ if (string.IsNullOrEmpty(dto.Password))
+   {
+  return Json(new { success = false, message = "Password is required to update your fingerprint" });
+  }
+
+ // Verify password
+      var user = await _userRepo.GetByIdAsync(userId.Value);
+   if (user == null)
+    {
+         return Json(new { success = false, message = "User not found" });
+        }
+
+   // Verify password using BCrypt
+   bool isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.UserPassword);
+   if (!isPasswordValid)
+  {
+ _logger.LogWarning($"Failed fingerprint update attempt for user {user.UserEmail} - invalid password");
+   return Json(new { success = false, message = "Invalid password. Please try again." });
+    }
+
+  // Convert base64 to byte array
+     byte[] templateData = Convert.FromBase64String(dto.TemplateBase64);
+
+// Update existing template
+   var existingTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
+    
+     if (existingTemplate == null)
+   {
+       return Json(new { success = false, message = "No existing fingerprint found" });
+       }
+
+  existingTemplate.FtempData = templateData;
+    existingTemplate.FtempName = dto.TemplateName;
+  
+    var updated = await _fingerprintRepo.UpdateAsync(existingTemplate);
+      
+       if (updated)
+   {
+// Success feedback
+    _fingerprintService.SetLedLight("green", true);
+  _fingerprintService.Beep(true);
+  _ = Task.Delay(300).ContinueWith(_ =>
+  {
+           _fingerprintService.SetLedLight("green", false);
+  _fingerprintService.Beep(false);
+    });
+     
+  _logger.LogInformation($"Fingerprint updated successfully for user {user.UserEmail}");
+         return Json(new { success = true, message = "Fingerprint updated successfully" });
+  }
+
+       return Json(new { success = false, message = "Failed to update fingerprint" });
+     }
+   catch (Exception ex)
+  {
+  _logger.LogError(ex, "Error updating fingerprint");
+       
+  // Error feedback
+  _fingerprintService.SetLedLight("red", true);
+      _ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", false));
+
+return Json(new { success = false, message = "Error: " + ex.Message });
+   }
+ }
+
+        // POST: Delete fingerprint
+      [HttpPost("DeleteFingerprint")]
+    public async Task<IActionResult> DeleteFingerprint()
+        {
+        try
+            {
+            var userId = HttpContext.Session.GetInt32("UserId");
+             if (userId == null)
+{
+     return Json(new { success = false, message = "User not logged in" });
+  }
+
+    var deleted = await _fingerprintRepo.DeleteByUserIdAsync(userId.Value);
+     
+       if (deleted)
+     {
+             return Json(new { success = true, message = "Fingerprint deleted successfully" });
+      }
+
+      return Json(new { success = false, message = "Failed to delete fingerprint" });
+        }
+          catch (Exception ex)
+     {
+     _logger.LogError(ex, "Error deleting fingerprint");
+ return Json(new { success = false, message = ex.Message });
+       }
+      }
+    }
+}

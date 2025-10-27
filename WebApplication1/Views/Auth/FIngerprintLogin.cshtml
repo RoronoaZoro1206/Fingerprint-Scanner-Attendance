@@ -1,34 +1,34 @@
 @{
-    ViewData["Title"] = "Biometric Login";
+ViewData["Title"] = "Biometric Login";
 }
 
 <div class="auth-container">
     <div class="auth-card fingerprint-card">
-        <a href="@Url.Action("Index", "Auth")" class="back-to-login">
+ <a href="@Url.Action("Index", "Auth")" class="back-to-login">
             <i data-lucide="arrow-left"></i>
-            Back to login
-        </a>
+  Back to login
+  </a>
 
-        <div class="fingerprint-header">
-            <h1 class="fingerprint-title">Biometric Login</h1>
-            <p class="fingerprint-subtitle">Scan your fingerprint to login</p>
-        </div>
+      <div class="fingerprint-header">
+   <h1 class="fingerprint-title">Biometric Login</h1>
+ <p class="fingerprint-subtitle">Scan your fingerprint to login</p>
+      </div>
 
         <div class="fingerprint-scanner">
             <div class="scanner-circle" id="fingerprintScanner">
-                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
+     <div class="scanner-instruction">Place finger on scanner</div>
             </div>
-        </div>
+ </div>
 
-        <ul class="scanner-instructions">
-            <li>Place your finger on the scanner above</li>
-            <li>Touch the scanner circle to begin</li>
-        </ul>
+   <ul class="scanner-instructions">
+   <li>Place your finger on the physical scanner</li>
+            <li>The system will automatically authenticate</li>
+     </ul>
 
-        <div class="scan-status-message" id="scanStatusMessage"></div>
+     <div class="scan-status-message" id="scanStatusMessage"></div>
     </div>
 </div>
 
 @section Scripts {
-    <script src="~/js/fingerprint-scan.js"></script>
+ <script src="~/js/fingerprint-scan.js" asp-append-version="true"></script>
 }

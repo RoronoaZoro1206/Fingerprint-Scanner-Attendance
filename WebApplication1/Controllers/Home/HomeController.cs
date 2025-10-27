@@ -6,8 +6,6 @@ namespace Fingerprint_Attendance_System.Controllers.Home;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
-
     public IActionResult Index()
     {
         return View();

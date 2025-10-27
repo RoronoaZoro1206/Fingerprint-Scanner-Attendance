@@ -4,7 +4,7 @@
 
 <div class="register-fingerprint-page">
     <!-- Page Header -->
-    <div class="page-header">
+  <div class="page-header">
         <h1 class="page-title">Register Fingerprint</h1>
         <p class="page-description">Securely register your fingerprint biometric data for login</p>
     </div>
@@ -13,83 +13,83 @@
     <div class="status-cards-row">
         <!-- Scanner Status Card -->
         <div class="status-card">
-            <div class="status-header">
-                <div class="status-icon online">
-                    <i data-lucide="wifi"></i>
-                </div>
-                <div class="status-info">
-                    <h3 class="status-title">Scanner Status</h3>
-                    <p class="status-value online" id="scannerStatus">Online</p>
-                </div>
+ <div class="status-header">
+          <div class="status-icon online">
+       <i data-lucide="wifi"></i>
+  </div>
+       <div class="status-info">
+    <h3 class="status-title">Scanner Status</h3>
+    <p class="status-value online" id="scannerStatus">Online</p>
+    </div>
             </div>
         </div>
 
-        <!-- Registration Status Card -->
+      <!-- Registration Status Card -->
         <div class="status-card">
             <div class="status-header">
-                <div class="status-icon pending">
-                    <i data-lucide="fingerprint"></i>
-                </div>
-                <div class="status-info">
-                    <h3 class="status-title">Registration Status</h3>
-                    <p class="status-value pending" id="registrationStatus">Not Registered</p>
-                </div>
+     <div class="status-icon pending">
+  <i data-lucide="fingerprint"></i>
+     </div>
+     <div class="status-info">
+  <h3 class="status-title">Registration Status</h3>
+        <p class="status-value pending" id="registrationStatus">Not Registered</p>
+          </div>
             </div>
-        </div>
+</div>
     </div>
 
     <!-- Main Scanner Card -->
     <div class="scanner-card">
-        <!-- User Icon Badge -->
-        <div class="user-icon-badge">
+   <!-- User Icon Badge -->
+     <div class="user-icon-badge">
             <i data-lucide="user"></i>
-        </div>
+      </div>
 
         <!-- Scanner Box -->
-        <div class="scanner-box">
-            <!-- Fingerprint Scanner Circle -->
+   <div class="scanner-box">
+  <!-- Fingerprint Scanner Circle - White background for fingerprint image -->
             <div class="fingerprint-scanner" id="fingerprintScanner">
-                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
+                <div class="scanner-instruction">Place finger here</div>
             </div>
 
-            <!-- Scan Button -->
-            <button type="button" class="btn-scan" id="btnScan">
-                Scan Fingerprint
-            </button>
+       <!-- Scan Button -->
+      <button type="button" class="btn-scan" id="btnScan">
+         Scan Fingerprint
+        </button>
         </div>
 
         <!-- Action Buttons -->
         <div class="action-buttons">
-            <button type="button" class="btn-register" id="btnRegister">
-                <i data-lucide="shield-check"></i>
-                Register Fingerprint
-            </button>
-            <button type="button" class="btn-cancel" id="btnCancel">
-                Cancel
+       <button type="button" class="btn-register" id="btnRegister">
+      <i data-lucide="shield-check"></i>
+     Register Fingerprint
+   </button>
+      <button type="button" class="btn-cancel" id="btnCancel">
+         Cancel
             </button>
         </div>
     </div>
 
     <!-- Info Cards Row -->
     <div class="info-cards-row">
-        <!-- Security Info -->
+ <!-- Security Info -->
         <div class="info-card">
             <div class="info-icon">
-                <i data-lucide="shield-check"></i>
-            </div>
-            <p class="info-text">All biometric data is encrypted and stored securely in compliance with privacy regulations.</p>
-        </div>
+       <i data-lucide="shield-check"></i>
+         </div>
+         <p class="info-text">All biometric data is encrypted and stored securely in compliance with privacy regulations.</p>
+     </div>
 
-        <!-- Quick Tips -->
-        <div class="info-card">
-            <h3 class="info-title">Quick Tips</h3>
+    <!-- Quick Tips -->
+    <div class="info-card">
+     <h3 class="info-title">Quick Tips</h3>
             <ul class="tips-list">
-                <li>â€¢ Ensure finger is clean and dry</li>
-                <li>â€¢ Place finger flat on the scanner</li>
-                <li>â€¢ Hold steady during scanning</li>
-                <li>â€¢ Try different fingers if scan fails</li>
-            </ul>
-        </div>
+       <li>• Ensure finger is clean and dry</li>
+      <li>• Place finger flat on the scanner</li>
+           <li>• Hold steady during scanning</li>
+   <li>• Try different fingers if scan fails</li>
+       </ul>
+  </div>
     </div>
 </div>
 
@@ -97,27 +97,27 @@
 <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-header border-0 pb-0">
+       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center pt-0">
                 <div class="mb-3">
-                    <div class="delete-icon-wrapper">
-                        <i data-lucide="alert-triangle" class="delete-icon"></i>
-                    </div>
-                </div>
-                <h5 class="modal-title mb-2" id="cancelModalLabel">Cancel Registration?</h5>
-                <p class="text-muted mb-0">Are you sure you want to cancel fingerprint registration?</p>
-                <p class="text-muted">All scan progress will be lost.</p>
-            </div>
-            <div class="modal-footer border-0 justify-content-center gap-2">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">No, Continue</button>
+           <div class="delete-icon-wrapper">
+   <i data-lucide="alert-triangle" class="delete-icon"></i>
+           </div>
+         </div>
+        <h5 class="modal-title mb-2" id="cancelModalLabel">Cancel Registration?</h5>
+    <p class="text-muted mb-0">Are you sure you want to cancel fingerprint registration?</p>
+       <p class="text-muted">All scan progress will be lost.</p>
+     </div>
+        <div class="modal-footer border-0 justify-content-center gap-2">
+      <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">No, Continue</button>
                 <button type="button" class="btn btn-danger px-4" id="btnConfirmCancel">
-                    <i data-lucide="x-circle" class="icon-sm"></i>
-                    Yes, Cancel
-                </button>
+         <i data-lucide="x-circle" class="icon-sm"></i>
+       Yes, Cancel
+    </button>
             </div>
-        </div>
+      </div>
     </div>
 </div>
 
@@ -126,3 +126,68 @@
 }
 
 <link rel="stylesheet" href="~/css/register_fingerprint.css" asp-append-version="true"/>
+
+<style>
+    /* Modern fingerprint scanner - White background with colored border only */
+    .fingerprint-scanner {
+ background: #ffffff !important; /* Pure white background */
+        border: 3px solid #e5e7eb !important; /* Default gray border */
+   cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .fingerprint-scanner:hover {
+      background: #ffffff !important; /* Keep white */
+   border-color: #3b82f6 !important; /* Blue border on hover */
+    }
+
+    .fingerprint-scanner.scanning {
+ background: #ffffff !important; /* Keep white */
+        border-color: #3b82f6 !important; /* Blue border */
+        border-width: 4px !important;
+    animation: pulse 1.5s infinite;
+  }
+
+    .fingerprint-scanner.captured {
+        background: #ffffff !important; /* Keep white */
+    border-color: #10b981 !important; /* Green border for success */
+        border-width: 4px !important;
+    }
+
+    .fingerprint-scanner.error {
+ background: #ffffff !important; /* Keep white */
+        border-color: #ef4444 !important; /* Red border for error */
+    border-width: 4px !important;
+    }
+
+    .scanner-instruction {
+        font-size: 1.1rem;
+        color: rgba(107, 114, 128, 0.6);
+        font-weight: 500;
+        text-align: center;
+    }
+
+  .fingerprint-scanner.scanning .scanner-instruction {
+        color: rgba(59, 130, 246, 0.9);
+    }
+
+    /* Fingerprint image display - black on white */
+    .fingerprint-scanner img {
+     max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+        border-radius: 50%;
+    filter: contrast(1.2) brightness(1.1); /* Enhance black lines */
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+    transform: scale(1);
+            border-color: #3b82f6;
+        }
+ 50% {
+       transform: scale(1.02);
+            border-color: #2563eb;
+        }
+    }
+</style>

@@ -306,263 +306,290 @@
     margin: 2rem 0;
 }
 
+/* ========================================
+ MODERN FINGERPRINT SCANNER STYLES
+   ======================================== */
+
+/* Scanner circle - white background with colored borders */
 .scanner-circle {
     width: 180px;
     height: 180px;
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    background: #ffffff !important;
+    border: 3px solid #e5e7eb !important;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
 .scanner-circle:hover {
-    transform: scale(1.01);
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    border-color: #3b82f6 !important;
 }
 
+/* Scanning state - blue border with smooth pulse */
 .scanner-circle.scanning {
-    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
-    animation: pulse 1.5s ease-in-out;
+    background: #ffffff !important;
+    border-color: #3b82f6 !important;
+    border-width: 4px !important;
+    animation: smoothPulse 2s ease-in-out infinite;
 }
 
 .scanner-circle.scanning::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
-    animation: scan 2s ease-in-out;
+    inset: -8px;
+    border-radius: 50%;
+background: linear-gradient(45deg, 
+        transparent 0%, 
+   rgba(59, 130, 246, 0.3) 25%, 
+        rgba(59, 130, 246, 0.5) 50%, 
+        rgba(59, 130, 246, 0.3) 75%, 
+        transparent 100%);
+    animation: rotate 3s linear infinite;
+  z-index: -1;
 }
 
+/* Success state - green border with bounce */
 .scanner-circle.success {
-    background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%);
-    animation: successPulse 0.6s ease-in-out;
+    background: #ffffff !important;
+    border-color: #10b981 !important;
+    border-width: 4px !important;
+    animation: successBounce 0.6s ease-out;
 }
 
+.scanner-circle.success::after {
+    content: '?';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    color: #10b981;
+    font-weight: bold;
+    animation: checkmarkAppear 0.4s ease-out forwards;
+}
+
+/* Error state - red border with shake */
 .scanner-circle.error {
-    background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
-    animation: shake 0.5s ease-in-out;
+    background: #ffffff !important;
+    border-color: #ef4444 !important;
+    border-width: 4px !important;
+    animation: smoothShake 0.6s ease-in-out;
 }
 
-.fingerprint-icon {
-    width: 90px;
-    height: 90px;
-    color: #374151;
-    stroke-width: 2;
+/* Scanner instruction text */
+.scanner-instruction {
+    font-size: 1.05rem;
+    color: rgba(107, 114, 128, 0.7);
+    font-weight: 500;
+    text-align: center;
     transition: all 0.3s ease;
 }
 
-.scanner-circle.scanning .fingerprint-icon {
-    color: #2563eb;
-    animation: iconPulse 1.5s ease-in-out infinite;
+.scanner-circle.scanning .scanner-instruction {
+    color: rgba(59, 130, 246, 0.9);
+    animation: textPulse 1.5s ease-in-out infinite;
 }
 
-.scanner-circle.success .fingerprint-icon {
-    color: #059669;
-    transform: scale(1.1);
+/* Fingerprint image styling */
+.scanner-circle img {
+    max-width: 85%;
+    max-height: 85%;
+    object-fit: contain;
+    border-radius: 50%;
+    filter: contrast(1.2) brightness(1.1);
+    transition: all 0.3s ease;
 }
 
-.scanner-circle.error .fingerprint-icon {
-    color: #dc2626;
+/* ========================================
+   MODERN ANIMATIONS
+   ======================================== */
+
+@keyframes smoothPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+   transform: scale(1.03);
+    box-shadow: 0 15px 40px rgba(59, 130, 246, 0.3);
+    }
 }
 
-/* Animations */
-@keyframes pulse {
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes successBounce {
     0%, 100% {
         transform: scale(1);
     }
+    25% {
+        transform: scale(1.08);
+    }
     50% {
-        transform: scale(1.05);
+    transform: scale(0.98);
+    }
+    75% {
+        transform: scale(1.02);
     }
 }
 
-@keyframes scan {
-    0% {
-        left: -100%;
+@keyframes checkmarkAppear {
+  0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0);
+    }
+    50% {
+   opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
     }
     100% {
-        left: 100%;
-    }
-}
-
-@keyframes iconPulse {
-    0%, 100% {
         opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.6;
-        transform: scale(0.95);
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
-@keyframes successPulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
-}
-
-@keyframes shake {
+@keyframes smoothShake {
     0%, 100% {
         transform: translateX(0);
     }
-    25% {
-        transform: translateX(-10px);
+    20% {
+        transform: translateX(-12px);
     }
-    75% {
-        transform: translateX(10px);
+    40% {
+        transform: translateX(12px);
+ }
+    60% {
+      transform: translateX(-8px);
     }
-}
-
-/* Ripple effect */
-.ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(59, 130, 246, 0.4);
-    transform: scale(0);
-    animation: ripple 0.6s ease-out;
-    pointer-events: none;
-}
-
-@keyframes ripple {
-    to {
-        transform: scale(4);
-        opacity: 0;
+    80% {
+   transform: translateX(8px);
     }
 }
 
-.scanner-instructions {
-    list-style: none;
-    padding: 0;
-    margin: 1.5rem 0;
-    text-align: center;
+@keyframes textPulse {
+    0%, 100% {
+  opacity: 1;
+    }
+    50% {
+ opacity: 0.6;
+    }
 }
 
-.scanner-instructions li {
-    font-size: 0.95rem;
-    color: #6b7280;
-    margin-bottom: 0.5rem;
-}
+/* ========================================
+   MODERN STATUS MESSAGES
+   ======================================== */
 
-/* Scanning Status Message */
 .scan-status-message {
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.75rem;
+    border-radius: 14px;
     font-weight: 500;
     text-align: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 1rem;
+  line-height: 1.6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: none;
 }
 
 .scan-status-message.show {
     opacity: 1;
-}
-
-.scan-status-message.scanning {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
-
-.scan-status-message.success {
-    background-color: #d1fae5;
-    color: #065f46;
-}
-
-.scan-status-message.error {
-    background-color: #fee2e2;
-    color: #991b1b;
-}
-
-/* Responsive adjustments for fingerprint page */
-@media (max-width: 480px) {
-    .fingerprint-card .back-to-login {
-        top: -3rem;
-        font-size: 0.9rem;
-    }
-
-    .fingerprint-title {
-        font-size: 1.25rem;
-    }
-
-    .scanner-circle {
-        width: 200px;
-        height: 200px;
-    }
-
-    .fingerprint-icon {
-        width: 100px;
-        height: 100px;
-    }
-}
-
-
-/* Register Page Styles */
-.register-card {
-    max-width: 520px;
-}
-
-.register-form {
-    gap: 1rem;
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-@media (max-width: 480px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Error and Success Alert Styles */
-.alert {
-    padding: 0.875rem 1rem;
-    border-radius: 12px;
-    margin-bottom: 1rem;
-    font-size: 0.95rem;
-    line-height: 1.5;
-}
-
-.alert-danger {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-}
-
-.alert-success {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-}
-
-.text-danger {
-    color: #dc3545;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
     display: block;
+    animation: slideUp 0.4s ease-out;
 }
 
-.input-error {
-    background-color: #fee2e2 !important;
-    border: 1px solid #fca5a5 !important;
+/* Scanning message - blue theme */
+.scan-status-message.scanning {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    border: 2px solid #3b82f6;
 }
 
-.input-error:focus {
-    background-color: #fef2f2 !important;
-    border-color: #f87171 !important;
+/* Success message - green theme */
+.scan-status-message.success {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+    border: 2px solid #10b981;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+/* Error message - red theme */
+.scan-status-message.error {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 2px solid #ef4444;
+    font-weight: 600;
+}
+
+/* Info message - gray theme */
+.scan-status-message.info {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #374151;
+    border: 2px solid #9ca3af;
+}
+
+/* Redirect progress bar styling */
+.redirect-progress {
+    width: 100%;
+    height: 5px;
+    background: rgba(16, 185, 129, 0.2);
+    border-radius: 10px;
+ margin-top: 1rem;
+    overflow: hidden;
+}
+
+.progress-bar-inner {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+    border-radius: 10px;
+    animation: progressAnimation 4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes progressAnimation {
+    from {
+        width: 0%;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Offline state indicator */
+.scanner-circle.offline {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #9ca3af !important;
+}
+
+.scanner-circle.offline:hover {
+    transform: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }

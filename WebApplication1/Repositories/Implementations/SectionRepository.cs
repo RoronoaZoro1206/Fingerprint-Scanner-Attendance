@@ -140,9 +140,9 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             {
                 SectionId = Convert.ToInt32(row["section_id"]),
                 SectionName = row["section_name"]?.ToString() ?? "",
-                ProgramId = Convert.ToInt32(row["program_id"]),
+                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : 0,
                 ProgramName = row["program_name"]?.ToString() ?? "N/A",
-                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : null,
+                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : (int?)null,
                 SectionCreatedAt = Convert.ToDateTime(row["section_created_at"])
             });
         }
@@ -176,12 +176,12 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             {
                 SectionId = Convert.ToInt32(row["section_id"]),
                 SectionName = row["section_name"]?.ToString() ?? "",
-                ProgramId = Convert.ToInt32(row["program_id"]),
+                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : 0,
                 ProgramName = row["program_name"]?.ToString() ?? "",
-                ProgramCode = row["program_code"]?.ToString(),
-                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : null,
-                DeptId = row["dept_id"] != DBNull.Value ? Convert.ToInt32(row["dept_id"]) : null,
-                DeptName = row["dept_name"]?.ToString(),
+                ProgramCode = row["program_code"] != DBNull.Value ? row["program_code"]?.ToString() : null,
+                YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : (int?)null,
+                DeptId = row["dept_id"] != DBNull.Value ? Convert.ToInt32(row["dept_id"]) : (int?)null,
+                DeptName = row["dept_name"] != DBNull.Value ? row["dept_name"]?.ToString() : null,
                 SectionCreatedAt = Convert.ToDateTime(row["section_created_at"])
             };
         }

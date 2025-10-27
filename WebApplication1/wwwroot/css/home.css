@@ -59,9 +59,10 @@
 .fingerprint-container {
     width: 300px;
     height: 300px;
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    background: #ffffff !important; /* Pure white background */
+    border: 3px solid #e5e7eb !important; /* Default gray border */
     border-radius: 50%;
-    display: flex;
+  display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 2rem;
@@ -75,48 +76,65 @@
 .fingerprint-container:hover {
     transform: scale(1.01);
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    border-color: #3b82f6 !important; /* Blue border on hover */
 }
 
 .fingerprint-container.scanning {
-    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    background: #ffffff !important; /* Keep white */
+    border-color: #3b82f6 !important; /* Blue border */
+    border-width: 4px !important;
     animation: pulse 1.5s ease-in-out;
 }
 
 .fingerprint-container.scanning::before {
     content: '';
-    position: absolute;
+  position: absolute;
     top: 0;
     left: -100%;
-    width: 100%;
+ width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
     animation: scan 2s ease-in-out;
 }
 
 .fingerprint-container.success {
-    background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%);
+    background: #ffffff !important; /* Keep white */
+    border-color: #10b981 !important; /* Green border */
+    border-width: 4px !important;
     animation: successPulse 0.6s ease-in-out;
 }
 
 .fingerprint-container.error {
-    background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+    background: #ffffff !important; /* Keep white */
+    border-color: #ef4444 !important; /* Red border */
+    border-width: 4px !important;
     animation: shake 0.5s ease-in-out;
+}
+
+/* Fingerprint image display - black on white */
+.fingerprint-container img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 50%;
+    filter: contrast(1.2) brightness(1.1);
 }
 
 .fingerprint-icon {
     width: 150px;
     height: 150px;
+    color: #9ca3af; /* Light gray */
     stroke-width: 2;
     transition: all 0.3s ease;
 }
 
 .fingerprint-container.scanning .fingerprint-icon {
-    color: #2563eb;
+    color: #3b82f6;
     animation: iconPulse 1.5s ease-in-out infinite;
 }
 
 .fingerprint-container.success .fingerprint-icon {
-    color: #059669;
+    color: #10b981;
     transform: scale(1.1);
 }
 

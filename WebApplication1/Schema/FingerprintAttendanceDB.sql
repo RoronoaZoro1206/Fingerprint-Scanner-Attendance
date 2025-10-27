@@ -290,6 +290,9 @@ CREATE INDEX idx_class_room_id              ON classes(room_id);
 -- Scan logs table
 CREATE INDEX idx_scan_logs_time             ON scan_logs(scan_time);
 
+-- Fingerprint templates table
+CREATE INDEX idx_fingerprint_user_id ON fingerprint_templates(user_id);
+
 -- Improve JOIN performance
 CREATE INDEX idx_classes_course_id          ON classes(course_id);
 CREATE INDEX idx_classes_term_id            ON classes(term_id);
