@@ -15,17 +15,20 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         private readonly IAdministrationAuditRepository _auditRepo;
         private readonly IAdministrationRepository _adminRepo;
         private readonly IUserRepository _userRepo;
+        private readonly IScanLogRepository _scanLogRepo; // NEW: Add scan logs
 
         public AdminAuditController(
             ILogger<AdminAuditController> logger,
             IAdministrationAuditRepository auditRepo,
             IAdministrationRepository adminRepo,
-            IUserRepository userRepo)
+            IUserRepository userRepo,
+            IScanLogRepository scanLogRepo) // NEW: Inject scan log repo
         {
             _logger = logger;
             _auditRepo = auditRepo;
             _adminRepo = adminRepo;
             _userRepo = userRepo;
+            _scanLogRepo = scanLogRepo; // NEW: Store scan log repo
         }
 
         public IActionResult Index()
@@ -57,13 +60,14 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             }
         }
 
+    // NEW: Get combined audit logs (admin actions + biometric logins)
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             try
             {
                 var audits = await _auditRepo.GetAllAsync();
-                _logger.LogInformation($"Found {audits.Count()} audit logs");
+                _logger.LogInformation($"Found {audits.Count()} admin audit logs");
                 
                 var admins = await _adminRepo.GetAllAsync();
                 _logger.LogInformation($"Found {admins.Count()} admins");
@@ -71,6 +75,16 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 var users = await _userRepo.GetAllAsync();
                 _logger.LogInformation($"Found {users.Count()} users");
 
+                // NEW: Get biometric scan logs
+                var scanLogs = await _scanLogRepo.GetAllAsync();
+                var biometricLogins = scanLogs
+                    .Where(s => s.ScanSuccess == true && s.ScanLogMessage != null && 
+              s.ScanLogMessage.Contains("biometric login", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                
+                _logger.LogInformation($"Found {biometricLogins.Count} biometric login logs");
+
+         // Map admin audit logs
                 var auditData = audits.Select(audit =>
                 {
                     var admin = admins.FirstOrDefault(a => a.AdminId == audit.AdminId);
@@ -84,12 +98,37 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                         adminCode = admin?.AdminCode ?? "N/A",
                         audAction = audit.AudAction,
                         audDetails = audit.AudDetails ?? "",
-                        audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
+                        audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        logType = "Admin Action" // NEW: Identify log type
                     };
-                }).OrderByDescending(a => a.audActionTime).ToList();
+                }).ToList();
 
-                _logger.LogInformation($"Returning {auditData.Count} audit records");
-                return Json(new { data = auditData });
+                // NEW: Map biometric login logs
+                var biometricData = biometricLogins.Select(log =>
+                {
+                    var user = log.UserId.HasValue ? users.FirstOrDefault(u => u.UserId == log.UserId.Value) : null;
+                    var admin = user != null ? admins.FirstOrDefault(a => a.UserId == user.UserId) : null;
+
+                    return new
+                    {
+                        audId = log.ScanId, // Use scan ID as audit ID
+                        adminId = admin?.AdminId ?? 0,
+                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
+                        adminCode = admin?.AdminCode ?? "N/A",
+                        audAction = "Biometric Login", // NEW: Label as biometric login
+                        audDetails = log.ScanLogMessage ?? "",
+                        audActionTime = log.ScanTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        logType = "Biometric Login" // NEW: Identify log type
+                    };
+                });
+
+   // NEW: Combine both log types and sort by time
+                var combinedData = auditData.Concat(biometricData)
+ .OrderByDescending(a => a.audActionTime)
+                    .ToList();
+
+                _logger.LogInformation($"Returning {combinedData.Count} combined audit records ({auditData.Count} admin actions + {biometricData.Count()} biometric logins)");
+                return Json(new { data = combinedData });
             }
             catch (Exception ex)
             {
@@ -135,39 +174,76 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             }
         }
 
+        // NEW: Get audit statistics (including biometric logins)
         [HttpGet]
         public async Task<IActionResult> GetStats()
         {
             try
             {
                 var audits = await _auditRepo.GetAllAsync();
+                var scanLogs = await _scanLogRepo.GetAllAsync();
+                var biometricLogins = scanLogs
+                    .Where(s => s.ScanSuccess == true && s.ScanLogMessage != null && 
+ s.ScanLogMessage.Contains("biometric login", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
                 var today = DateTime.Today;
                 var thisWeek = today.AddDays(-(int)today.DayOfWeek);
                 var thisMonth = new DateTime(today.Year, today.Month, 1);
 
-                var stats = new
-                {
-                    totalLogs = audits.Count(),
-                    todayLogs = audits.Count(a => a.AudActionTime.Date == today),
-                    weekLogs = audits.Count(a => a.AudActionTime >= thisWeek),
-                    monthLogs = audits.Count(a => a.AudActionTime >= thisMonth),
-                    recentActions = audits
-                        .OrderByDescending(a => a.AudActionTime)
-                        .Take(5)
-                        .Select(a => new
-                        {
-                            action = a.AudAction,
-                            time = a.AudActionTime.ToString("MMM dd, HH:mm")
-                        })
-                };
+ // Combine admin audits and biometric logins for stats
+                var totalLogs = audits.Count() + biometricLogins.Count;
+                var todayLogs = audits.Count(a => a.AudActionTime.Date == today) + 
+                 biometricLogins.Count(b => b.ScanTime.Date == today);
+                var weekLogs = audits.Count(a => a.AudActionTime >= thisWeek) + 
+   biometricLogins.Count(b => b.ScanTime >= thisWeek);
+                var monthLogs = audits.Count(a => a.AudActionTime >= thisMonth) + 
+biometricLogins.Count(b => b.ScanTime >= thisMonth);
 
-                return Json(new { success = true, data = stats });
+ // Get recent actions (both types)
+                var users = await _userRepo.GetAllAsync();
+                var recentAdminActions = audits
+.OrderByDescending(a => a.AudActionTime)
+                   .Take(3)
+                     .Select(a => new {
+    action = a.AudAction,
+           time = a.AudActionTime.ToString("MMM dd, HH:mm"),
+   type = "Admin"
+      });
+
+       var recentBiometricLogins = biometricLogins
+.OrderByDescending(b => b.ScanTime)
+      .Take(2)
+       .Select(b => {
+      var user = b.UserId.HasValue ? users.FirstOrDefault(u => u.UserId == b.UserId.Value) : null;
+       var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown";
+         return new {
+        action = $"Biometric Login - {userName}",
+      time = b.ScanTime.ToString("MMM dd, HH:mm"),
+       type = "Biometric"
+           };
+             });
+
+ var recentActions = recentAdminActions.Concat(recentBiometricLogins)
+       .OrderByDescending(a => a.time)
+      .Take(5);
+
+             var stats = new
+                {
+       totalLogs = totalLogs,
+   todayLogs = todayLogs,
+           weekLogs = weekLogs,
+     monthLogs = monthLogs,
+         recentActions = recentActions
+           };
+
+  return Json(new { success = true, data = stats });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching audit stats");
-                return Json(new { success = false, message = "Failed to fetch statistics" });
-            }
+      catch (Exception ex)
+  {
+       _logger.LogError(ex, "Error fetching audit stats");
+      return Json(new { success = false, message = "Failed to fetch statistics" });
+        }
         }
 
         [HttpDelete]

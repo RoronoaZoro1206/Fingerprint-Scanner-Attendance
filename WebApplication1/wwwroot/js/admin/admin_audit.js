@@ -34,25 +34,37 @@ function initializeDataTable() {
             }
         },
         columns: [
-            { data: 'audId', width: '8%' },
-            { data: 'adminName', width: '15%' },
-            { data: 'adminCode', width: '12%' },
+            { data: 'audId', width: '6%' },
+            { data: 'adminName', width: '13%' },
+            { data: 'adminCode', width: '10%' },
+            // NEW: Log Type column with badges
+            {
+                data: 'logType',
+                width: '12%',
+                render: function (data) {
+                    if (data === 'Biometric Login') {
+                        return `<span class="log-type-badge biometric"><i data-lucide="fingerprint" class="icon-xs"></i> Biometric</span>`;
+                    } else {
+                        return `<span class="log-type-badge admin"><i data-lucide="shield" class="icon-xs"></i> Admin</span>`;
+                    }
+                }
+            },
             {
                 data: 'audAction',
-                width: '15%',
+                width: '13%',
                 render: function (data) {
                     return formatActionBadge(data);
                 }
             },
             {
                 data: 'audDetails',
-                width: '30%',
+                width: '25%',
                 render: function (data) {
                     if (!data || data === '') return '<span class="text-muted">No details</span>';
                     return data.length > 50 ? data.substring(0, 50) + '...' : data;
                 }
             },
-            { data: 'audActionTime', width: '15%' },
+            { data: 'audActionTime', width: '13%' },
             {
                 data: null,
                 width: '10%',
@@ -72,10 +84,16 @@ function initializeDataTable() {
                 }
             }
         ],
-        order: [[5, 'desc']], // Order by date/time descending
+        order: [[6, 'desc']], // Order by date/time descending (column index adjusted)
         pageLength: 25,
         ...commonDataTableConfig,
-        language: getDataTableLanguage('logs', 'log')
+        language: getDataTableLanguage('logs', 'log'),
+        // Reinitialize icons after table draw
+        drawCallback: function () {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
     });
 }
 

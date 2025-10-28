@@ -110,6 +110,35 @@
     color: #374151;
 }
 
+/* NEW: Log Type Badge Styles */
+.log-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.log-type-badge.biometric {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.log-type-badge.admin {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.log-type-badge .icon-xs {
+    width: 12px;
+    height: 12px;
+}
+
 /* View Modal Detail Groups */
 .detail-group {
     margin-bottom: 1.25rem;
