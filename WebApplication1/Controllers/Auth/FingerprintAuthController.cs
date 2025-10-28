@@ -11,22 +11,28 @@ namespace Fingerprint_Attendance_System.Controllers.Auth
         private readonly FingerprintService _fingerprintService;
         private readonly IFingerprintTemplateRepository _fingerprintRepo;
         private readonly IUserRepository _userRepo;
-   private readonly IScanLogRepository _scanLogRepo;
+    private readonly IScanLogRepository _scanLogRepo;
+        private readonly IAdministrationAuditRepository _auditRepo; // NEW: For audit logging
+        private readonly IAdministrationRepository _adminRepo; // NEW: To get admin ID
         private readonly ILogger<FingerprintAuthController> _logger;
 
         public FingerprintAuthController(
-   FingerprintService fingerprintService,
-            IFingerprintTemplateRepository fingerprintRepo,
-       IUserRepository userRepo,
- IScanLogRepository scanLogRepo,
-            ILogger<FingerprintAuthController> logger)
-  {
-      _fingerprintService = fingerprintService;
-       _fingerprintRepo = fingerprintRepo;
-      _userRepo = userRepo;
- _scanLogRepo = scanLogRepo;
-  _logger = logger;
-}
+  FingerprintService fingerprintService,
+ IFingerprintTemplateRepository fingerprintRepo,
+            IUserRepository userRepo,
+     IScanLogRepository scanLogRepo,
+       IAdministrationAuditRepository auditRepo, // NEW: Inject audit repository
+            IAdministrationRepository adminRepo, // NEW: Inject admin repository
+   ILogger<FingerprintAuthController> logger)
+    {
+            _fingerprintService = fingerprintService;
+   _fingerprintRepo = fingerprintRepo;
+        _userRepo = userRepo;
+        _scanLogRepo = scanLogRepo;
+            _auditRepo = auditRepo; // NEW: Store audit repository
+            _adminRepo = adminRepo; // NEW: Store admin repository
+            _logger = logger;
+        }
 
         // POST: Authenticate user with fingerprint
         [HttpPost]
@@ -194,17 +200,42 @@ ScanTime = DateTime.Now,
        // Update last login timestamp
           await _userRepo.UpdateLastLoginAsync(user.UserId);
 
-    // Log successful authentication
+    // Log successful authentication in scan_logs
          await _scanLogRepo.AddAsync(new ScanLog
                {
    UserId = user.UserId,
       ScanTime = DateTime.Now,
         ScanSuccess = true,
-           ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {bestScore})",
+ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {bestScore})",
    ScanCreatedAt = DateTime.Now
         });
 
-            _logger.LogInformation($"? Successful login for user: {user.UserEmail}");
+    // NEW: Create audit log entry for biometric login
+     // Check if user is an admin and create audit entry
+            var admin = await _adminRepo.GetByUserIdAsync(user.UserId);
+            if (admin != null)
+            {
+ // User is an admin - create audit log entry
+      var auditEntry = new AdministrationAudit
+{
+    AdminId = admin.AdminId,
+ AudAction = "Biometric Login",
+     AudDetails = $"Successful biometric login - {user.UserEmail} (Match Score: {bestScore})",
+   AudActionTime = DateTime.Now
+          };
+
+                var auditCreated = await _auditRepo.AddAsync(auditEntry);
+         if (auditCreated)
+    {
+     _logger.LogInformation($"Audit log created for biometric login: {user.UserEmail}");
+    }
+    else
+  {
+        _logger.LogWarning($"Failed to create audit log for biometric login: {user.UserEmail}");
+   }
+            }
+
+    _logger.LogInformation($"? Successful login for user: {user.UserEmail}");
 
        // Create user session
         HttpContext.Session.SetInt32("UserId", user.UserId);
@@ -232,8 +263,8 @@ ScanTime = DateTime.Now,
 
       return Json(new { 
  success = true, 
-              message = $"? Authentication successful! Welcome back.", 
-                 redirectUrl = redirectUrl,
+           message = $"? Authentication successful! Welcome back.", 
+        redirectUrl = redirectUrl,
      matchScore = bestScore,
               userName = $"{user.UserFirstName} {user.UserLastName}"
    });

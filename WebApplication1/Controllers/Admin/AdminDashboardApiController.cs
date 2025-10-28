@@ -127,32 +127,36 @@ try
    }
 
         /// <summary>
-        /// Get recent activity from audit logs
+  /// Get recent activity from administration_audit table only (unified source)
+        /// Returns top 3 most recent audit log entries
         /// </summary>
         [HttpGet("recent-activity")]
-        public async Task<IActionResult> GetRecentActivity([FromQuery] int limit = 10)
+        public async Task<IActionResult> GetRecentActivity([FromQuery] int limit = 3)
         {
             try
-            {
-  var allActivities = await _auditRepo.GetAllAsync();
-    var activities = allActivities
-                    .OrderByDescending(a => a.AudActionTime)
-            .Take(limit);
+        {
+          // Fetch all audit logs from administration_audit table
+       var allActivities = await _auditRepo.GetAllAsync();
+       
+         // Get top 3 (or specified limit) most recent activities, sorted by newest first
+     var activities = allActivities
+  .OrderByDescending(a => a.AudActionTime)
+        .Take(limit)
+       .Select(a => new
+         {
+          action = a.AudAction,
+       details = a.AudDetails ?? "No details",
+               timestamp = a.AudActionTime
+    })
+          .ToList();
 
-  var activityList = activities.Select(a => new
-    {
-    action = a.AudAction,
-    details = a.AudDetails ?? "No details",
-        timestamp = a.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
-     }).ToList();
-
-        return Ok(new { activities = activityList });
-   }
-            catch (Exception ex)
+     return Ok(new { activities = activities });
+            }
+          catch (Exception ex)
   {
-             _logger.LogError(ex, "Error getting recent activity");
-                return StatusCode(500, new { error = "Failed to fetch recent activity" });
-    }
-        }
+        _logger.LogError(ex, "Error getting recent activity");
+     return StatusCode(500, new { error = "Failed to fetch recent activity" });
+            }
+      }
     }
 }

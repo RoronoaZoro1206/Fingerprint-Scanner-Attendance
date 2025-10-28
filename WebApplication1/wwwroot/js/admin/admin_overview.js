@@ -104,82 +104,83 @@ async function loadSystemStatus() {
 }
 
 /**
- * Load recent activity from audit logs
+ * Load recent activity from administration_audit table (top 3 most recent)
  */
 async function loadRecentActivity() {
     try {
-        const response = await fetch('/api/admin/recent-activity?limit=10');
-        
+  // Fetch top 3 most recent audit logs
+        const response = await fetch('/api/admin/recent-activity?limit=3');
+     
         if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-        }
+   throw new Error(`HTTP error! status: ${response.status}`);
+    }
   
-        const data = await response.json();
-        const activityList = document.getElementById('recentActivity');
+   const data = await response.json();
+     const activityList = document.getElementById('recentActivity');
         
-        if (!activityList) return;
+if (!activityList) return;
         
-        // Clear existing content
+ // Clear existing content
         activityList.innerHTML = '';
     
-        if (data.activities && data.activities.length > 0) {
-            // Display activities
+     if (data.activities && data.activities.length > 0) {
+    // Display activities
             data.activities.forEach(activity => {
     const activityItem = document.createElement('div');
-            activityItem.className = 'activity-item';
-          
-       activityItem.innerHTML = `
+      activityItem.className = 'activity-item';
+  
+activityItem.innerHTML = `
        <div class="activity-icon">
-     <i data-lucide="activity"></i>
-              </div>
+   <i data-lucide="activity"></i>
+      </div>
         <div class="activity-content">
      <div class="activity-action">${escapeHtml(activity.action)}</div>
-          <div class="activity-details">${escapeHtml(activity.details)}</div>
-             <div class="activity-time">${formatTimestamp(activity.timestamp)}</div>
-        </div>
+           <div class="activity-details">${escapeHtml(activity.details)}</div>
+<div class="activity-time">${formatTimestamp(activity.timestamp)}</div>
+ </div>
          `;
-                
-  activityList.appendChild(activityItem);
-          });
-            
+          
+   activityList.appendChild(activityItem);
+    });
+
             // Reinitialize Lucide icons for new content
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-            }
- } else {
-      // No activities found
-   activityList.innerHTML = `
-       <div class="no-activity">
+       if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+   }
+        } else {
+    // No activities found
+    activityList.innerHTML = `
+   <div class="no-activity">
          <i data-lucide="activity" style="width: 48px; height: 48px; color: #9ca3af;"></i>
          <p>No Activity</p>
         <span>No recent activity to display</span>
     </div>
   `;
             
-            if (typeof lucide !== 'undefined') {
+       if (typeof lucide !== 'undefined') {
  lucide.createIcons();
      }
-        }
-        
+ }
+
         console.log('Recent activity loaded:', data.activities.length, 'items');
-} catch (error) {
-      console.error('Error loading recent activity:', error);
+    } catch (error) {
+        console.error('Error loading recent activity:', error);
       
-        const activityList = document.getElementById('recentActivity');
-if (activityList) {
+   const activityList = document.getElementById('recentActivity');
+ if (activityList) {
      activityList.innerHTML = `
-            <div class="no-activity">
+   <div class="no-activity">
          <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: #ef4444;"></i>
       <p>Error Loading Activity</p>
       <span>Failed to fetch recent activity</span>
-</div>
-            `;
-        
-   if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-      }
-        }
+ </div>
+      `;
+  
+       if (typeof lucide !== 'undefined') {
+     lucide.createIcons();
+         }
     }
+  }
 }
 
 /**

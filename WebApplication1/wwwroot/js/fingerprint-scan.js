@@ -115,8 +115,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
        if (result.success) {
  // Stop auto-detection on success
-            if (autoScanInterval) {
-       clearInterval(autoScanInterval);
+        if (autoScanInterval) {
+    clearInterval(autoScanInterval);
    autoScanInterval = null;
       }
 
@@ -208,44 +208,44 @@ fingerprintScanner.classList.add('success');
 
     // Show status message with smooth animations (enhanced)
     function showMessage(message, type = 'info') {
-        if (!scanStatusMessage) return;
+   if (!scanStatusMessage) return;
 
-   // Clear any existing redirect timeout when showing new message
-    if (type !== 'success' && redirectTimeout) {
-            clearTimeout(redirectTimeout);
-            redirectTimeout = null;
-        }
+      // Clear any existing redirect timeout when showing new message
+        if (type !== 'success' && redirectTimeout) {
+ clearTimeout(redirectTimeout);
+    redirectTimeout = null;
+}
 
         // Remove any existing progress bar
-     const existingProgress = scanStatusMessage.querySelector('.redirect-progress');
+ const existingProgress = scanStatusMessage.querySelector('.redirect-progress');
         if (existingProgress) {
-            existingProgress.remove();
+         existingProgress.remove();
         }
 
-        // Set message content using innerHTML to properly render HTML/icons
-   scanStatusMessage.innerHTML = message;
+   // Set message content (support HTML for rich messages)
+        scanStatusMessage.innerHTML = message;
         scanStatusMessage.className = 'scan-status-message show';
 
- // Apply appropriate styling
+        // Apply appropriate styling
         if (type === 'success') {
-   scanStatusMessage.classList.add('success');
+         scanStatusMessage.classList.add('success');
         } else if (type === 'error') {
-        scanStatusMessage.classList.add('error');
+   scanStatusMessage.classList.add('error');
         } else if (type === 'scanning') {
- scanStatusMessage.classList.add('scanning');
-     } else {
+  scanStatusMessage.classList.add('scanning');
+        } else {
             scanStatusMessage.classList.add('info');
         }
 
-     // Smooth fade-in with scale animation
-        scanStatusMessage.style.opacity = '0';
+        // Smooth fade-in with scale animation
+ scanStatusMessage.style.opacity = '0';
         scanStatusMessage.style.transform = 'translateY(-10px)';
-        scanStatusMessage.style.display = 'block';
+   scanStatusMessage.style.display = 'block';
 
-   requestAnimationFrame(() => {
-        scanStatusMessage.style.opacity = '1';
-      scanStatusMessage.style.transform = 'translateY(0)';
-  });
+        requestAnimationFrame(() => {
+            scanStatusMessage.style.opacity = '1';
+scanStatusMessage.style.transform = 'translateY(0)';
+ });
     }
 
     // Cleanup on page unload
@@ -365,6 +365,20 @@ style.textContent = `
         background: linear-gradient(135deg, #d1fae5, #a7f3d0);
       border-color: #10b981;
         box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+
+    .scanner-circle.success::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60px;
+        height: 60px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2310b981' viewBox='0 0 16 16'%3E%3Cpath d='M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z'/%3E%3C/svg%3E");
+    background-size: contain;
+   background-repeat: no-repeat;
+        animation: checkmarkAppear 0.4s ease-out forwards;
     }
 
     /* Error state - red glow */
