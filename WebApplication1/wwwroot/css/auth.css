@@ -122,22 +122,29 @@
     transform: translateY(-50%);
     background: none;
     border: none;
-    cursor: pointer;
-    padding: 0.25rem;
-    color: #6b7280;
+  cursor: pointer;
+    padding: 0.5rem; /* Larger click area */
+ color: #6b7280;
     transition: color 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 10; /* Above input */
+    pointer-events: auto; /* Clickable */
+    width: 40px; /* Fixed width for larger target */
+  height: 40px; /* Fixed height for larger target */
 }
 
 .password-toggle:hover {
     color: #000000;
 }
 
-.password-toggle i {
+/* Ensure icon/SVG doesn't block clicks */
+.password-toggle i,
+.password-toggle svg {
     width: 20px;
     height: 20px;
+    pointer-events: none; /* Pass clicks to button */
 }
 
 .sign-in-btn {
