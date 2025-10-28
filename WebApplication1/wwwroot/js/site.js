@@ -1,7 +1,6 @@
 ﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
-// Write your JavaScript code.
 // Initialize Lucide icons when DOM is ready
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize Lucide icons
@@ -13,8 +12,8 @@ document.addEventListener('DOMContentLoaded', function () {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // Initialize fingerprint scanner
-    initFingerprintScanner();
+    // NOTE: Fingerprint scanner initialization is now handled by fingerprint-scan.js
+    // Do NOT initialize it here to avoid conflicts
 });
 
 // Update current time and date
@@ -48,98 +47,6 @@ function updateDateTime() {
 function reinitializeLucideIcons() {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
-    }
-}
-
-// Fingerprint Scanner Animation
-function initFingerprintScanner() {
-    const scanner = document.getElementById('fingerprintScanner');
-    const statusMessage = document.getElementById('scanStatusMessage');
-
-    if (!scanner) return;
-
-    let isScanning = false;
-
-    scanner.addEventListener('click', function (e) {
-        if (isScanning) return;
-
-        // Create ripple effect
-        createRipple(e, scanner);
-
-        // Start scanning animation
-        startScan();
-    });
-
-    function createRipple(event, element) {
-        const ripple = document.createElement('span');
-        ripple.classList.add('ripple');
-
-        const rect = element.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height);
-        const x = event.clientX - rect.left - size / 2;
-        const y = event.clientY - rect.top - size / 2;
-
-        ripple.style.width = ripple.style.height = size + 'px';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-
-        element.appendChild(ripple);
-
-        setTimeout(() => ripple.remove(), 600);
-    }
-
-    function startScan() {
-        isScanning = true;
-
-        // Add scanning class
-        scanner.classList.add('scanning');
-        showStatusMessage('Scanning fingerprint...', 'scanning');
-
-        // Simulate scanning process (2 seconds)
-        setTimeout(() => {
-            scanner.classList.remove('scanning');
-
-            // Randomly simulate success or error (90% success rate)
-            const isSuccess = Math.random() < 0.9;
-
-            if (isSuccess) {
-                // Success animation
-                scanner.classList.add('success');
-                showStatusMessage('✓ Scan successful! Attendance recorded.', 'success');
-
-                setTimeout(() => {
-                    scanner.classList.remove('success');
-                    hideStatusMessage();
-                    isScanning = false;
-                }, 2000);
-            } else {
-                // Error animation
-                scanner.classList.add('error');
-                showStatusMessage('✗ Scan failed. Please try again.', 'error');
-
-                setTimeout(() => {
-                    scanner.classList.remove('error');
-                    hideStatusMessage();
-                    isScanning = false;
-                }, 2000);
-            }
-        }, 2000);
-    }
-
-    function showStatusMessage(message, type) {
-        if (!statusMessage) return;
-
-        statusMessage.textContent = message;
-        statusMessage.className = 'scan-status-message show ' + type;
-    }
-
-    function hideStatusMessage() {
-        if (!statusMessage) return;
-
-        statusMessage.classList.remove('show');
-        setTimeout(() => {
-            statusMessage.className = 'scan-status-message';
-        }, 300);
     }
 }
 

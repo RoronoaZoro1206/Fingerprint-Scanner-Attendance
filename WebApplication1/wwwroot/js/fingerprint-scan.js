@@ -1,265 +1,347 @@
 ﻿// Modern Fingerprint Authentication JavaScript
+// Mirrors the smooth scanning experience from AdminRegisterFingerprint
 document.addEventListener('DOMContentLoaded', function () {
     const fingerprintScanner = document.getElementById('fingerprintScanner');
     const scanStatusMessage = document.getElementById('scanStatusMessage');
 
     let isScanning = false;
-    let redirectTimeout = null;
+  let redirectTimeout = null;
+  let deviceInitialized = false;
 
     // Initialize Lucide icons
-    if (typeof lucide !== 'undefined') {
+  if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 
-    // Check scanner status on load
-    checkScannerStatus();
+    // Check scanner status and initialize device on load
+    initializeDeviceAndCheck();
 
     // Click scanner to start authentication
-  if (fingerprintScanner) {
-   fingerprintScanner.addEventListener('click', async function () {
-          if (isScanning) {
-      showMessage('Please wait, scanning in progress...', 'info');
-  return;
-         }
+    if (fingerprintScanner) {
+        fingerprintScanner.addEventListener('click', async function () {
+            if (isScanning) {
+       showMessage('Please wait, scanning in progress...', 'info');
+    return;
+     }
 
-      await authenticateWithFingerprint();
+    await authenticateWithFingerprint();
         });
     }
 
-    // Check if scanner is available
-    async function checkScannerStatus() {
+    // Initialize device and check status
+    async function initializeDeviceAndCheck() {
         try {
-      const response = await fetch('/FingerprintAuth/CheckScannerStatus');
-            const result = await response.json();
+            showMessage('Initializing fingerprint scanner...', 'info');
+   
+            // First, check if device is available
+            const statusResponse = await fetch('/FingerprintAuth/CheckScannerStatus');
+            const statusResult = await statusResponse.json();
 
-            if (!result.isAvailable) {
-           showMessage('Scanner not available. Please connect your fingerprint device.', 'error');
-           fingerprintScanner.classList.add('offline');
-            } else {
-     showMessage('Ready to scan. Click the circle to begin authentication.', 'info');
-   fingerprintScanner.classList.remove('offline');
-      }
-        } catch (error) {
-   console.error('Error checking scanner status:', error);
-            showMessage('Unable to connect to scanner. Please check your device.', 'error');
+            if (statusResult.isAvailable) {
+          deviceInitialized = true;
+                fingerprintScanner.classList.remove('offline');
+        showMessage('✓ Scanner ready. Click the circle to scan your fingerprint.', 'success');
+      
+      // Add pulse animation to indicate readiness
+           fingerprintScanner.style.animation = 'pulse 2s infinite';
+  } else {
+      fingerprintScanner.classList.add('offline');
+      showMessage('⚠ Scanner not available. Please connect your fingerprint device.', 'error');
+            }
+   } catch (error) {
+console.error('Error initializing device:', error);
+            fingerprintScanner.classList.add('offline');
+       showMessage('⚠ Unable to connect to scanner. Please check your device.', 'error');
         }
     }
 
-    // Authenticate with fingerprint
-    async function authenticateWithFingerprint() {
+    // Authenticate with fingerprint (matches registration page flow)
+  async function authenticateWithFingerprint() {
         if (isScanning) return;
 
-      try {
-          isScanning = true;
-        fingerprintScanner.classList.remove('success', 'error');
-        fingerprintScanner.classList.add('scanning');
-          showMessage('Please scan your fingerprint now...', 'scanning');
+        if (!deviceInitialized) {
+  showMessage('⚠ Scanner not ready. Please wait...', 'error');
+await initializeDeviceAndCheck();
+      return;
+     }
 
-            const response = await fetch('/FingerprintAuth/AuthenticateWithFingerprint', {
-        method: 'POST',
-        headers: {
- 'Content-Type': 'application/json'
-  }
- });
+        try {
+isScanning = true;
+     
+            // Remove previous states
+    fingerprintScanner.classList.remove('success', 'error', 'offline');
+         fingerprintScanner.classList.add('scanning');
+    fingerprintScanner.style.animation = 'none';
+      
+       // Show scanning message with animated dots
+  showMessage('🔍 Scanning fingerprint... Please hold steady.', 'scanning');
 
-     const result = await response.json();
+            // Call authentication endpoint
+  const response = await fetch('/FingerprintAuth/AuthenticateWithFingerprint', {
+    method: 'POST',
+     headers: {
+  'Content-Type': 'application/json'
+                }
+      });
 
-   if (result.success) {
-          // Success state
- fingerprintScanner.classList.remove('scanning');
-          fingerprintScanner.classList.add('success');
+            const result = await response.json();
 
-          // Show success message
-    showMessage(result.message || '✓ Scan successful! Redirecting to your account...', 'success');
+      if (result.success) {
+       // SUCCESS - Fingerprint matched in database
+    fingerprintScanner.classList.remove('scanning');
+    fingerprintScanner.classList.add('success');
 
-           // Log successful login
-           console.log('Successful fingerprint login:', result.userName);
-    console.log('Match score:', result.matchScore);
+          // Show success message with user info
+    const userName = result.userName || 'User';
+      const matchScore = result.matchScore || 'High';
+      showMessage(
+`✅ Login successful! Welcome ${userName}.<br>Match Score: ${matchScore}<br>Redirecting to your dashboard...`, 
+          'success'
+                );
 
-                // Store login flag for fingerprint registration prompt
-      sessionStorage.setItem('justLoggedIn', 'true');
+       // Log successful login
+              console.log('✅ Successful fingerprint authentication:', {
+          userName: result.userName,
+      matchScore: result.matchScore,
+   redirectUrl: result.redirectUrl
+       });
 
-     // Add smooth progress bar
-   const progressBar = document.createElement('div');
-        progressBar.className = 'redirect-progress';
-      progressBar.innerHTML = '<div class="progress-bar-inner"></div>';
+   // Store login flag for fingerprint registration prompt
+    sessionStorage.setItem('justLoggedIn', 'true');
+
+          // Add smooth progress bar
+      const progressBar = document.createElement('div');
+      progressBar.className = 'redirect-progress';
+  progressBar.innerHTML = '<div class="progress-bar-inner"></div>';
       scanStatusMessage.appendChild(progressBar);
 
-    // Wait for full animation before redirect (4 seconds total)
-       redirectTimeout = setTimeout(() => {
-      console.log('Redirecting to:', result.redirectUrl);
-        window.location.href = result.redirectUrl || '/Home/Index';
-      }, 4000);
+                // Wait for animation to complete before redirect
+     redirectTimeout = setTimeout(() => {
+        console.log('Redirecting to:', result.redirectUrl);
+      window.location.href = result.redirectUrl || '/Home/Index';
+      }, 3000);
+
      } else {
-  // Error state
-              fingerprintScanner.classList.remove('scanning');
+         // FAILURE - Fingerprint not recognized in database
+                fingerprintScanner.classList.remove('scanning');
        fingerprintScanner.classList.add('error');
 
-        // Show error message
-                const errorMessage = result.message || '✗ Fingerprint not recognized. Please try again.';
-      showMessage(errorMessage, 'error');
+  // Show detailed error message
+    const errorMessage = result.message || '❌ Fingerprint not recognized. This fingerprint is not registered in the system.';
+   showMessage(errorMessage, 'error');
 
-       // Reset to ready state after 4 seconds
- setTimeout(() => {
-   fingerprintScanner.classList.remove('error');
-  showMessage('Ready to scan. Click the circle to begin authentication.', 'info');
-     }, 4000);
-            }
-  } catch (error) {
+       console.error('❌ Authentication failed:', result.message);
+
+                // Reset to ready state after 4 seconds
+      setTimeout(() => {
+  fingerprintScanner.classList.remove('error');
+     fingerprintScanner.style.animation = 'pulse 2s infinite';
+           showMessage('Ready to scan. Click the circle to try again.', 'info');
+       }, 4000);
+   }
+
+        } catch (error) {
+   // CONNECTION ERROR
             console.error('Error during authentication:', error);
-   fingerprintScanner.classList.remove('scanning');
- fingerprintScanner.classList.add('error');
-   showMessage('✗ Connection error. Please try again.', 'error');
+            fingerprintScanner.classList.remove('scanning');
+    fingerprintScanner.classList.add('error');
+    showMessage('❌ Connection error. Please try again.', 'error');
 
             setTimeout(() => {
-       fingerprintScanner.classList.remove('error');
-      showMessage('Ready to scan. Click the circle to begin authentication.', 'info');
-       }, 4000);
-        } finally {
-         isScanning = false;
+        fingerprintScanner.classList.remove('error');
+                fingerprintScanner.style.animation = 'pulse 2s infinite';
+   showMessage('Ready to scan. Click the circle to try again.', 'info');
+ }, 4000);
+
+     } finally {
+            isScanning = false;
         }
     }
 
-    // Show status message with smooth animations
+    // Show status message with smooth animations (enhanced)
     function showMessage(message, type = 'info') {
         if (!scanStatusMessage) return;
 
         // Clear any existing redirect timeout when showing new message
-      if (type !== 'success' && redirectTimeout) {
-            clearTimeout(redirectTimeout);
-            redirectTimeout = null;
+   if (type !== 'success' && redirectTimeout) {
+    clearTimeout(redirectTimeout);
+    redirectTimeout = null;
         }
 
         // Remove any existing progress bar
-    const existingProgress = scanStatusMessage.querySelector('.redirect-progress');
-        if (existingProgress) {
-     existingProgress.remove();
-        }
+        const existingProgress = scanStatusMessage.querySelector('.redirect-progress');
+     if (existingProgress) {
+            existingProgress.remove();
+ }
 
-   // Set message content
-        scanStatusMessage.textContent = message;
-        scanStatusMessage.className = 'scan-status-message show';
+   // Set message content (support HTML for rich messages)
+ scanStatusMessage.innerHTML = message;
+     scanStatusMessage.className = 'scan-status-message show';
 
         // Apply appropriate styling
-     if (type === 'success') {
-     scanStatusMessage.classList.add('success');
+        if (type === 'success') {
+    scanStatusMessage.classList.add('success');
         } else if (type === 'error') {
-            scanStatusMessage.classList.add('error');
+       scanStatusMessage.classList.add('error');
         } else if (type === 'scanning') {
-   scanStatusMessage.classList.add('scanning');
-        } else {
+     scanStatusMessage.classList.add('scanning');
+      } else {
             scanStatusMessage.classList.add('info');
-        }
+     }
 
-        // Smooth fade-in
-     scanStatusMessage.style.opacity = '0';
- scanStatusMessage.style.display = 'block';
+        // Smooth fade-in with scale animation
+        scanStatusMessage.style.opacity = '0';
+        scanStatusMessage.style.transform = 'translateY(-10px)';
+        scanStatusMessage.style.display = 'block';
 
-      requestAnimationFrame(() => {
-            scanStatusMessage.style.opacity = '1';
+        requestAnimationFrame(() => {
+     scanStatusMessage.style.opacity = '1';
+            scanStatusMessage.style.transform = 'translateY(0)';
    });
-    }
+}
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', function () {
-        if (redirectTimeout) {
-         clearTimeout(redirectTimeout);
- }
+      if (redirectTimeout) {
+            clearTimeout(redirectTimeout);
+   }
     });
 });
 
+// Enhanced styles for smooth authentication experience
 const style = document.createElement('style');
 style.textContent = `
+    /* Progress bar for redirect */
     .redirect-progress {
         width: 100%;
-    height: 4px;
-   background: rgba(16, 185, 129, 0.2);
-  border-radius: 2px;
-  margin-top: 0.75rem;
+ height: 4px;
+        background: rgba(16, 185, 129, 0.2);
+        border-radius: 2px;
+      margin-top: 0.75rem;
         overflow: hidden;
     }
     
     .progress-bar-inner {
         width: 0%;
-        height: 100%;
-        background: #10b981;
- animation: progressAnimation 3.5s linear forwards;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+        animation: progressAnimation 2.8s ease-in-out forwards;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
     }
     
  @keyframes progressAnimation {
-        from {
-      width: 0%;
-        }
-    to {
-       width: 100%;
-        }
+        from { width: 0%; }
+        to { width: 100%; }
     }
 
     /* Enhanced message styling */
     .scan-status-message {
-     transition: opacity 0.3s ease, transform 0.3s ease;
-  padding: 1rem 1.5rem;
-        border-radius: 12px;
+        transition: all 0.3s ease;
+      padding: 1rem 1.5rem;
+    border-radius: 12px;
         font-weight: 500;
-        text-align: center;
-    font-size: 1rem;
+      text-align: center;
+  font-size: 1rem;
         line-height: 1.6;
-   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .scan-status-message.success {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-   color: #065f46;
-      border: 2px solid #10b981;
-      font-weight: 600;
- font-size: 1.1rem;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        border: 2px solid #10b981;
+     font-weight: 600;
+     font-size: 1.1rem;
+    animation: successPulse 0.6s ease-in-out;
     }
 
     .scan-status-message.error {
         background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #991b1b;
-        border: 2px solid #ef4444;
+        color: #991b1b;
+     border: 2px solid #ef4444;
         font-weight: 600;
-        animation: errorPulse 0.5s ease-in-out;
+        animation: errorShake 0.5s ease-in-out;
     }
 
-    .scan-status-message.info {
-background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    .scan-status-message.scanning {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         color: #1e40af;
         border: 2px solid #3b82f6;
+        animation: scanningPulse 1.5s ease-in-out infinite;
+  }
+
+    .scan-status-message.info {
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        color: #3730a3;
+        border: 2px solid #6366f1;
+  }
+
+    @keyframes successPulse {
+      0%, 100% { transform: scale(1); }
+   50% { transform: scale(1.05); }
     }
 
-    @keyframes errorPulse {
-        0%, 100% {
-            transform: scale(1);
- }
-        50% {
-            transform: scale(1.02);
-        }
+    @keyframes errorShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+  }
+
+    @keyframes scanningPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
     }
 
     /* Scanner circle enhancements */
     .scanner-circle {
-        position: relative;
+     position: relative;
+        transition: all 0.3s ease;
     }
 
+ /* Scanning state - rotating gradient */
     .scanner-circle.scanning::before {
         content: '';
-    position: absolute;
-   inset: -5px;
-        border-radius: 50%;
+        position: absolute;
+        inset: -5px;
+    border-radius: 50%;
         background: conic-gradient(from 0deg, transparent, #3b82f6, transparent);
-      animation: rotate 1.5s linear infinite;
+    animation: rotate 1.5s linear infinite;
         z-index: -1;
     }
 
-    @keyframes rotate {
-        from {
- transform: rotate(0deg);
-      }
-        to {
-            transform: rotate(360deg);
+    /* Success state - green glow */
+    .scanner-circle.success {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+     border-color: #10b981;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+
+    /* Error state - red glow */
+    .scanner-circle.error {
+background: linear-gradient(135deg, #fee2e2, #fecaca);
+        border-color: #ef4444;
+   box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    }
+
+    /* Offline state - gray */
+.scanner-circle.offline {
+        opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Ready pulse animation */
+    @keyframes pulse {
+     0%, 100% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
         }
+        50% {
+      box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+        }
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 `;
 document.head.appendChild(style);
