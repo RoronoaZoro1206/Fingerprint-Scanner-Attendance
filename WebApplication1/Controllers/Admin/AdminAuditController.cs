@@ -122,10 +122,10 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     };
                 });
 
-   // NEW: Combine both log types and sort by time
+   // NEW: Combine both log types and sort by time (descending - newest first)
                 var combinedData = auditData.Concat(biometricData)
- .OrderByDescending(a => a.audActionTime)
-                    .ToList();
+                    .OrderByDescending(a => DateTime.Parse(a.audActionTime))
+                   .ToList();
 
                 _logger.LogInformation($"Returning {combinedData.Count} combined audit records ({auditData.Count} admin actions + {biometricData.Count()} biometric logins)");
                 return Json(new { data = combinedData });
