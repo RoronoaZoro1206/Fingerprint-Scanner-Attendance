@@ -46,66 +46,66 @@ namespace Fingerprint_Attendance_System.Controllers.Auth
     EnsureDeviceReady();
 
        // Capture fingerprint template from scanner
-  var capturedTemplate = _fingerprintService.CaptureTemplate();
-      
-       if (capturedTemplate == null)
-      {
-       _logger.LogWarning("Failed to capture fingerprint template - no finger detected");
+        var capturedTemplate = _fingerprintService.CaptureTemplate();
         
-             // Log failed scan attempt
-    await _scanLogRepo.AddAsync(new ScanLog
-         {
-           UserId = null,
-     ScanTime = DateTime.Now,
-         ScanSuccess = false,
-        ScanLogMessage = "Failed to capture fingerprint - no finger detected",
-         ScanCreatedAt = DateTime.Now
-   });
-       
-  // Error feedback: red light + beep
-             _fingerprintService.SetLedLight("red", true);
-         _fingerprintService.Beep(true);
-              await Task.Delay(500);
+        if (capturedTemplate == null)
+        {
+            _logger.LogWarning("Failed to capture fingerprint template - no finger detected");
+            
+       // Log failed scan attempt
+         await _scanLogRepo.AddAsync(new ScanLog
+            {
+    UserId = null,
+       ScanTime = DateTime.Now,
+       ScanSuccess = false,
+     ScanLogMessage = "Failed to capture fingerprint - no finger detected",
+        ScanCreatedAt = DateTime.Now
+            });
+            
+      // Error feedback: red light + beep
+            _fingerprintService.SetLedLight("red", true);
+            _fingerprintService.Beep(true);
+            await Task.Delay(500);
+    _fingerprintService.SetLedLight("red", false);
+            _fingerprintService.Beep(false);
+     
+ return Json(new { 
+     success = false, 
+                message = "No fingerprint detected. Please place your finger firmly on the scanner." 
+      });
+        }
+
+        _logger.LogInformation("Fingerprint captured successfully, matching against database templates...");
+
+    // Get all registered fingerprint templates from database
+        var allTemplates = await _fingerprintRepo.GetAllAsync();
+        
+        if (!allTemplates.Any())
+        {
+            _logger.LogWarning("No registered fingerprints found in database");
+          
+            // Log failed scan attempt
+            await _scanLogRepo.AddAsync(new ScanLog
+     {
+      UserId = null,
+          ScanTime = DateTime.Now,
+        ScanSuccess = false,
+  ScanLogMessage = "No registered fingerprints in system",
+ScanCreatedAt = DateTime.Now
+            });
+            
+ // Error feedback: red light + beep
+_fingerprintService.SetLedLight("red", true);
+            _fingerprintService.Beep(true);
+            await Task.Delay(500);
  _fingerprintService.SetLedLight("red", false);
-     _fingerprintService.Beep(false);
-           
-   return Json(new { 
-    success = false, 
-    message = "? No fingerprint detected. Please place your finger firmly on the scanner." 
-          });
-                }
-
-   _logger.LogInformation("Fingerprint captured successfully, matching against database templates...");
-
-     // Get all registered fingerprint templates from database
-   var allTemplates = await _fingerprintRepo.GetAllAsync();
-                
-      if (!allTemplates.Any())
-       {
-     _logger.LogWarning("No registered fingerprints found in database");
-         
-     // Log failed scan attempt
-     await _scanLogRepo.AddAsync(new ScanLog
-       {
-   UserId = null,
-      ScanTime = DateTime.Now,
-     ScanSuccess = false,
-            ScanLogMessage = "No registered fingerprints in system",
-   ScanCreatedAt = DateTime.Now
-         });
-      
-    // Error feedback: red light + beep
-  _fingerprintService.SetLedLight("red", true);
-          _fingerprintService.Beep(true);
-        await Task.Delay(500);
-      _fingerprintService.SetLedLight("red", false);
-      _fingerprintService.Beep(false);
-         
-   return Json(new { 
-          success = false, 
-    message = "? No registered fingerprints found in the system. Please register first." 
-     });
-                }
+       _fingerprintService.Beep(false);
+          
+     return Json(new { 
+       success = false, 
+         message = "No registered fingerprints found in the system. Please register first." 
+       });
+        }
 
     _logger.LogInformation($"Comparing captured fingerprint against {allTemplates.Count()} registered templates...");
 
@@ -165,7 +165,7 @@ ScanTime = DateTime.Now,
  
   return Json(new { 
      success = false, 
-    message = "? User account not found. Please contact administration." 
+    message = "User account not found. Please contact administration." 
    });
    }
 
@@ -193,7 +193,7 @@ ScanTime = DateTime.Now,
      
                    return Json(new { 
  success = false, 
-     message = "? Your account has been deactivated. Please contact administration." 
+     message = "Your account has been deactivated. Please contact administration." 
      });
          }
 
@@ -263,7 +263,7 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
 
       return Json(new { 
  success = true, 
-           message = $"? Authentication successful! Welcome back.", 
+           message = "Authentication successful! Welcome back.", 
         redirectUrl = redirectUrl,
      matchScore = bestScore,
               userName = $"{user.UserFirstName} {user.UserLastName}"
@@ -292,7 +292,7 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
 
           return Json(new { 
           success = false, 
-   message = "? Fingerprint not recognized. This fingerprint is not registered in the system.<br>Please try again or contact administration." 
+   message = "Fingerprint not recognized. This fingerprint is not registered in the system.<br>Please try again or contact administration." 
          });
      }
          }
@@ -319,7 +319,7 @@ _fingerprintService.Beep(true);
               
                 return Json(new { 
          success = false, 
-       message = "? Authentication error. Please try again or contact support." 
+       message = "Authentication error. Please try again or contact support." 
    });
   }
         }

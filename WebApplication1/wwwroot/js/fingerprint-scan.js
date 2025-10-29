@@ -165,21 +165,27 @@ fingerprintScanner.classList.add('success');
        fingerprintScanner.style.animation = 'pulse 2s infinite';
   } else {
       // Fingerprint not recognized - show error
-       fingerprintScanner.classList.remove('scanning');
-       fingerprintScanner.classList.add('error');
+   fingerprintScanner.classList.remove('scanning');
+     fingerprintScanner.classList.add('error');
 
- const errorMessage = result.message || '<i class="bi bi-x-circle-fill me-2"></i>Fingerprint not recognized. This fingerprint is not registered in the system.';
-     showMessage(errorMessage, 'error');
+ // Define the icon HTML separately for consistency
+const errorIcon = '<i class="bi bi-fingerprint me-2"></i>';
+     
+     // Get the message from the server or use a default
+     const messageText = result.message || 'Fingerprint not recognized. This fingerprint is not registered in the system.';
+     
+     // Combine the icon and text for the final message
+     showMessage(errorIcon + messageText, 'error');
 
-          console.error('❌ Authentication failed:', result.message);
+ console.error('Authentication failed:', messageText);
 
-           // Reset to ready state after 4 seconds
-   setTimeout(() => {
-     fingerprintScanner.classList.remove('error');
+   // Reset to ready state after 4 seconds
+ setTimeout(() => {
+  fingerprintScanner.classList.remove('error');
   fingerprintScanner.style.animation = 'pulse 2s infinite';
-     showMessage('<i class="bi bi-hand-index me-2"></i>Ready to scan. Place your finger on the scanner.', 'info');
+ showMessage('<i class="bi bi-hand-index me-2"></i>Ready to scan. Place your finger on the scanner.', 'info');
   }, 4000);
-      }
+ }
          }
 
         } catch (error) {

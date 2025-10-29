@@ -308,20 +308,71 @@ _ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", fal
     }
 
   // Convert base64 to byte array
-     byte[] templateData = Convert.FromBase64String(dto.TemplateBase64);
+     byte[] newTemplateData = Convert.FromBase64String(dto.TemplateBase64);
+
+  // DUPLICATE CHECK: Compare against all other users' fingerprints
+   _logger.LogInformation($"Checking for duplicate fingerprints for user {user.UserEmail}...");
+   var allTemplates = await _fingerprintRepo.GetAllAsync();
+        
+     // Match threshold for duplicate detection (lower than login threshold for security)
+ const int duplicateMatchThreshold = 40;
+    
+foreach (var existingTemplate in allTemplates)
+       {
+     // Skip the current user's own fingerprint
+  if (existingTemplate.UserId == userId.Value)
+      {
+    continue;
+   }
+
+  // Compare new template with this existing template
+     int matchScore = _fingerprintService.GetMatchScore(newTemplateData, existingTemplate.FtempData);
+     
+    _logger.LogInformation($"Comparing with user {existingTemplate.UserId}: Match score = {matchScore}");
+        
+    if (matchScore >= duplicateMatchThreshold)
+   {
+      // Found a duplicate! Return error
+      var otherUser = await _userRepo.GetByIdAsync(existingTemplate.UserId);
+    
+       _logger.LogWarning(
+      $"Duplicate fingerprint detected! User {user.UserEmail} attempted to register " +
+      $"a fingerprint matching user {otherUser?.UserEmail} (Match score: {matchScore})"
+     );
+
+ // Error feedback: red light + beep
+      _fingerprintService.SetLedLight("red", true);
+      _fingerprintService.Beep(true);
+   _ = Task.Delay(500).ContinueWith(_ =>
+    {
+        _fingerprintService.SetLedLight("red", false);
+ _fingerprintService.Beep(false);
+    });
+
+   return Json(new 
+  { 
+    success = false, 
+      message = "This fingerprint is already registered to another user. Please use a different finger.",
+    isDuplicate = true,
+      matchScore = matchScore
+  });
+        }
+      }
+
+_logger.LogInformation($"No duplicate fingerprints found. Proceeding with update for user {user.UserEmail}");
 
 // Update existing template
-   var existingTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
+var existingUserTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
     
-     if (existingTemplate == null)
+     if (existingUserTemplate == null)
    {
-       return Json(new { success = false, message = "No existing fingerprint found" });
+return Json(new { success = false, message = "No existing fingerprint found" });
        }
 
-  existingTemplate.FtempData = templateData;
-    existingTemplate.FtempName = dto.TemplateName;
+  existingUserTemplate.FtempData = newTemplateData;
+ existingUserTemplate.FtempName = dto.TemplateName;
   
-    var updated = await _fingerprintRepo.UpdateAsync(existingTemplate);
+  var updated = await _fingerprintRepo.UpdateAsync(existingUserTemplate);
       
        if (updated)
    {
@@ -330,7 +381,7 @@ _ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", fal
   _fingerprintService.Beep(true);
   _ = Task.Delay(300).ContinueWith(_ =>
   {
-           _fingerprintService.SetLedLight("green", false);
+  _fingerprintService.SetLedLight("green", false);
   _fingerprintService.Beep(false);
     });
      

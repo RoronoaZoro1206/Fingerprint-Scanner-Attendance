@@ -266,7 +266,7 @@ let capturedImageBase64 = null;
      const passwordError = document.getElementById('passwordError');
 
         btnConfirmUpdate.addEventListener('click', async function () {
-    const password = updatePassword.value.trim();
+ const password = updatePassword.value.trim();
    
             if (!password) {
          updatePassword.classList.add('is-invalid');
@@ -283,13 +283,13 @@ let capturedImageBase64 = null;
 
    const response = await fetch(url, {
              method: 'POST',
-       headers: {
-      'Content-Type': 'application/json'
-      },
+headers: {
+   'Content-Type': 'application/json'
+  },
         body: JSON.stringify({
-         templateBase64: capturedTemplateBase64,
+       templateBase64: capturedTemplateBase64,
         templateName: 'Primary Fingerprint',
-     password: password
+  password: password
     })
     });
 
@@ -298,17 +298,31 @@ let capturedImageBase64 = null;
 
       if (result.success) {
      showToast(result.message || 'Fingerprint updated successfully!', 'success');
-        modal.hide();
-             fingerprintScanner.classList.remove('captured');
-            fingerprintScanner.classList.add('registered');
+      modal.hide();
+      fingerprintScanner.classList.remove('captured');
+         fingerprintScanner.classList.add('registered');
    capturedTemplateBase64 = null;
     capturedImageBase64 = null;
     checkRegistrationStatus();
 
    // Redirect after 2 seconds
-        setTimeout(() => {
-   window.location.href = redirectUrl;
+  setTimeout(() => {
+window.location.href = redirectUrl;
       }, 2000);
+  } else if (result.isDuplicate) {
+        // Handle duplicate fingerprint error
+        modal.hide();
+     showToast(result.message || 'This fingerprint is already registered to another user. Please use a different finger.', 'error');
+        
+        // Clear captured fingerprint to force re-scan
+        capturedTemplateBase64 = null;
+  capturedImageBase64 = null;
+        fingerprintScanner.classList.remove('captured');
+        fingerprintScanner.innerHTML = '<div class="scanner-instruction">Place finger here</div>';
+        btnRegister.disabled = true;
+   
+        // Log duplicate attempt
+    console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
   } else {
    updatePassword.classList.add('is-invalid');
      passwordError.textContent = result.message || 'Failed to update fingerprint';
@@ -316,7 +330,7 @@ let capturedImageBase64 = null;
     } catch (error) {
     console.error('Error updating fingerprint:', error);
         showToast('Error: ' + error.message, 'error');
-       } finally {
+    } finally {
  btnConfirmUpdate.disabled = false;
    btnConfirmUpdate.innerHTML = '<i data-lucide="shield-check" class="icon-sm"></i> Confirm & Update';
     if (typeof lucide !== 'undefined') {
