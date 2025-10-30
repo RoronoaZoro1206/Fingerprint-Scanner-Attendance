@@ -42,53 +42,56 @@ let capturedImageBase64 = null;
 
     // Scan button click
     if (btnScan) {
-  btnScan.addEventListener('click', async function () {
+        btnScan.addEventListener('click', async function () {
             try {
-    console.log('Scan button clicked');
-  btnScan.disabled = true;
-  btnScan.textContent = 'Scanning...';
-    fingerprintScanner.classList.add('scanning');
+           console.log('Scan button clicked');
+      btnScan.disabled = true;
+      btnScan.textContent = 'Scanning...';
+  fingerprintScanner.classList.add('scanning');
 
-  const url = `${baseUrl}/CaptureFingerprint`;
-    console.log('Fetching:', url);
+                const url = `${baseUrl}/CaptureFingerprint`;
+        console.log('Fetching:', url);
 
-        const response = await fetch(url, {
-        method: 'POST',
-     headers: {
-            'Content-Type': 'application/json'
-     }
-  });
+     const response = await fetch(url, {
+           method: 'POST',
+               headers: {
+        'Content-Type': 'application/json'
+   }
+         });
 
- console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers.get('content-type'));
+     console.log('Response status:', response.status);
+     console.log('Response headers:', response.headers.get('content-type'));
 
-         const result = await response.json();
-    console.log('Response data:', result);
+                const result = await response.json();
+     console.log('Response data:', result);
 
         if (result.success) {
-        capturedTemplateBase64 = result.templateBase64;
-     capturedImageBase64 = result.imageBase64;
-      
-      // Display the fingerprint image in the circle
-            displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
-       
-          showToast('Fingerprint captured successfully!', 'success');
- fingerprintScanner.classList.add('captured');
-        btnRegister.disabled = false;
-        } else {
-         showToast(result.message || 'Failed to capture fingerprint', 'error');
- fingerprintScanner.classList.add('error');
-   setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
-           }
-       } catch (error) {
-     console.error('Error capturing fingerprint:', error);
-   showToast('Error: ' + error.message, 'error');
-   } finally {
-   btnScan.disabled = false;
-   btnScan.textContent = 'Scan Fingerprint';
-      fingerprintScanner.classList.remove('scanning');
+  capturedTemplateBase64 = result.templateBase64;
+        capturedImageBase64 = result.imageBase64;
+     
+   // Display the fingerprint image in the circle
+  displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
+    
+       // KEEP TOASTIFY: Simple notification
+         showToast('Fingerprint captured successfully!', 'success');
+        fingerprintScanner.classList.add('captured');
+              btnRegister.disabled = false;
+  } else {
+ // KEEP TOASTIFY: Simple notification
+       showToast(result.message || 'Failed to capture fingerprint', 'error');
+     fingerprintScanner.classList.add('error');
+            setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+}
+          } catch (error) {
+    console.error('Error capturing fingerprint:', error);
+     // KEEP TOASTIFY: Simple notification
+         showToast('Error: ' + error.message, 'error');
+            } finally {
+  btnScan.disabled = false;
+        btnScan.textContent = 'Scan Fingerprint';
+   fingerprintScanner.classList.remove('scanning');
        }
-   });
+        });
     }
 
     // Display fingerprint image function
@@ -117,71 +120,74 @@ let capturedImageBase64 = null;
 
     // Register/Update button click
     if (btnRegister) {
-      btnRegister.addEventListener('click', async function () {
-   if (!capturedTemplateBase64) {
-         showToast('Please scan your fingerprint first', 'warning');
+    btnRegister.addEventListener('click', async function () {
+            if (!capturedTemplateBase64) {
+            // KEEP TOASTIFY: Simple warning
+       showToast('Please scan your fingerprint first', 'warning');
+     return;
+     }
+
+      // If already registered, show password confirmation immediately
+            if (isRegistered) {
+        showPasswordConfirmationModal();
   return;
-   }
+     }
 
-       // If already registered, show password confirmation immediately
-  if (isRegistered) {
-     showPasswordConfirmationModal();
-   return;
-   }
+  // Otherwise, attempt to register
+          try {
+        console.log('Register button clicked');
+       btnRegister.disabled = true;
+   btnRegister.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Registering...';
 
-    // Otherwise, attempt to register
-   try {
-    console.log('Register button clicked');
-           btnRegister.disabled = true;
-    btnRegister.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Registering...';
+     const url = `${baseUrl}/RegisterFingerprint`;
+       console.log('Fetching:', url);
 
-    const url = `${baseUrl}/RegisterFingerprint`;
-   console.log('Fetching:', url);
-
-      const response = await fetch(url, {
-  method: 'POST',
-   headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-              templateBase64: capturedTemplateBase64,
+                const response = await fetch(url, {
+ method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+         templateBase64: capturedTemplateBase64,
      templateName: 'Primary Fingerprint'
-     })
-          });
+   })
+     });
 
-          console.log('Response status:', response.status);
-  const result = await response.json();
-      console.log('Response data:', result);
+       console.log('Response status:', response.status);
+          const result = await response.json();
+       console.log('Response data:', result);
 
-       if (result.success) {
-       showToast(result.message || 'Fingerprint registered successfully!', 'success');
-  fingerprintScanner.classList.remove('captured');
-    fingerprintScanner.classList.add('registered');
-      capturedTemplateBase64 = null;
-       capturedImageBase64 = null;
-         checkRegistrationStatus();
-           
-     // Redirect after 2 seconds
-       setTimeout(() => {
-       window.location.href = redirectUrl;
-          }, 2000);
-        } else if (result.requirePasswordConfirmation) {
-     // User has existing fingerprint, need password confirmation
-       showPasswordConfirmationModal();
- } else {
-       showToast(result.message || 'Failed to register fingerprint', 'error');
-      }
-            } catch (error) {
-         console.error('Error registering fingerprint:', error);
-    showToast('Error: ' + error.message, 'error');
-} finally {
-        btnRegister.disabled = false;
-     updateRegisterButtonText();
+     if (result.success) {
+             // REPLACE WITH SWEETALERT2: Final success message
+           SwalAlert.success('Good job!', result.message || 'Fingerprint registered successfully!').then(() => {
+      fingerprintScanner.classList.remove('captured');
+          fingerprintScanner.classList.add('registered');
+                capturedTemplateBase64 = null;
+    capturedImageBase64 = null;
+                checkRegistrationStatus();
+                 
+  // Redirect after alert closes
+         window.location.href = redirectUrl;
+       });
+    } else if (result.requirePasswordConfirmation) {
+       // User has existing fingerprint, need password confirmation
+   showPasswordConfirmationModal();
+      } else {
+// REPLACE WITH SWEETALERT2: Final error message
+         SwalAlert.error('Oops...', result.message || 'Failed to register fingerprint');
+          }
+  } catch (error) {
+   console.error('Error registering fingerprint:', error);
+  // REPLACE WITH SWEETALERT2: Final error message
+          SwalAlert.error('Oops...', 'Error: ' + error.message);
+            } finally {
+                btnRegister.disabled = false;
+           updateRegisterButtonText();
         if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-  }
-            }
-        });
+lucide.createIcons();
+        }
+    }
+    });
     }
 
     // Update register button text based on registration status
@@ -200,172 +206,174 @@ let capturedImageBase64 = null;
 
     // Show password confirmation modal for updating fingerprint
     function showPasswordConfirmationModal() {
-     const modalHTML = `
- <div class="modal fade" id="passwordConfirmModal" tabindex="-1" aria-hidden="true">
-       <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-             <div class="modal-header border-0 pb-0">
-<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-    </div>
-     <div class="modal-body text-center pt-0">
-   <div class="mb-3">
-           <div class="delete-icon-wrapper">
-    <i data-lucide="shield-check" class="delete-icon" style="color: #3b82f6;"></i>
-            </div>
-   </div>
-         <h5 class="modal-title mb-2">Update Fingerprint</h5>
-       <p class="text-muted mb-3">You already have a registered fingerprint.<br>Please confirm your password to update it.</p>
+      const modalHTML = `
+        <div class="modal fade" id="passwordConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+   <div class="modal-content">
+    <div class="modal-header border-0 pb-0">
+   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+     </div>
+    <div class="modal-body text-center pt-0">
+ <div class="mb-3">
+               <div class="delete-icon-wrapper">
+          <i data-lucide="shield-check" class="delete-icon" style="color: #3b82f6;"></i>
+     </div>
+ </div>
+       <h5 class="modal-title mb-2">Update Fingerprint</h5>
+   <p class="text-muted mb-3">You already have a registered fingerprint.<br>Please confirm your password to update it.</p>
          <div class="text-start">
-         <label for="updatePassword" class="form-label">Password</label>
-   <div class="password-input-container">
-  <input type="password" class="form-control" id="updatePassword" placeholder="Enter your password" required>
-  <button type="button" class="password-toggle" id="toggleUpdatePassword" aria-label="Toggle password visibility">
-   <i data-lucide="eye"></i>
-  </button>
-      </div>
-          <div class="invalid-feedback" id="passwordError"></div>
-      </div>
-   </div>
-          <div class="modal-footer border-0 justify-content-center gap-2">
-    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-         <button type="button" class="btn btn-primary px-4" id="btnConfirmUpdate">
-<i data-lucide="shield-check" class="icon-sm"></i>
-     Confirm & Update
- </button>
-   </div>
-</div>
+    <label for="updatePassword" class="form-label">Password</label>
+         <div class="password-input-container">
+    <input type="password" class="form-control" id="updatePassword" placeholder="Enter your password" required>
+      <button type="button" class="password-toggle" id="toggleUpdatePassword" aria-label="Toggle password visibility">
+         <i data-lucide="eye"></i>
+            </button>
        </div>
-   </div>
+   <div class="invalid-feedback" id="passwordError"></div>
+ </div>
+    </div>
+           <div class="modal-footer border-0 justify-content-center gap-2">
+            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+    <button type="button" class="btn btn-primary px-4" id="btnConfirmUpdate">
+ <i data-lucide="shield-check" class="icon-sm"></i>
+      Confirm & Update
+        </button>
+        </div>
+ </div>
+            </div>
+        </div>
         `;
 
-        // Remove existing modal if present
+  // Remove existing modal if present
         const existingModal = document.getElementById('passwordConfirmModal');
- if (existingModal) {
-     existingModal.remove();
+if (existingModal) {
+            existingModal.remove();
         }
 
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-        // Initialize Lucide icons
-        if (typeof lucide !== 'undefined') {
-  lucide.createIcons();
-    }
+     // Initialize Lucide icons
+  if (typeof lucide !== 'undefined') {
+     lucide.createIcons();
+        }
 
-   // Show modal
+        // Show modal
         const modalElement = document.getElementById('passwordConfirmModal');
         const modal = new bootstrap.Modal(modalElement);
-   modal.show();
+        modal.show();
 
-    // Initialize password toggle functionality
+        // Initialize password toggle functionality
         initializePasswordToggle();
 
-    // Handle confirm button
-        const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
-      const updatePassword = document.getElementById('updatePassword');
-     const passwordError = document.getElementById('passwordError');
+      // Handle confirm button
+ const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
+        const updatePassword = document.getElementById('updatePassword');
+        const passwordError = document.getElementById('passwordError');
 
         btnConfirmUpdate.addEventListener('click', async function () {
- const password = updatePassword.value.trim();
-   
+       const password = updatePassword.value.trim();
+      
             if (!password) {
-         updatePassword.classList.add('is-invalid');
-     passwordError.textContent = 'Password is required';
-      return;
-            }
+  updatePassword.classList.add('is-invalid');
+  passwordError.textContent = 'Password is required';
+                return;
+    }
 
- try {
-    btnConfirmUpdate.disabled = true;
-    btnConfirmUpdate.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Updating...';
+            try {
+       btnConfirmUpdate.disabled = true;
+   btnConfirmUpdate.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Updating...';
 
-   const url = `${baseUrl}/UpdateFingerprint`;
-  console.log('Updating fingerprint:', url);
+                const url = `${baseUrl}/UpdateFingerprint`;
+    console.log('Updating fingerprint:', url);
 
-   const response = await fetch(url, {
-             method: 'POST',
-headers: {
-   'Content-Type': 'application/json'
-  },
-        body: JSON.stringify({
-       templateBase64: capturedTemplateBase64,
-        templateName: 'Primary Fingerprint',
-  password: password
-    })
-    });
+           const response = await fetch(url, {
+        method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+              },
+         body: JSON.stringify({
+  templateBase64: capturedTemplateBase64,
+     templateName: 'Primary Fingerprint',
+password: password
+      })
+  });
 
-        const result = await response.json();
-  console.log('Update response:', result);
+      const result = await response.json();
+   console.log('Update response:', result);
 
-      if (result.success) {
-     showToast(result.message || 'Fingerprint updated successfully!', 'success');
-      modal.hide();
-      fingerprintScanner.classList.remove('captured');
-         fingerprintScanner.classList.add('registered');
-   capturedTemplateBase64 = null;
-    capturedImageBase64 = null;
-    checkRegistrationStatus();
+   if (result.success) {
+           // REPLACE WITH SWEETALERT2: Final success message
+             modal.hide();
+    SwalAlert.success('Success!', result.message || 'Fingerprint updated successfully!').then(() => {
+            fingerprintScanner.classList.remove('captured');
+ fingerprintScanner.classList.add('registered');
+capturedTemplateBase64 = null;
+             capturedImageBase64 = null;
+               checkRegistrationStatus();
 
-   // Redirect after 2 seconds
-  setTimeout(() => {
-window.location.href = redirectUrl;
-      }, 2000);
-  } else if (result.isDuplicate) {
+        // Redirect after alert closes
+     window.location.href = redirectUrl;
+        });
+         } else if (result.isDuplicate) {
         // Handle duplicate fingerprint error
-        modal.hide();
-     showToast(result.message || 'This fingerprint is already registered to another user. Please use a different finger.', 'error');
-        
-        // Clear captured fingerprint to force re-scan
+         modal.hide();
+                    // REPLACE WITH SWEETALERT2: Final error message
+     SwalAlert.error('Duplicate Fingerprint!', result.message || 'This fingerprint is already registered to another user. Please use a different finger.');
+            
+      // Clear captured fingerprint to force re-scan
         capturedTemplateBase64 = null;
-  capturedImageBase64 = null;
+        capturedImageBase64 = null;
         fingerprintScanner.classList.remove('captured');
         fingerprintScanner.innerHTML = '<div class="scanner-instruction">Place finger here</div>';
-        btnRegister.disabled = true;
-   
-        // Log duplicate attempt
-    console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
-  } else {
-   updatePassword.classList.add('is-invalid');
-     passwordError.textContent = result.message || 'Failed to update fingerprint';
-      }
-    } catch (error) {
-    console.error('Error updating fingerprint:', error);
-        showToast('Error: ' + error.message, 'error');
-    } finally {
- btnConfirmUpdate.disabled = false;
-   btnConfirmUpdate.innerHTML = '<i data-lucide="shield-check" class="icon-sm"></i> Confirm & Update';
-    if (typeof lucide !== 'undefined') {
-   lucide.createIcons();
- }
-    }
-    });
+            btnRegister.disabled = true;
+         
+          // Log duplicate attempt
+      console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
+      } else {
+ updatePassword.classList.add('is-invalid');
+   passwordError.textContent = result.message || 'Failed to update fingerprint';
+          }
+            } catch (error) {
+     console.error('Error updating fingerprint:', error);
+         // KEEP TOASTIFY: Simple error notification
+                showToast('Error: ' + error.message, 'error');
+            } finally {
+         btnConfirmUpdate.disabled = false;
+       btnConfirmUpdate.innerHTML = '<i data-lucide="shield-check" class="icon-sm"></i> Confirm & Update';
+          if (typeof lucide !== 'undefined') {
+           lucide.createIcons();
+     }
+          }
+        });
 
         // Clear error on input
-  updatePassword.addEventListener('input', function () {
-     updatePassword.classList.remove('is-invalid');
+ updatePassword.addEventListener('input', function () {
+            updatePassword.classList.remove('is-invalid');
         });
 
-    // Clean up modal on hide
-    modalElement.addEventListener('hidden.bs.modal', function () {
-     modalElement.remove();
+   // Clean up modal on hide
+        modalElement.addEventListener('hidden.bs.modal', function () {
+  modalElement.remove();
         });
     }
 
-    // Cancel button click
+    // Cancel button click - REPLACE WITH SWEETALERT2 CONFIRMATION
     if (btnCancel) {
-        btnCancel.addEventListener('click', function () {
-     if (typeof bootstrap !== 'undefined') {
-       const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
-    modal.show();
-  }
-        });
+   btnCancel.addEventListener('click', function () {
+      SwalAlert.confirm(
+   'Cancel Registration?',
+       () => {
+      window.location.href = redirectUrl;
+     },
+                'Yes, cancel',
+         'Stay'
+      );
+    });
     }
 
-    // Confirm cancel
-    if (btnConfirmCancel) {
-        btnConfirmCancel.addEventListener('click', function () {
-window.location.href = redirectUrl;
-        });
-    }
+    // Confirm cancel - NO LONGER NEEDED (handled by SweetAlert2)
+    // if (btnConfirmCancel) { ... }
 
     // Check device status
   async function checkDeviceStatus() {
@@ -483,25 +491,25 @@ const response = await fetch(url);
         }
     }
 
-    // Toast notification helper
+    // Toast notification helper - KEEP FOR SIMPLE NOTIFICATIONS
     function showToast(message, type = 'info') {
         console.log(`Toast: [${type}] ${message}`);
-    
+        
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast-notification toast-${type}`;
-toast.textContent = message;
-    
-     // Add to body
-        document.body.appendChild(toast);
-      
-  // Show with animation
- setTimeout(() => toast.classList.add('show'), 10);
+        toast.textContent = message;
         
- // Remove after 3 seconds
+        // Add to body
+   document.body.appendChild(toast);
+        
+        // Show with animation
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+    // Remove after 3 seconds
         setTimeout(() => {
-   toast.classList.remove('show');
- setTimeout(() => toast.remove(), 300);
+            toast.classList.remove('show');
+       setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
 });
@@ -550,38 +558,38 @@ document.head.appendChild(style);
 // Password toggle functionality for modal
 function initializePasswordToggle() {
     const toggleButton = document.getElementById('toggleUpdatePassword');
-  const passwordInput = document.getElementById('updatePassword');
+    const passwordInput = document.getElementById('updatePassword');
     
     if (!toggleButton || !passwordInput) return;
 
-  // Track current state
+    // Track current state
     let isVisible = false;
 
     // Function to update icon
     function updateIcon() {
         const iconName = isVisible ? 'eye-off' : 'eye';
-  toggleButton.innerHTML = `<i data-lucide="${iconName}"></i>`;
-  
+   toggleButton.innerHTML = `<i data-lucide="${iconName}"></i>`;
+    
       // Reinitialize Lucide icons
         if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-  }
+       lucide.createIcons();
+ }
     }
 
     // Initialize icon
     updateIcon();
 
-    // Toggle password visibility
+  // Toggle password visibility
     toggleButton.addEventListener('click', function(e) {
-        e.preventDefault();
-      e.stopPropagation();
-        
-      // Toggle state
-   isVisible = !isVisible;
-        
- // Update input type
-passwordInput.setAttribute('type', isVisible ? 'text' : 'password');
-  
+   e.preventDefault();
+    e.stopPropagation();
+
+        // Toggle state
+        isVisible = !isVisible;
+    
+        // Update input type
+    passwordInput.setAttribute('type', isVisible ? 'text' : 'password');
+
         // Update icon
         updateIcon();
     });
