@@ -43,54 +43,70 @@ let capturedImageBase64 = null;
     // Scan button click
     if (btnScan) {
         btnScan.addEventListener('click', async function () {
-            try {
-           console.log('Scan button clicked');
-      btnScan.disabled = true;
-      btnScan.textContent = 'Scanning...';
-  fingerprintScanner.classList.add('scanning');
+ try {
+   console.log('Scan button clicked');
+            btnScan.disabled = true;
+         btnScan.textContent = 'Scanning...';
+                fingerprintScanner.classList.add('scanning');
 
-                const url = `${baseUrl}/CaptureFingerprint`;
-        console.log('Fetching:', url);
+           // ? Show "Scanning in progress" toast
+showToast('Scanning in progress, please wait...', 'info');
 
-     const response = await fetch(url, {
-           method: 'POST',
-               headers: {
-        'Content-Type': 'application/json'
-   }
-         });
+           const url = `${baseUrl}/CaptureFingerprint`;
+         console.log('Fetching:', url);
 
-     console.log('Response status:', response.status);
-     console.log('Response headers:', response.headers.get('content-type'));
+         // ? Track start time for minimum scanning duration
+  const scanStartTime = Date.now();
+                const MIN_SCAN_DURATION = 2000; // 2 seconds minimum (matches login page feel)
 
-                const result = await response.json();
-     console.log('Response data:', result);
+         const response = await fetch(url, {
+          method: 'POST',
+ headers: {
+     'Content-Type': 'application/json'
+  }
+           });
 
-        if (result.success) {
-  capturedTemplateBase64 = result.templateBase64;
-        capturedImageBase64 = result.imageBase64;
-     
-   // Display the fingerprint image in the circle
-  displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
-    
-       // KEEP TOASTIFY: Simple notification
-         showToast('Fingerprint captured successfully!', 'success');
-        fingerprintScanner.classList.add('captured');
-              btnRegister.disabled = false;
-  } else {
- // KEEP TOASTIFY: Simple notification
-       showToast(result.message || 'Failed to capture fingerprint', 'error');
-     fingerprintScanner.classList.add('error');
-            setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
-}
-          } catch (error) {
-    console.error('Error capturing fingerprint:', error);
-     // KEEP TOASTIFY: Simple notification
-         showToast('Error: ' + error.message, 'error');
+            console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers.get('content-type'));
+
+     const result = await response.json();
+      console.log('Response data:', result);
+
+    // ? Calculate elapsed time and wait if needed
+                const scanElapsedTime = Date.now() - scanStartTime;
+       const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanElapsedTime);
+          
+          if (remainingTime > 0) {
+     console.log(`Extending scan display by ${remainingTime}ms for better UX`);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
+           if (result.success) {
+   capturedTemplateBase64 = result.templateBase64;
+    capturedImageBase64 = result.imageBase64;
+      
+      // Display the fingerprint image in the circle
+           displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
+       
+            // Show success toast
+showToast('Fingerprint captured successfully!', 'success');
+  fingerprintScanner.classList.add('captured');
+      btnRegister.disabled = false;
+        } else {
+  // Show error toast
+         showToast(result.message || 'Failed to capture fingerprint', 'error');
+  fingerprintScanner.classList.add('error');
+        setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+     }
+} catch (error) {
+                console.error('Error capturing fingerprint:', error);
+              // Show error toast
+                showToast('Error: ' + error.message, 'error');
             } finally {
-  btnScan.disabled = false;
-        btnScan.textContent = 'Scan Fingerprint';
-   fingerprintScanner.classList.remove('scanning');
-       }
+     btnScan.disabled = false;
+ btnScan.textContent = 'Scan Fingerprint';
+                fingerprintScanner.classList.remove('scanning');
+     }
         });
     }
 

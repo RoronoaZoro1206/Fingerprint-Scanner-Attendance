@@ -5,12 +5,12 @@
 <div class="register-fingerprint-page">
     <!-- Page Header -->
   <div class="page-header">
-        <h1 class="page-title">Register Fingerprint</h1>
+   <h1 class="page-title">Register Fingerprint</h1>
         <p class="page-description">Securely register your fingerprint biometric data for login</p>
     </div>
 
     <!-- Status Cards Row -->
-    <div class="status-cards-row">
+  <div class="status-cards-row">
         <!-- Scanner Status Card -->
         <div class="status-card">
  <div class="status-header">
@@ -21,20 +21,20 @@
     <h3 class="status-title">Scanner Status</h3>
     <p class="status-value online" id="scannerStatus">Online</p>
     </div>
-            </div>
+      </div>
         </div>
 
-      <!-- Registration Status Card -->
+   <!-- Registration Status Card -->
         <div class="status-card">
-            <div class="status-header">
+          <div class="status-header">
      <div class="status-icon pending">
   <i data-lucide="fingerprint"></i>
      </div>
      <div class="status-info">
   <h3 class="status-title">Registration Status</h3>
-        <p class="status-value pending" id="registrationStatus">Not Registered</p>
-          </div>
-            </div>
+      <p class="status-value pending" id="registrationStatus">Not Registered</p>
+       </div>
+   </div>
 </div>
     </div>
 
@@ -42,48 +42,48 @@
     <div class="scanner-card">
    <!-- User Icon Badge -->
      <div class="user-icon-badge">
-            <i data-lucide="user"></i>
+   <i data-lucide="user"></i>
       </div>
 
-        <!-- Scanner Box -->
+  <!-- Scanner Box -->
    <div class="scanner-box">
-  <!-- Fingerprint Scanner Circle - White background for fingerprint image -->
-            <div class="fingerprint-scanner" id="fingerprintScanner">
-                <div class="scanner-instruction">Place finger here</div>
+  <!-- Fingerprint Scanner Circle - Shows icon by default, image on success -->
+  <div class="fingerprint-scanner" id="fingerprintScanner">
+                <i data-lucide="fingerprint" class="fingerprint-icon"></i>
             </div>
 
        <!-- Scan Button -->
-      <button type="button" class="btn-scan" id="btnScan">
+  <button type="button" class="btn-scan" id="btnScan">
          Scan Fingerprint
-        </button>
-        </div>
+     </button>
+ </div>
 
-        <!-- Action Buttons -->
+ <!-- Action Buttons -->
         <div class="action-buttons">
        <button type="button" class="btn-register" id="btnRegister">
-      <i data-lucide="shield-check"></i>
+ <i data-lucide="shield-check"></i>
      Register Fingerprint
    </button>
       <button type="button" class="btn-cancel" id="btnCancel">
-         Cancel
+  Cancel
             </button>
-        </div>
+    </div>
     </div>
 
     <!-- Info Cards Row -->
     <div class="info-cards-row">
  <!-- Security Info -->
-        <div class="info-card">
-            <div class="info-icon">
+      <div class="info-card">
+      <div class="info-icon">
        <i data-lucide="shield-check"></i>
          </div>
-         <p class="info-text">All biometric data is encrypted and stored securely in compliance with privacy regulations.</p>
+      <p class="info-text">All biometric data is encrypted and stored securely in compliance with privacy regulations.</p>
      </div>
 
     <!-- Quick Tips -->
     <div class="info-card">
      <h3 class="info-title">Quick Tips</h3>
-            <ul class="tips-list">
+         <ul class="tips-list">
        <li>• Ensure finger is clean and dry</li>
       <li>• Place finger flat on the scanner</li>
            <li>• Hold steady during scanning</li>
@@ -101,23 +101,23 @@
        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center pt-0">
-                <div class="mb-3">
-           <div class="delete-icon-wrapper">
+            <div class="mb-3">
+    <div class="delete-icon-wrapper">
    <i data-lucide="alert-triangle" class="delete-icon"></i>
-           </div>
          </div>
-        <h5 class="modal-title mb-2" id="cancelModalLabel">Cancel Registration?</h5>
+         </div>
+      <h5 class="modal-title mb-2" id="cancelModalLabel">Cancel Registration?</h5>
     <p class="text-muted mb-0">Are you sure you want to cancel fingerprint registration?</p>
        <p class="text-muted">All scan progress will be lost.</p>
      </div>
         <div class="modal-footer border-0 justify-content-center gap-2">
       <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">No, Continue</button>
-                <button type="button" class="btn btn-danger px-4" id="btnConfirmCancel">
+     <button type="button" class="btn btn-danger px-4" id="btnConfirmCancel">
          <i data-lucide="x-circle" class="icon-sm"></i>
        Yes, Cancel
     </button>
-            </div>
       </div>
+   </div>
     </div>
 </div>
 

@@ -4,29 +4,30 @@ namespace Fingerprint_Attendance_System.Services
 {
     public class FingerprintService : IDisposable
     {
-     private IntPtr _deviceHandle = IntPtr.Zero;
+   private IntPtr _deviceHandle = IntPtr.Zero;
  private IntPtr _dbHandle = IntPtr.Zero;
-        private bool _isInitialized = false;
-        private bool _isDeviceOpen = false;
-        private readonly ILogger<FingerprintService> _logger;
+      private bool _isInitialized = false;
+      private bool _isDeviceOpen = false;
+   private readonly ILogger<FingerprintService> _logger;
+    private readonly object _captureLock = new object(); // ? Thread safety for capture operations
 
   private int _imgWidth = 0;
-      private int _imgHeight = 0;
+   private int _imgHeight = 0;
     private int _imgSize = 0;
 
-        public FingerprintService(ILogger<FingerprintService> logger)
+     public FingerprintService(ILogger<FingerprintService> logger)
      {
-        _logger = logger;
-        }
+    _logger = logger;
+    }
 
       // ============================
-        //  INITIALIZATION
-        // ============================
-        public bool Initialize()
-        {
-            try
-      {
-         _logger.LogInformation("Initializing ZKFinger SDK...");
+  //  INITIALIZATION
+     // ============================
+      public bool Initialize()
+    {
+       try
+    {
+    _logger.LogInformation("Initializing ZKFinger SDK...");
 
   int ret = zkfp2.Init();
        if (ret != zkfp.ZKFP_ERR_OK && ret != zkfp.ZKFP_ERR_ALREADY_INIT)
@@ -36,10 +37,10 @@ namespace Fingerprint_Attendance_System.Services
      }
 
  int count = zkfp2.GetDeviceCount();
-              if (count <= 0)
-             {
-           _logger.LogWarning("No fingerprint devices found");
-        return false;
+  if (count <= 0)
+         {
+    _logger.LogWarning("No fingerprint devices found");
+   return false;
       }
 
    _logger.LogInformation($"Found {count} fingerprint device(s)");
@@ -48,18 +49,18 @@ namespace Fingerprint_Attendance_System.Services
     _isInitialized = _dbHandle != IntPtr.Zero;
 
       if (_isInitialized)
-          {
-         _logger.LogInformation("SDK initialized successfully");
+ {
+     _logger.LogInformation("SDK initialized successfully");
  }
        else
       {
-        _logger.LogError("Failed to initialize DB handle");
+_logger.LogError("Failed to initialize DB handle");
          }
 
-            return _isInitialized;
+   return _isInitialized;
    }
         catch (Exception ex)
-            {
+      {
  _logger.LogError(ex, "Exception during SDK initialization");
    return false;
  }
@@ -67,95 +68,308 @@ namespace Fingerprint_Attendance_System.Services
 
      // ============================
         //  DEVICE CONTROL
-     // ============================
-        public bool TurnOnDevice(int index = 0)
+   // ============================
+  public bool TurnOnDevice(int index = 0)
         {
-   try
+try
    {
          if (!_isInitialized)
-     {
-                _logger.LogError("Cannot open device: SDK not initialized");
-      throw new InvalidOperationException("SDK not initialized.");
-                }
+   {
+           _logger.LogError("Cannot open device: SDK not initialized");
+   throw new InvalidOperationException("SDK not initialized.");
+       }
 
     if (_isDeviceOpen)
       {
     _logger.LogInformation("Device is already open");
         return true;
-    }
+ }
 
          _logger.LogInformation($"Opening device at index {index}...");
     _deviceHandle = zkfp2.OpenDevice(index);
 
 if (_deviceHandle == IntPtr.Zero)
     {
-               _logger.LogError("Failed to open device");
-         return false;
+     _logger.LogError("Failed to open device");
+     return false;
      }
 
-         _isDeviceOpen = true;
+   _isDeviceOpen = true;
 
      // Load image parameters
-           byte[] paramValue = new byte[4];
-        int size = 4;
+byte[] paramValue = new byte[4];
+     int size = 4;
 
    zkfp2.GetParameters(_deviceHandle, 1, paramValue, ref size);
-   zkfp2.ByteArray2Int(paramValue, ref _imgWidth);
+zkfp2.ByteArray2Int(paramValue, ref _imgWidth);
 
-     zkfp2.GetParameters(_deviceHandle, 2, paramValue, ref size);
-                zkfp2.ByteArray2Int(paramValue, ref _imgHeight);
+  zkfp2.GetParameters(_deviceHandle, 2, paramValue, ref size);
+       zkfp2.ByteArray2Int(paramValue, ref _imgHeight);
 
      _imgSize = _imgWidth * _imgHeight;
 
 _logger.LogInformation($"Device opened successfully. Image size: {_imgWidth}x{_imgHeight}");
 
   return true;
-            }
-        catch (Exception ex)
+    }
+    catch (Exception ex)
      {
-         _logger.LogError(ex, "Exception while opening device");
-         return false;
+   _logger.LogError(ex, "Exception while opening device");
+    return false;
           }
         }
 
   public void TurnOffDevice()
  {
-            try
+          try
        {
      if (_isDeviceOpen && _deviceHandle != IntPtr.Zero)
-       {
+  {
         _logger.LogInformation("Closing device...");
-         zkfp2.CloseDevice(_deviceHandle);
+      zkfp2.CloseDevice(_deviceHandle);
  _deviceHandle = IntPtr.Zero;
-       _isDeviceOpen = false;
+    _isDeviceOpen = false;
     _logger.LogInformation("Device closed successfully");
       }
-       }
-            catch (Exception ex)
-       {
+    }
+   catch (Exception ex)
+     {
         _logger.LogError(ex, "Exception while closing device");
          }
    }
 
         public string GetStatus()
 {
-            if (!_isInitialized)
-           return "Not Initialized";
+    if (!_isInitialized)
+ return "Not Initialized";
   if (_isDeviceOpen)
           return "Device Connected";
-            return "Initialized but not connected";
+ return "Initialized but not connected";
         }
 
         public bool IsDeviceConnected => _isDeviceOpen;
 
         // ============================
-        //  FINGERPRINT CAPTURE
-  // ============================
-        public byte[]? CaptureTemplate()
+        //  ? NEW: SCANNER STATE VALIDATION & RESET
+    // ============================
+        
+        /// <summary>
+    /// Validates scanner state and resets if necessary before capture
+        /// This ensures the device is in a clean, ready state
+/// </summary>
+    private bool EnsureScannerReady()
+   {
+          try
+         {
+              _logger.LogInformation("Validating scanner state before capture...");
+           
+    // Check if device is still connected
+        if (!_isDeviceOpen || _deviceHandle == IntPtr.Zero)
+          {
+      _logger.LogWarning("Device not connected. Attempting to reconnect...");
+        
+           // Try to reconnect
+       if (!TurnOnDevice())
+   {
+  _logger.LogError("Failed to reconnect device");
+    return false;
+     }
+         }
+  
+      // ? Clear any pending operations by reading device state
+    byte[] statusCheck = new byte[4];
+     int size = 4;
+   int statusResult = zkfp2.GetParameters(_deviceHandle, 1, statusCheck, ref size);
+        
+      if (statusResult != zkfp.ZKFP_ERR_OK)
+ {
+            _logger.LogWarning($"Device status check returned error: {statusResult}");
+   // Try device reset
+  return ResetScanner();
+    }
+    
+           _logger.LogInformation("Scanner state validated successfully");
+    return true;
+   }
+     catch (Exception ex)
+   {
+        _logger.LogError(ex, "Error validating scanner state");
+             return false;
+      }
+ }
+    
+  /// <summary>
+     /// Resets the scanner by closing and reopening the device
+        /// </summary>
+        private bool ResetScanner()
         {
-       try
+   try
+   {
+   _logger.LogInformation("Resetting scanner...");
+     
+     TurnOffDevice();
+       Thread.Sleep(500); // Wait for device to fully close
+       
+   bool reopened = TurnOnDevice();
+     if (reopened)
+      {
+        _logger.LogInformation("Scanner reset successful");
+          }
+       else
   {
-       if (!_isDeviceOpen)
+     _logger.LogError("Scanner reset failed");
+        }
+      
+ return reopened;
+      }
+     catch (Exception ex)
+     {
+     _logger.LogError(ex, "Exception during scanner reset");
+     return false;
+        }
+        }
+
+        // ============================
+        //  ? IMPROVED FINGERPRINT CAPTURE WITH RETRY LOGIC
+     // ============================
+        
+  /// <summary>
+ /// Captures fingerprint image and template with built-in retry logic
+      /// Returns both the raw image data and template
+        /// </summary>
+  public (byte[]? imageData, int width, int height, byte[]? template) CaptureFingerprintWithImage()
+ {
+            // ? Use lock to prevent concurrent capture attempts
+  lock (_captureLock)
+    {
+   const int MAX_RETRIES = 3;
+              const int RETRY_DELAY_MS = 300;
+     
+      for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
+     {
+   _logger.LogInformation($"Capture attempt {attempt}/{MAX_RETRIES}");
+       
+         try
+     {
+  // ? STEP 1: Validate scanner state before capture
+     if (!EnsureScannerReady())
+          {
+    _logger.LogWarning($"Scanner not ready on attempt {attempt}");
+     
+ if (attempt < MAX_RETRIES)
+        {
+      _logger.LogInformation($"Waiting {RETRY_DELAY_MS}ms before retry...");
+            Thread.Sleep(RETRY_DELAY_MS);
+ continue;
+        }
+        
+  return (null, 0, 0, null);
+            }
+      
+         // ? STEP 2: Allocate fresh buffers (prevents data contamination)
+            byte[] imgBuffer = new byte[_imgSize > 0 ? _imgSize : 256 * 288];
+ byte[] template = new byte[2048];
+             int size = template.Length;
+          
+_logger.LogInformation("Attempting to capture fingerprint with image...");
+     
+        // ? STEP 3: Attempt capture
+   int ret = zkfp2.AcquireFingerprint(_deviceHandle, imgBuffer, template, ref size);
+
+      // ? STEP 4: Handle result with detailed error codes
+      if (ret == zkfp.ZKFP_ERR_OK)
+        {
+   Array.Resize(ref template, size);
+         _logger.LogInformation($"? Fingerprint captured successfully on attempt {attempt}. Image: {_imgWidth}x{_imgHeight}, Template: {size} bytes");
+                
+  // Validate captured data
+   if (size < 100) // Templates should be at least 100 bytes
+   {
+           _logger.LogWarning($"Template size suspiciously small ({size} bytes). Retrying...");
+      
+   if (attempt < MAX_RETRIES)
+    {
+    Thread.Sleep(RETRY_DELAY_MS);
+ continue;
+     }
+}
+   
+  return (imgBuffer, _imgWidth, _imgHeight, template);
+   }
+   else
+ {
+       string errorMsg = GetErrorMessage(ret);
+          _logger.LogWarning($"? Capture attempt {attempt} failed: {errorMsg} (Error code: {ret})");
+        
+    // ? Handle specific error codes
+  if (ret == zkfp.ZKFP_ERR_CAPTURE)
+      {
+            _logger.LogInformation("No finger detected on scanner. User may need to place finger.");
+            }
+    else if (ret == zkfp.ZKFP_ERR_BUSY)
+     {
+          _logger.LogInformation("Scanner busy. Waiting for device to be ready...");
+       Thread.Sleep(500); // Longer wait for busy state
+           }
+    else if (ret == zkfp.ZKFP_ERR_INVALID_HANDLE)
+     {
+    _logger.LogError("Invalid device handle. Attempting to reset scanner...");
+        ResetScanner();
+       }
+       
+    // Retry if attempts remain
+      if (attempt < MAX_RETRIES)
+      {
+            int backoffDelay = RETRY_DELAY_MS * attempt; // Exponential backoff
+ _logger.LogInformation($"Retrying in {backoffDelay}ms...");
+         Thread.Sleep(backoffDelay);
+  }
+    }
+       }
+  catch (Exception ex)
+        {
+        _logger.LogError(ex, $"Exception during capture attempt {attempt}");
+            
+    if (attempt < MAX_RETRIES)
+   {
+   _logger.LogInformation($"Waiting {RETRY_DELAY_MS}ms before retry...");
+   Thread.Sleep(RETRY_DELAY_MS);
+            }
+     }
+ }
+    
+            _logger.LogError($"? Failed to capture fingerprint after {MAX_RETRIES} attempts");
+        return (null, 0, 0, null);
+    }
+        }
+    
+   /// <summary>
+  /// Converts error codes to human-readable messages
+    /// </summary>
+        private string GetErrorMessage(int errorCode)
+        {
+        // Use if-else because zkfp constants are not compile-time constants
+if (errorCode == zkfp.ZKFP_ERR_OK) return "Success";
+   if (errorCode == zkfp.ZKFP_ERR_CAPTURE) return "No finger detected on scanner";
+        if (errorCode == zkfp.ZKFP_ERR_EXTRACT_FP) return "Failed to extract fingerprint features";
+      if (errorCode == zkfp.ZKFP_ERR_BUSY) return "Scanner is busy";
+  if (errorCode == zkfp.ZKFP_ERR_INVALID_HANDLE) return "Invalid device handle";
+  if (errorCode == zkfp.ZKFP_ERR_MEMORY_NOT_ENOUGH) return "Not enough memory";
+if (errorCode == zkfp.ZKFP_ERR_NOT_OPENED) return "Device not opened";
+        if (errorCode == zkfp.ZKFP_ERR_INVALID_PARAM) return "Invalid parameter";
+        if (errorCode == zkfp.ZKFP_ERR_ABSORT) return "Operation aborted";
+   
+        return $"Unknown error (code: {errorCode})";
+ }
+
+        // ============================
+        //  LEGACY CAPTURE METHODS (Maintained for backward compatibility)
+   // ============================
+    public byte[]? CaptureTemplate()
+   {
+     try
+  {
+    if (!_isDeviceOpen)
         {
    _logger.LogError("Cannot capture: Device is not turned on");
     throw new InvalidOperationException("Device is not turned on.");
@@ -165,166 +379,120 @@ _logger.LogInformation($"Device opened successfully. Image size: {_imgWidth}x{_i
      byte[] template = new byte[2048];
    int size = template.Length;
 
-     _logger.LogInformation("Attempting to capture fingerprint...");
+ _logger.LogInformation("Attempting to capture fingerprint...");
      int ret = zkfp2.AcquireFingerprint(_deviceHandle, imgBuffer, template, ref size);
 
  if (ret == zkfp.ZKFP_ERR_OK)
         {
-          Array.Resize(ref template, size);
+    Array.Resize(ref template, size);
  _logger.LogInformation($"Fingerprint captured successfully. Template size: {size} bytes");
      return template;
-        }
+      }
   else
-           {
+  {
      _logger.LogWarning($"Failed to capture fingerprint. Error code: {ret}");
       return null;
-       }
-            }
+     }
+  }
         catch (Exception ex)
-          {
-             _logger.LogError(ex, "Exception during fingerprint capture");
+  {
+         _logger.LogError(ex, "Exception during fingerprint capture");
 return null;
    }
-        }
+      }
 
       public string? CaptureTemplateBase64()
 {
   try
-  {
+{
        var template = CaptureTemplate();
-              if (template == null) return null;
+       if (template == null) return null;
 
   // Convert to Base64
-            return Convert.ToBase64String(template);
+return Convert.ToBase64String(template);
      }
-         catch (Exception ex)
+     catch (Exception ex)
     {
     _logger.LogError(ex, "Exception converting template to Base64");
 return null;
         }
      }
 
-    // ============================
-    //  FINGERPRINT CAPTURE
-    // ============================
-    
-    /// <summary>
-/// Captures fingerprint image and template together
-    /// Returns both the raw image data and template
-    /// </summary>
-    public (byte[]? imageData, int width, int height, byte[]? template) CaptureFingerprintWithImage()
-    {
-        try
-        {
-            if (!_isDeviceOpen)
-            {
-                _logger.LogError("Cannot capture: Device is not turned on");
-      throw new InvalidOperationException("Device is not turned on.");
-            }
-
-         byte[] imgBuffer = new byte[_imgSize > 0 ? _imgSize : 256 * 288];
-byte[] template = new byte[2048];
-         int size = template.Length;
-
-            _logger.LogInformation("Attempting to capture fingerprint with image...");
-     int ret = zkfp2.AcquireFingerprint(_deviceHandle, imgBuffer, template, ref size);
-
-            if (ret == zkfp.ZKFP_ERR_OK)
-            {
- Array.Resize(ref template, size);
-        _logger.LogInformation($"Fingerprint captured successfully. Image: {_imgWidth}x{_imgHeight}, Template: {size} bytes");
-       
-    // Return image data, dimensions, and template
-           return (imgBuffer, _imgWidth, _imgHeight, template);
-            }
-            else
-          {
- _logger.LogWarning($"Failed to capture fingerprint. Error code: {ret}");
-    return (null, 0, 0, null);
-            }
-    }
-        catch (Exception ex)
-        {
-         _logger.LogError(ex, "Exception during fingerprint capture with image");
-return (null, 0, 0, null);
-    }
-    }
-
   /// <summary>
     /// Converts raw fingerprint image data to Base64 string for display on web
     /// White background with black fingerprint lines (natural colors)
     /// </summary>
  public string? ConvertImageToBase64(byte[] imageData, int width, int height)
-    {
+{
       try
-        {
-            if (imageData == null || imageData.Length == 0)
+    {
+    if (imageData == null || imageData.Length == 0)
   {
     _logger.LogWarning("Cannot convert: Image data is null or empty");
     return null;
       }
 
       // Convert grayscale image to BMP format for web display
-      // BMP Header (54 bytes) + Image Data
-          int fileSize = 54 + (width * height * 3); // 3 bytes per pixel for 24-bit BMP
-   byte[] bmpData = new byte[fileSize];
+  // BMP Header (54 bytes) + Image Data
+ int fileSize = 54 + (width * height * 3); // 3 bytes per pixel for 24-bit BMP
+byte[] bmpData = new byte[fileSize];
 
-            // BMP File Header (14 bytes)
-        bmpData[0] = 0x42; // 'B'
-            bmpData[1] = 0x4D; // 'M'
-        Array.Copy(BitConverter.GetBytes(fileSize), 0, bmpData, 2, 4);
-          bmpData[10] = 54; // Offset to pixel data
+   // BMP File Header (14 bytes)
+     bmpData[0] = 0x42; // 'B'
+    bmpData[1] = 0x4D; // 'M'
+  Array.Copy(BitConverter.GetBytes(fileSize), 0, bmpData, 2, 4);
+        bmpData[10] = 54; // Offset to pixel data
 
  // DIB Header (40 bytes)
         bmpData[14] = 40; // Header size
       Array.Copy(BitConverter.GetBytes(width), 0, bmpData, 18, 4);
-      Array.Copy(BitConverter.GetBytes(height), 0, bmpData, 22, 4);
-            bmpData[26] = 1; // Color planes
+   Array.Copy(BitConverter.GetBytes(height), 0, bmpData, 22, 4);
+    bmpData[26] = 1; // Color planes
 bmpData[28] = 24; // Bits per pixel
-            Array.Copy(BitConverter.GetBytes(width * height * 3), 0, bmpData, 34, 4);
+ Array.Copy(BitConverter.GetBytes(width * height * 3), 0, bmpData, 34, 4);
 
  // Convert grayscale to RGB (flip vertically for BMP format)
      // Keep natural colors: white background (255), black lines (0)
    int bmpIndex = 54;
-            for (int y = height - 1; y >= 0; y--)
+      for (int y = height - 1; y >= 0; y--)
             {
-        for (int x = 0; x < width; x++)
-   {
+for (int x = 0; x < width; x++)
+ {
         byte pixel = imageData[y * width + x];
-        bmpData[bmpIndex++] = pixel; // B
-       bmpData[bmpIndex++] = pixel; // G
+    bmpData[bmpIndex++] = pixel; // B
+   bmpData[bmpIndex++] = pixel; // G
      bmpData[bmpIndex++] = pixel; // R
      }
        }
 
-            return Convert.ToBase64String(bmpData);
+    return Convert.ToBase64String(bmpData);
         }
     catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception converting image to Base64");
-            return null;
+        _logger.LogError(ex, "Exception converting image to Base64");
+        return null;
         }
     }
 
-        // ============================
-        //  MATCHING / IDENTIFICATION
-        // ============================
-     public bool MatchFingerprints(byte[] template1, byte[] template2, int threshold = 50)
+ // ============================
+ //  MATCHING / IDENTIFICATION
+// ============================
+   public bool MatchFingerprints(byte[] template1, byte[] template2, int threshold = 50)
       {
      try
    {
     if (_dbHandle == IntPtr.Zero)
-       {
+  {
       _logger.LogError("Cannot match: DB handle not initialized");
-        throw new InvalidOperationException("DB handle not initialized.");
+  throw new InvalidOperationException("DB handle not initialized.");
  }
 
      int score = zkfp2.DBMatch(_dbHandle, template1, template2);
       _logger.LogInformation($"Match score: {score}, Threshold: {threshold}");
        return score >= threshold;
   }
-            catch (Exception ex)
-            {
+    catch (Exception ex)
+       {
     _logger.LogError(ex, "Exception during fingerprint matching");
        return false;
      }
@@ -337,123 +505,123 @@ bmpData[28] = 24; // Bits per pixel
     public int GetMatchScore(byte[] template1, byte[] template2)
     {
    try
-      {
+ {
         if (_dbHandle == IntPtr.Zero)
-      {
-     _logger.LogError("Cannot get match score: DB handle not initialized");
+ {
+   _logger.LogError("Cannot get match score: DB handle not initialized");
  return 0;
  }
 
     int score = zkfp2.DBMatch(_dbHandle, template1, template2);
-         _logger.LogInformation($"Match score calculated: {score}");
-            return score;
-        }
+_logger.LogInformation($"Match score calculated: {score}");
+    return score;
+    }
    catch (Exception ex)
         {
             _logger.LogError(ex, "Exception getting match score");
-   return 0;
+ return 0;
         }
     }
 
         public int IdentifyFingerprint(byte[] template, ref int fid, ref int score)
         {
     try
-      {
-        if (_dbHandle == IntPtr.Zero)
-      {
+  {
+ if (_dbHandle == IntPtr.Zero)
+    {
     _logger.LogError("Cannot identify: DB handle not initialized");
       throw new InvalidOperationException("DB handle not initialized.");
-           }
+ }
 
-         return zkfp2.DBIdentify(_dbHandle, template, ref fid, ref score);
+  return zkfp2.DBIdentify(_dbHandle, template, ref fid, ref score);
         }
  catch (Exception ex)
    {
-     _logger.LogError(ex, "Exception during fingerprint identification");
+   _logger.LogError(ex, "Exception during fingerprint identification");
  return zkfp.ZKFP_ERR_FAIL;
-            }
-        }
+       }
+ }
 
-        public void AddTemplateToDB(int fid, byte[] template)
-        {
-            try
+     public void AddTemplateToDB(int fid, byte[] template)
+    {
+     try
      {
       if (_dbHandle == IntPtr.Zero)
       {
          _logger.LogError("Cannot add template: DB handle not initialized");
-       throw new InvalidOperationException("DB handle not initialized.");
-     }
+    throw new InvalidOperationException("DB handle not initialized.");
+ }
 
     zkfp2.DBAdd(_dbHandle, fid, template);
-           _logger.LogInformation($"Template added to DB with FID: {fid}");
+       _logger.LogInformation($"Template added to DB with FID: {fid}");
+  }
+      catch (Exception ex)
+       {
+  _logger.LogError(ex, "Exception while adding template to DB");
     }
-            catch (Exception ex)
-            {
-     _logger.LogError(ex, "Exception while adding template to DB");
-            }
       }
 
         // ============================
-        //  DEVICE LIGHT & BUZZER CONTROL
+ //  DEVICE LIGHT & BUZZER CONTROL
 // ============================
         public bool SetLedLight(string color, bool on)
-        {
+     {
        try
  {
  if (!_isDeviceOpen) return false;
 
-      int code = color.ToLower() switch
+  int code = color.ToLower() switch
         {
-            "white" => 101,
-             "green" => 102,
-        "red" => 103,
+  "white" => 101,
+    "green" => 102,
+"red" => 103,
       _ => throw new ArgumentException("Invalid LED color (use 'white', 'green', or 'red').")
   };
 
         byte[] value = BitConverter.GetBytes(on ? 1 : 0);
     int result = zkfp2.SetParameters(_deviceHandle, code, value, value.Length);
      return result == zkfp.ZKFP_ERR_OK;
-     }
-            catch (Exception ex)
+   }
+   catch (Exception ex)
 {
-        _logger.LogError(ex, $"Exception while setting LED light: {color}");
+     _logger.LogError(ex, $"Exception while setting LED light: {color}");
     return false;
-            }
+        }
         }
 
  public bool Beep(bool on)
-        {
-            try
+     {
+ try
      {
    if (!_isDeviceOpen)
-         {
-     _logger.LogWarning("Cannot beep: Device is not open");
+{
+  _logger.LogWarning("Cannot beep: Device is not open");
    return false;
        }
 
-             _logger.LogInformation($"Setting beep: {(on ? "ON" : "OFF")}");
+   _logger.LogInformation($"Setting beep: {(on ? "ON" : "OFF")}");
         byte[] value = BitConverter.GetBytes(on ? 1 : 0);
      int result = zkfp2.SetParameters(_deviceHandle, 104, value, value.Length);
            
-         if (result == zkfp.ZKFP_ERR_OK)
+    if (result == zkfp.ZKFP_ERR_OK)
      {
   _logger.LogInformation($"Beep command successful: {(on ? "ON" : "OFF")}");
-            }
-                else
+ }
+            else
      {
 _logger.LogWarning($"Beep command failed with error code: {result}");
    }
      
   return result == zkfp.ZKFP_ERR_OK;
-            }
+   }
       catch (Exception ex)
 {
  _logger.LogError(ex, "Exception while controlling buzzer");
       return false;
-      }
+ }
      }
 
-        // ============================
+    // ============================
         //  CLEANUP
         // ============================
         public void Dispose()
@@ -463,22 +631,22 @@ _logger.LogWarning($"Beep command failed with error code: {result}");
     _logger.LogInformation("Disposing FingerprintService...");
   TurnOffDevice();
 
-     if (_dbHandle != IntPtr.Zero)
+if (_dbHandle != IntPtr.Zero)
      {
      zkfp2.DBFree(_dbHandle);
-        _dbHandle = IntPtr.Zero;
-           _logger.LogInformation("DB handle freed");
-      }
+     _dbHandle = IntPtr.Zero;
+    _logger.LogInformation("DB handle freed");
+   }
 
-       if (_isInitialized)
+    if (_isInitialized)
       {
-         zkfp2.Terminate();
+       zkfp2.Terminate();
 _isInitialized = false;
    _logger.LogInformation("SDK terminated");
         }
        }
-   catch (Exception ex)
-          {
+ catch (Exception ex)
+    {
      _logger.LogError(ex, "Exception during disposal");
    }
         }

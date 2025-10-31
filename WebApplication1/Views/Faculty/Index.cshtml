@@ -6,12 +6,60 @@
     <h1 class="page-title">My Classes</h1>
 </div>
 
+<!-- Charts Section -->
+<div class="content-grid" style="margin-bottom: 2rem;">
+    <!-- Today's Attendance Status Chart -->
+    <div class="card">
+  <div class="chart-container" style="position: relative; height: 300px;">
+            <canvas id="todayAttendanceChart"></canvas>
+ </div>
+    </div>
+
+  <!-- Punctuality Analysis Chart -->
+    <div class="card">
+   <div class="chart-container" style="position: relative; height: 300px;">
+    <canvas id="punctualityChart"></canvas>
+ </div>
+    </div>
+</div>
+
+<!-- Weekly Attendance Trend Chart (Full Width) -->
+<div class="content-grid" style="margin-bottom: 2rem;">
+ <div class="card" style="grid-column: 1 / -1;">
+        <div class="chart-container" style="position: relative; height: 350px;">
+ <canvas id="weeklyAttendanceChart"></canvas>
+   </div>
+    </div>
+</div>
+
+<!-- Classes Grid -->
 <div id="classesContainer" class="classes-grid">
     <!-- Classes will be loaded here via JavaScript -->
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="~/js/faculty/faculty_class.js" asp-append-version="true"></script>
+    <script src="~/js/faculty/faculty_charts.js" asp-append-version="true"></script>
 }
 
 <link rel="stylesheet" href="~/css/faculty/faculty_class.css" asp-append-version="true"/>
+
+<style>
+    .content-grid {
+        display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .card {
+ background: white;
+        border-radius: 12px;
+    padding: 1.5rem;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+  
+    .chart-container {
+  position: relative;
+    }
+</style>

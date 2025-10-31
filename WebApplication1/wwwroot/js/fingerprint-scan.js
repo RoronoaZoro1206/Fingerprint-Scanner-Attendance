@@ -115,19 +115,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
        if (result.success) {
  // Stop auto-detection on success
-        if (autoScanInterval) {
+ if (autoScanInterval) {
     clearInterval(autoScanInterval);
    autoScanInterval = null;
       }
 
-            // SUCCESS - Fingerprint matched in database
-         fingerprintScanner.classList.remove('scanning');
+      // STEP 1: Show "Validating identity" message immediately
+    fingerprintScanner.classList.remove('scanning');
+fingerprintScanner.classList.add('validating');
+    
+  showMessage(
+     `<i class="bi bi-hourglass-split me-2"></i>Validating identity, please wait...`, 
+    'validating'
+  );
+
+    // STEP 2: Wait 1.5 seconds to simulate validation
+    await new Promise(resolve => setTimeout(resolve, 1500));
+      
+    // STEP 3: Show SUCCESS message with user info
+   fingerprintScanner.classList.remove('validating');
 fingerprintScanner.classList.add('success');
 
       // Show success message with user info
     const userName = result.userName || 'User';
-         const matchScore = result.matchScore || 'High';
-             showMessage(
+    const matchScore = result.matchScore || 'High';
+ showMessage(
      `<i class="bi bi-check-circle-fill me-2"></i>Login successful! Welcome ${userName}.<br>Match Score: ${matchScore}<br>Redirecting to your dashboard...`, 
     'success'
     );
@@ -145,14 +157,14 @@ fingerprintScanner.classList.add('success');
      // Add smooth progress bar
       const progressBar = document.createElement('div');
          progressBar.className = 'redirect-progress';
-      progressBar.innerHTML = '<div class="progress-bar-inner"></div>';
-        scanStatusMessage.appendChild(progressBar);
+    progressBar.innerHTML = '<div class="progress-bar-inner"></div>';
+   scanStatusMessage.appendChild(progressBar);
 
      // Wait for animation to complete before redirect
     redirectTimeout = setTimeout(() => {
    console.log('Redirecting to:', result.redirectUrl);
    window.location.href = result.redirectUrl || '/Home/Index';
-           }, 3000);
+    }, 3000);
 
       } else {
    // FAILURE - Check if it's "no finger detected" vs "not recognized"
@@ -329,27 +341,17 @@ style.textContent = `
 
     .scan-status-message.info {
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-        color: #3730a3;
-        border: 2px solid #6366f1;
+      color: #3730a3;
+   border: 2px solid #6366f1;
     }
 
-    @keyframes successPulse {
- 0%, 100% { transform: scale(1); }
-50% { transform: scale(1.05); }
-  }
-
-    @keyframes errorShake {
-     0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-10px); }
-        75% { transform: translateX(10px); }
+    .scan-status-message.validating {
+ background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+      border: 2px solid #f59e0b;
+   animation: validatingPulse 1.2s ease-in-out infinite;
     }
 
-    @keyframes scanningPulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.8; }
-    }
-
-    /* Scanner circle enhancements */
     .scanner-circle {
         position: relative;
   transition: all 0.3s ease;
@@ -419,6 +421,11 @@ style.textContent = `
     .bi {
         display: inline-block;
         vertical-align: middle;
+    }
+
+    @keyframes validatingPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.85; transform: scale(1.02); }
     }
 `;
 document.head.appendChild(style);

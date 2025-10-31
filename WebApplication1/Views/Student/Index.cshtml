@@ -3,114 +3,141 @@
 }
 
 <div class="page-header">
-    <h1 class="page-title">My Profile</h1>
+    <h1 class="page-title">My Dashboard</h1>
 </div>
 
+<!-- Charts Section -->
+<div class="charts-grid" style="margin-bottom: 2rem;">
+  <!-- Personal Attendance Overview Chart -->
+    <div class="chart-card">
+        <div class="chart-container" style="position: relative; height: 300px;">
+   <canvas id="attendanceOverviewChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Course-wise Attendance Chart -->
+    <div class="chart-card">
+ <div class="chart-container" style="position: relative; height: 300px;">
+            <canvas id="courseAttendanceChart"></canvas>
+      </div>
+    </div>
+</div>
+
+<!-- Punctuality Trend Chart (Full Width) -->
+<div class="charts-grid" style="margin-bottom: 2rem;">
+    <div class="chart-card" style="grid-column: 1 / -1;">
+   <div class="chart-container" style="position: relative; height: 350px;">
+            <canvas id="punctualityTrendChart"></canvas>
+   </div>
+    </div>
+</div>
+
+<!-- Profile Section -->
 <div class="profile-container">
     <!-- Profile Card -->
-    <div class="profile-card">
+ <div class="profile-card">
         <div class="profile-header">
-            <div class="profile-avatar-section">
-                <div class="profile-avatar">
-                    <img id="profileImage" src="/images/profile/default_profile.png" alt="Profile Picture">
-                </div>
-                <div class="profile-basic-info">
-                    <h2 id="profileName" class="profile-name">Loading...</h2>
-                    <p id="profileEmail" class="profile-email">Loading...</p>
-                    <span id="profileStudentNumber" class="profile-student-number"></span>
-                </div>
-            </div>
-        </div>
+ <div class="profile-avatar-section">
+     <div class="profile-avatar">
+      <img id="profileImage" src="/images/profile/default_profile.png" alt="Profile Picture">
+  </div>
+  <div class="profile-basic-info">
+          <h2 id="profileName" class="profile-name">Loading...</h2>
+  <p id="profileEmail" class="profile-email">Loading...</p>
+    <span id="profileStudentNumber" class="profile-student-number"></span>
+       </div>
+      </div>
+</div>
 
-        <form id="profileForm">
-            <!-- Personal Information Section -->
-            <div class="form-section">
+     <form id="profileForm">
+  <!-- Personal Information Section -->
+    <div class="form-section">
                 <h3 class="section-title">
-                    <i data-lucide="user" class="section-icon"></i>
-                    Personal Information
-                </h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="firstName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="middleName" class="form-label">Middle Name</label>
-                        <input type="text" class="form-control" id="middleName">
-                    </div>
-                    <div class="form-group">
-                        <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="lastName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="gender" class="form-label">Gender</label>
-                        <select class="form-select" id="gender">
-                            <option value="">Select Gender...</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="birthdate" class="form-label">Birthdate</label>
-                        <input type="date" class="form-control" id="birthdate">
-                    </div>
-                    <div class="form-group">
-                        <label for="phone" class="form-label">Phone Number</label>
-                        <input type="tel" class="form-control" id="phone">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="address" class="form-label">Address</label>
-                    <textarea class="form-control" id="address" rows="3"></textarea>
-                </div>
-            </div>
+   <i data-lucide="user" class="section-icon"></i>
+     Personal Information
+       </h3>
+       <div class="form-grid">
+ <div class="form-group">
+       <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+     <input type="text" class="form-control" id="firstName" required>
+                 </div>
+<div class="form-group">
+     <label for="middleName" class="form-label">Middle Name</label>
+     <input type="text" class="form-control" id="middleName">
+  </div>
+         <div class="form-group">
+       <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" id="lastName" required>
+     </div>
+      <div class="form-group">
+  <label for="gender" class="form-label">Gender</label>
+    <select class="form-select" id="gender">
+     <option value="">Select Gender...</option>
+          <option value="Male">Male</option>
+         <option value="Female">Female</option>
+      <option value="Other">Other</option>
+    </select>
+       </div>
+    <div class="form-group">
+       <label for="birthdate" class="form-label">Birthdate</label>
+  <input type="date" class="form-control" id="birthdate">
+   </div>
+  <div class="form-group">
+       <label for="phone" class="form-label">Phone Number</label>
+    <input type="tel" class="form-control" id="phone">
+ </div>
+    </div>
+     <div class="form-group">
+      <label for="address" class="form-label">Address</label>
+         <textarea class="form-control" id="address" rows="3"></textarea>
+    </div>
+    </div>
 
-            <!-- Academic Information Section -->
-            <div class="form-section">
-                <h3 class="section-title">
-                    <i data-lucide="graduation-cap" class="section-icon"></i>
-                    Academic Information
-                </h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="program" class="form-label">Program <span class="text-danger">*</span></label>
-                        <select class="form-select" id="program" required>
-                            <option value="">Select Program...</option>
-                        </select>
-                        <small class="form-text">Required for class enrollment</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="yearLevel" class="form-label">Year Level</label>
-                        <select class="form-select" id="yearLevel">
-                            <option value="">Select Year Level...</option>
-                            <option value="1">1st Year</option>
-                            <option value="2">2nd Year</option>
-                            <option value="3">3rd Year</option>
-                            <option value="4">4th Year</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="section" class="form-label">Section</label>
-                        <select class="form-select" id="section">
-                            <option value="">Select Section...</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+<!-- Academic Information Section -->
+       <div class="form-section">
+  <h3 class="section-title">
+         <i data-lucide="graduation-cap" class="section-icon"></i>
+      Academic Information
+    </h3>
+     <div class="form-grid">
+         <div class="form-group">
+  <label for="program" class="form-label">Program <span class="text-danger">*</span></label>
+      <select class="form-select" id="program" required>
+        <option value="">Select Program...</option>
+    </select>
+       <small class="form-text">Required for class enrollment</small>
+       </div>
+    <div class="form-group">
+          <label for="yearLevel" class="form-label">Year Level</label>
+           <select class="form-select" id="yearLevel">
+ <option value="">Select Year Level...</option>
+   <option value="1">1st Year</option>
+        <option value="2">2nd Year</option>
+         <option value="3">3rd Year</option>
+       <option value="4">4th Year</option>
+      </select>
+       </div>
+    <div class="form-group">
+   <label for="section" class="form-label">Section</label>
+        <select class="form-select" id="section">
+ <option value="">Select Section...</option>
+     </select>
+ </div>
+    </div>
+       </div>
 
-            <!-- Action Buttons -->
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="loadProfile()">
-                    <i data-lucide="rotate-ccw" class="icon-sm"></i>
-                    Reset
-                </button>
-                <button type="submit" class="btn btn-primary" id="btnSaveProfile">
-                    <i data-lucide="save" class="icon-sm"></i>
-                    Save Changes
-                </button>
-            </div>
-        </form>
+  <!-- Action Buttons -->
+  <div class="form-actions">
+  <button type="button" class="btn btn-secondary" onclick="loadProfile()">
+      <i data-lucide="rotate-ccw" class="icon-sm"></i>
+         Reset
+ </button>
+  <button type="submit" class="btn btn-primary" id="btnSaveProfile">
+    <i data-lucide="save" class="icon-sm"></i>
+       Save Changes
+       </button>
+     </div>
+  </form>
     </div>
 </div>
 
@@ -118,72 +145,91 @@
 <div class="modal fade" id="profileLockModal" tabindex="-1" aria-labelledby="profileLockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
+ <div class="modal-header border-0 pb-0">
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+ </div>
             <div class="modal-body text-center pt-0">
-                <div class="mb-3">
-                    <div class="lock-icon-wrapper">
-                        <i data-lucide="lock" class="lock-icon"></i>
-                    </div>
-                </div>
-                <h5 class="modal-title mb-2" id="profileLockModalLabel">Lock Program?</h5>
-                <p class="text-muted mb-2">Once you submit your program, it will be <strong>permanently locked</strong>.</p>
-                <p class="text-muted mb-1">You can still update your <strong>year level and section</strong> as you progress through your studies.</p>
-                <p class="text-muted mb-0">Contact administration if you need to change your program.</p>
-            </div>
+    <div class="mb-3">
+          <div class="lock-icon-wrapper">
+      <i data-lucide="lock" class="lock-icon"></i>
+   </div>
+    </div>
+   <h5 class="modal-title mb-2" id="profileLockModalLabel">Lock Program?</h5>
+        <p class="text-muted mb-2">Once you submit your program, it will be <strong>permanently locked</strong>.</p>
+     <p class="text-muted mb-1">You can still update your <strong>year level and section</strong> as you progress through your studies.</p>
+        <p class="text-muted mb-0">Contact administration if you need to change your program.</p>
+     </div>
             <div class="modal-footer border-0 justify-content-center gap-2">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary px-4" id="btnConfirmLock">
-                    <i data-lucide="check" class="icon-sm"></i>
-                    Confirm & Save
-                </button>
+      <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+           <button type="button" class="btn btn-primary px-4" id="btnConfirmLock">
+       <i data-lucide="check" class="icon-sm"></i>
+Confirm & Save
+      </button>
             </div>
-        </div>
+   </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="~/js/student/student_charts.js" asp-append-version="true"></script>
     <script src="~/js/student/student_profile.js" asp-append-version="true"></script>
 }
 
 <link rel="stylesheet" href="~/css/student/student_profile.css" asp-append-version="true"/>
 
 <style>
+    .charts-grid {
+        display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+  }
+    
+    .chart-card {
+   background: white;
+        border-radius: 12px;
+     padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container {
+      position: relative;
+    }
+    
     .form-select:disabled,
     .form-control:disabled {
         background-color: #f5f5f5;
-        cursor: not-allowed;
-        opacity: 0.7;
+ cursor: not-allowed;
+opacity: 0.7;
     }
     
-    .alert-info {
-        background-color: #e7f3ff;
-        border: 1px solid #b3d9ff;
+.alert-info {
+   background-color: #e7f3ff;
+    border: 1px solid #b3d9ff;
         border-radius: 8px;
-        padding: 12px 16px;
-        color: #004085;
+  padding: 12px 16px;
+     color: #004085;
     }
     
     .alert-info i {
-        margin-right: 8px;
+   margin-right: 8px;
     }
     
     .lock-icon-wrapper {
         width: 80px;
-        height: 80px;
-        margin: 0 auto;
+   height: 80px;
+  margin: 0 auto;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 50%;
         display: flex;
-        align-items: center;
-        justify-content: center;
+ align-items: center;
+ justify-content: center;
     }
     
-    .lock-icon {
+ .lock-icon {
         width: 40px;
         height: 40px;
-        color: white;
+  color: white;
         stroke-width: 2;
     }
 </style>

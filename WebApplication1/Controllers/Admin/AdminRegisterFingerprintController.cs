@@ -234,50 +234,102 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     });
                 }
 
-                // Create new template (first registration)
-                var newTemplate = new FingerprintTemplate
+                // GLOBAL DUPLICATE CHECK: Compare new fingerprint against ALL registered fingerprints
+                _logger.LogInformation($"Checking for duplicate fingerprints across all users for new registration (user: {user?.UserEmail})...");
+                var allTemplates = await _fingerprintRepo.GetAllAsync();
+    
+                // Match threshold for duplicate detection
+                const int duplicateMatchThreshold = 40;
+     
+                foreach (var existingDbTemplate in allTemplates)
                 {
-                    UserId = userId.Value,
-                    FtempData = templateData,
-                    FtempName = dto.TemplateName,
-                    FtempCreatedAt = DateTime.UtcNow
-                };
-
-                var templateId = await _fingerprintRepo.CreateAsync(newTemplate);
-
-                if (templateId > 0)
-                {
-                    // Log audit
-                    await _auditService.LogActionAsync(
-                        "Fingerprint Registration",
-                        $"Admin registered fingerprint biometric data (Template: {dto.TemplateName})"
-                    );
-
-                    // Success feedback
-                    _fingerprintService.SetLedLight("green", true);
-                    _fingerprintService.Beep(true);
-                    _ = Task.Delay(300).ContinueWith(_ =>
+                    // Compare new template with this existing template
+                    int matchScore = _fingerprintService.GetMatchScore(templateData, existingDbTemplate.FtempData);
+                   
+                   _logger.LogInformation($"Comparing with user {existingDbTemplate.UserId}: Match score = {matchScore}");
+                      
+                   if (matchScore >= duplicateMatchThreshold)
                     {
-                        _fingerprintService.SetLedLight("green", false);
-                        _fingerprintService.Beep(false);
-                    });
+                      // Found a duplicate! This fingerprint is already registered to another user
+                      var otherUser = await _userRepo.GetByIdAsync(existingDbTemplate.UserId);
+                   
+                      _logger.LogWarning(
+                       $"DUPLICATE FINGERPRINT BLOCKED! User {user?.UserEmail} attempted to register " +
+                          $"a fingerprint that is already registered to user {otherUser?.UserEmail} (Match score: {matchScore})"
+                     );
+                   
+                    // Log security incident
+                  await _auditService.LogActionAsync(
+                        "Duplicate Fingerprint Blocked (Registration)",
+                  $"Attempted to register a fingerprint already registered to user ID {existingDbTemplate.UserId} " +
+              $"(Match score: {matchScore})"
+        );
 
-                    _logger.LogInformation($"Fingerprint registered successfully for user {user?.UserEmail}");
-                    return Json(new { success = true, message = "Fingerprint registered successfully" });
-                }
+                  // Error feedback: red light + beep
+                  _fingerprintService.SetLedLight("red", true);
+                     _fingerprintService.Beep(true);
+          _ = Task.Delay(500).ContinueWith(_ =>
+         {
+                 _fingerprintService.SetLedLight("red", false);
+                 _fingerprintService.Beep(false);
+                 });
+              
+    return Json(new 
+                   { 
+ success = false, 
+    message = "This fingerprint is already registered to another user in the system. Please use a different finger.",
+               isDuplicate = true,
+         matchScore = matchScore
+         });
+         }
+         }
+             
+           _logger.LogInformation($"No duplicate fingerprints found. Proceeding with registration for user {user?.UserEmail}");
 
-                return Json(new { success = false, message = "Failed to save fingerprint" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error registering fingerprint");
+  // Create new template (first registration)
+          var newTemplate = new FingerprintTemplate
+    {
+     UserId = userId.Value,
+       FtempData = templateData,
+        FtempName = dto.TemplateName,
+    FtempCreatedAt = DateTime.UtcNow
+      };
+
+      var templateId = await _fingerprintRepo.CreateAsync(newTemplate);
+
+          if (templateId > 0)
+                {
+              // Log audit
+   await _auditService.LogActionAsync(
+             "Fingerprint Registration",
+   $"Admin registered fingerprint biometric data (Template: {dto.TemplateName})"
+          );
+
+       // Success feedback
+   _fingerprintService.SetLedLight("green", true);
+           _fingerprintService.Beep(true);
+      _ = Task.Delay(300).ContinueWith(_ =>
+     {
+   _fingerprintService.SetLedLight("green", false);
+       _fingerprintService.Beep(false);
+      });
+
+           _logger.LogInformation($"Fingerprint registered successfully for user {user?.UserEmail}");
+         return Json(new { success = true, message = "Fingerprint registered successfully" });
+    }
+
+       return Json(new { success = false, message = "Failed to save fingerprint" });
+      }
+        catch (Exception ex)
+  {
+ _logger.LogError(ex, "Error registering fingerprint");
 
                 // Error feedback
                 _fingerprintService.SetLedLight("red", true);
-                _ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", false));
+   _ = Task.Delay(500).ContinueWith(_ => _fingerprintService.SetLedLight("red", false));
 
-                return Json(new { success = false, message = "Error: " + ex.Message });
-            }
+        return Json(new { success = false, message = "Error: " + ex.Message });
+      }
         }
 
         // POST: Update fingerprint with password confirmation

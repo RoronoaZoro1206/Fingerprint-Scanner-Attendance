@@ -23,6 +23,8 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddControllers(); // ? ADD THIS LINE TO ENABLE API CONTROLLERS
+
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -99,8 +101,11 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
+// ? FIX: Map BOTH MVC routes AND API routes
+app.MapControllers(); // ? ADD THIS LINE TO MAP API CONTROLLER ROUTES
+
 app.MapControllerRoute(
-        name: "default",
+      name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 

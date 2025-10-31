@@ -1,0 +1,121 @@
+/* Dashboard Charts Styling */
+
+/* Chart Card Styles */
+.chart-card,
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.chart-card:hover,
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Content Grid for Charts */
+.content-grid,
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .content-grid,
+    .charts-grid {
+    grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 250px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-card,
+    .card {
+        padding: 1rem;
+    }
+    
+    .chart-container {
+ height: 200px !important;
+    }
+}
+
+/* Full Width Chart */
+.chart-card[style*="grid-column"],
+.card[style*="grid-column"] {
+    grid-column: 1 / -1;
+}
+
+/* Chart Loading State */
+.chart-container:empty::before {
+  content: 'Loading chart...';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* Chart Error State */
+.chart-container .text-muted {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* No Data Message */
+.no-data-message {
+    text-align: center;
+    padding: 2rem;
+    color: #9ca3af;
+}
+
+.no-data-message i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Chart Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+  transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+  }
+}
+
+.chart-card,
+.card {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Print Styles */
+@media print {
+    .chart-card,
+    .card {
+ page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #e5e7eb;
+    }
+}
