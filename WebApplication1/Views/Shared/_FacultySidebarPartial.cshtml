@@ -16,6 +16,11 @@
     </div>
     
     <nav class="sidebar-nav">
+        <a href="@Url.Action("Dashboard", "Faculty")" class="sidebar-link">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+        </a>
+        
         <a href="@Url.Action("Index", "Faculty")" class="sidebar-link">
             <i data-lucide="book-open"></i>
             <span>My Classes</span>
@@ -60,6 +65,11 @@
         </div>
         
         <nav class="sidebar-nav">
+            <a href="@Url.Action("Dashboard", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Dashboard</span>
+            </a>
+            
             <a href="@Url.Action("Index", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="book-open"></i>
                 <span>My Classes</span>
@@ -79,11 +89,11 @@
                 <i data-lucide="fingerprint"></i>
                 <span>Register Fingerprint</span>
             </a>
-            
+      
             <a href="@Url.Action("Logout", "Auth")" class="sidebar-link" data-bs-dismiss="offcanvas">
                 <i data-lucide="log-out"></i>
                 <span>Logout</span>
-            </a>
-        </nav>
-    </div>
-</div>
+             </a>
+           </nav>
+         </div>
+       </div>

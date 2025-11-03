@@ -27,14 +27,14 @@ public class AdminUserController : Controller
         IAdministrationRepository administrationRepository,
         AdminAuditService auditService)
     {
-        _logger = logger;
-        _userRepository = userRepository;
-        _userRoleRepository = userRoleRepository; // Still needed for GetRoles endpoint
+      _logger = logger;
+  _userRepository = userRepository;
+     _userRoleRepository = userRoleRepository;
         _administrationRepository = administrationRepository;
         _auditService = auditService;
     }
 
-    // GET: User/Index
+ // GET: User/Index
     public IActionResult Index()
     {
         return View("~/Views/Admin/Users.cshtml");
@@ -46,50 +46,50 @@ public class AdminUserController : Controller
     {
         try
         {
-            // Optimized: Single query with JOIN to get users with roles
-            var userData = await _userRepository.GetUsersWithRolesAsync();
+  // Optimized: Single query with JOIN to get users with roles
+   var userData = await _userRepository.GetUsersWithRolesAsync();
 
-            return Json(new { data = userData });
+          return Json(new { data = userData });
         }
         catch (Exception ex)
-        {
+{
             _logger.LogError(ex, "Error fetching users");
-            return Json(new { error = "Failed to fetch users" });
+     return Json(new { error = "Failed to fetch users" });
         }
     }
 
     // GET: User/GetById/{id}
     [HttpGet]
-    public async Task<IActionResult> GetById(int id)
+ public async Task<IActionResult> GetById(int id)
     {
         try
-        {
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user == null)
-            {
-                return Json(new { success = false, message = "User not found" });
-            }
+    {
+     var user = await _userRepository.GetByIdAsync(id);
+ if (user == null)
+      {
+return Json(new { success = false, message = "User not found" });
+    }
 
             // Don't send password to client
             var userData = new
             {
-                user.UserId,
-                user.UserFirstName,
-                user.UserLastName,
-                user.UserEmail,
-                user.UserPhone,
-                user.UserAddress,
-                UserBirthdate = user.UserBirthdate?.ToString("yyyy-MM-dd"),
-                user.RoleId,
-                user.IsActive
-            };
+        user.UserId,
+            user.UserFirstName,
+        user.UserLastName,
+     user.UserEmail,
+     user.UserPhone,
+       user.UserAddress,
+             UserBirthdate = user.UserBirthdate?.ToString("yyyy-MM-dd"),
+     user.RoleId,
+   user.IsActive
+  };
 
-            return Json(new { success = true, data = userData });
+       return Json(new { success = true, data = userData });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching user by ID");
-            return Json(new { success = false, message = "Failed to fetch user" });
+  _logger.LogError(ex, "Error fetching user by ID");
+return Json(new { success = false, message = "Failed to fetch user" });
         }
     }
 
@@ -99,14 +99,14 @@ public class AdminUserController : Controller
     {
         try
         {
-            var roles = await _userRoleRepository.GetAllAsync();
+        var roles = await _userRoleRepository.GetAllAsync();
             return Json(new { success = true, data = roles });
         }
         catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching roles");
+ {
+         _logger.LogError(ex, "Error fetching roles");
             return Json(new { success = false, message = "Failed to fetch roles" });
-        }
+     }
     }
 
     // POST: User/Create
@@ -115,80 +115,82 @@ public class AdminUserController : Controller
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return Json(new { success = false, message = "Invalid data provided" });
-            }
+    if (!ModelState.IsValid)
+   {
+         return Json(new { success = false, message = "Invalid data provided" });
+   }
 
-            // Check if email already exists
+         // Check if email already exists
             var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
-            if (emailExists)
-            {
-                return Json(new { success = false, message = "This email address is already registered." });
-            }
+   if (emailExists)
+{
+       return Json(new { success = false, message = "This email address is already registered." });
+          }
 
             // Hash password using BCrypt.Net-Next 4.0.3 best practices
-            // Work factor 12 = 2^12 = 4096 iterations (recommended for 2024)
-            user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
+         user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
             user.UserCreatedAt = DateTime.Now;
-            user.UserUpdatedAt = DateTime.Now;
-            user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
+      user.UserUpdatedAt = DateTime.Now;
+  user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
 
-            _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
+  _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
                 user.UserEmail, BCRYPT_WORK_FACTOR);
 
-            var result = await _userRepository.AddAsync(user);
+      var result = await _userRepository.AddAsync(user);
 
-            if (result)
+        if (result)
             {
-                // Get the created user to get the user_id
-                var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
+      // Get the created user to get the user_id
+         var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
 
-                if (createdUser != null)
-                {
-                    // Check if user role is admin (role_id = 1)
-                    if (createdUser.RoleId == 1)
-                    {
-                        // Generate unique admin code
-                        var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
-
-                        // Create administration record
-                        var administration = new Administration
-                        {
-                            UserId = createdUser.UserId,
-                            AdminCode = adminCode,
-                            AdminCreatedAt = DateTime.Now
-                        };
-
-                        var adminResult = await _administrationRepository.AddAsync(administration);
-
-                        if (adminResult)
-                        {
-                            await _auditService.LogActionAsync(
-                                "Created Admin User",
-                                $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
-                        }
-                        else
-                        {
-                            _logger.LogWarning($"Failed to create administration record for user {createdUser.UserId}");
-                        }
-                    }
-                    else
-                    {
-                        await _auditService.LogActionAsync(
-                            "Created User",
-                            $"Created user: {createdUser.UserEmail}");
-                    }
-                }
-
-                return Json(new { success = true, message = "User created successfully" });
-            }
-            return Json(new { success = false, message = "Failed to create user" });
-        }
-        catch (Exception ex)
+        if (createdUser != null)
         {
-            _logger.LogError(ex, "Error creating user");
-            return Json(new { success = false, message = "An error occurred while creating user" });
+         // Check if user role is admin (role_id = 1)
+        if (createdUser.RoleId == 1)
+         {
+   // Generate unique admin code
+            var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+
+  // Create administration record
+        var administration = new Administration
+        {
+         UserId = createdUser.UserId,
+      AdminCode = adminCode,
+              AdminCreatedAt = DateTime.Now
+              };
+
+            var adminResult = await _administrationRepository.AddAsync(administration);
+
+       if (adminResult)
+          {
+     // ? LOG AUDIT: Created Admin User
+        await _auditService.LogActionAsync(
+ "Created Admin User",
+   $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
+          }
+      else
+       {
+   _logger.LogWarning($"Failed to create administration record for user {createdUser.UserId}");
+        }
+   }
+  else
+             {
+   // ? LOG AUDIT: Created Regular User
+        var roleName = createdUser.RoleId == 2 ? "Faculty" : "Student";
+    await _auditService.LogActionAsync(
+  $"Created {roleName} User",
+             $"Created {roleName.ToLower()} user: {createdUser.UserEmail} (ID: {createdUser.UserId})");
+   }
+       }
+
+       return Json(new { success = true, message = "User created successfully" });
+       }
+     return Json(new { success = false, message = "Failed to create user" });
+  }
+        catch (Exception ex)
+    {
+    _logger.LogError(ex, "Error creating user");
+  return Json(new { success = false, message = "An error occurred while creating user" });
         }
     }
 
@@ -197,142 +199,147 @@ public class AdminUserController : Controller
     public async Task<IActionResult> Update([FromBody] User user)
     {
         try
-        {
-            if (!ModelState.IsValid)
-            {
-                return Json(new { success = false, message = "Invalid data provided" });
-            }
+     {
+      if (!ModelState.IsValid)
+       {
+    return Json(new { success = false, message = "Invalid data provided" });
+     }
 
-            // Get existing user to preserve password if not changed
+ // Get existing user to preserve password if not changed
             var existingUser = await _userRepository.GetByIdAsync(user.UserId);
-            if (existingUser == null)
-            {
-                return Json(new { success = false, message = "User not found" });
-            }
+        if (existingUser == null)
+        {
+     return Json(new { success = false, message = "User not found" });
+      }
 
-            // Check if email is being changed and if new email already exists
+        // Check if email is being changed and if new email already exists
             if (existingUser.UserEmail != user.UserEmail)
             {
-                var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
-                if (emailExists)
-                {
-                    return Json(new { success = false, message = "This email address is already registered." });
-                }
+   var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
+       if (emailExists)
+    {
+        return Json(new { success = false, message = "This email address is already registered." });
+  }
             }
 
             // Check if role changed to/from admin
             var roleChanged = existingUser.RoleId != user.RoleId;
-            var wasAdmin = existingUser.RoleId == 1;
-            var isNowAdmin = user.RoleId == 1;
+var wasAdmin = existingUser.RoleId == 1;
+  var isNowAdmin = user.RoleId == 1;
 
-            // If password is provided, hash it using BCrypt.Net-Next 4.0.3; otherwise keep existing
-            if (!string.IsNullOrEmpty(user.UserPassword))
-            {
-                // Hash with explicit work factor for consistency and security
+     // If password is provided, hash it; otherwise keep existing
+          if (!string.IsNullOrEmpty(user.UserPassword))
+     {
                 user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
-                _logger.LogInformation("Updating password for user {Email} with BCrypt work factor: {WorkFactor}",
-                    user.UserEmail, BCRYPT_WORK_FACTOR);
-            }
-            else
+    _logger.LogInformation("Updating password for user {Email} with BCrypt work factor: {WorkFactor}",
+        user.UserEmail, BCRYPT_WORK_FACTOR);
+  }
+ else
             {
-                user.UserPassword = existingUser.UserPassword;
-            }
+    user.UserPassword = existingUser.UserPassword;
+}
 
             user.UserUpdatedAt = DateTime.Now;
-            user.UserCreatedAt = existingUser.UserCreatedAt;
+   user.UserCreatedAt = existingUser.UserCreatedAt;
 
-            var result = await _userRepository.UpdateAsync(user);
+        var result = await _userRepository.UpdateAsync(user);
 
             if (result)
             {
-                // Handle administration record based on role change
-                if (roleChanged)
-                {
-                    if (isNowAdmin && !wasAdmin)
-                    {
-                        // User promoted to admin - create administration record
-                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
-                        if (existingAdmin == null)
-                        {
-                            var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
-                            var administration = new Administration
-                            {
-                                UserId = user.UserId,
-                                AdminCode = adminCode,
-                                AdminCreatedAt = DateTime.Now
-                            };
+    // Handle administration record based on role change
+    if (roleChanged)
+      {
+           if (isNowAdmin && !wasAdmin)
+       {
+           // User promoted to admin - create administration record
+     var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+  if (existingAdmin == null)
+           {
+      var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+   var administration = new Administration
+    {
+             UserId = user.UserId,
+   AdminCode = adminCode,
+          AdminCreatedAt = DateTime.Now
+   };
 
-                            await _administrationRepository.AddAsync(administration);
-                            await _auditService.LogActionAsync(
-                                "Promoted User to Admin",
-                                $"User {user.UserEmail} promoted to admin with code {adminCode}");
-                        }
-                    }
-                    else if (wasAdmin && !isNowAdmin)
-                    {
-                        // User demoted from admin - optionally delete administration record
-                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
-                        if (existingAdmin != null)
-                        {
-                            // Note: You might want to keep the record for audit purposes
-                            // await _administrationRepository.DeleteAsync(existingAdmin.AdminId);
-                            await _auditService.LogActionAsync(
-                                "Demoted Admin to User",
-                                $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
-                        }
-                    }
-                }
-                else
-                {
-                    await _auditService.LogActionAsync(
-                        "Updated User",
-                        $"Updated user: {user.UserEmail}");
-                }
-
-                return Json(new { success = true, message = "User updated successfully" });
+   await _administrationRepository.AddAsync(administration);
+      
+      // ? LOG AUDIT: User promoted to Admin
+        await _auditService.LogActionAsync(
+"User Promoted to Admin",
+       $"User {user.UserEmail} promoted to admin with code {adminCode}");
+  }
             }
-            return Json(new { success = false, message = "Failed to update user" });
+     else if (wasAdmin && !isNowAdmin)
+  {
+   // User demoted from admin
+       var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+     if (existingAdmin != null)
+               {
+    // ? LOG AUDIT: Admin demoted
+         await _auditService.LogActionAsync(
+         "Admin Demoted to User",
+      $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
+    }
+       }
+                }
+         else
+    {
+  // ? LOG AUDIT: Regular user update
+              var roleName = user.RoleId == 1 ? "Admin" : (user.RoleId == 2 ? "Faculty" : "Student");
+await _auditService.LogActionAsync(
+     $"Updated {roleName} User",
+              $"Updated {roleName.ToLower()} user: {user.UserEmail} (ID: {user.UserId})");
+}
+
+             return Json(new { success = true, message = "User updated successfully" });
+  }
+   return Json(new { success = false, message = "Failed to update user" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating user");
-            return Json(new { success = false, message = "An error occurred while updating user" });
+          _logger.LogError(ex, "Error updating user");
+  return Json(new { success = false, message = "An error occurred while updating user" });
         }
     }
 
-    // DELETE: User/Delete/{id}
-    [HttpDelete]
+  // DELETE: User/Delete/{id}
+ [HttpDelete]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
+  try
+ {
             var user = await _userRepository.GetByIdAsync(id);
-            if (user == null)
-            {
-                return Json(new { success = false, message = "User not found" });
-            }
+      if (user == null)
+          {
+       return Json(new { success = false, message = "User not found" });
+          }
 
-            var result = await _userRepository.DeleteAsync(id);
+     var result = await _userRepository.DeleteAsync(id);
 
-            if (result)
-            {
-                await _auditService.LogActionAsync(
-                    "Deleted User",
-                    $"Deleted user: {user.UserEmail} (Role ID: {user.RoleId})");
-                return Json(new { success = true, message = "User deleted successfully" });
-            }
+       if (result)
+{
+        // ? LOG AUDIT: User deleted
+   var roleName = user.RoleId == 1 ? "Admin" : (user.RoleId == 2 ? "Faculty" : "Student");
+            await _auditService.LogActionAsync(
+   $"Deleted {roleName} User",
+    $"Deleted {roleName.ToLower()} user: {user.UserEmail} (ID: {user.UserId}, Role ID: {user.RoleId})");
+                
+         return Json(new { success = true, message = "User deleted successfully" });
+        }
             return Json(new { success = false, message = "Failed to delete user" });
         }
         catch (Exception ex)
-        {
+     {
             _logger.LogError(ex, "Error deleting user");
             return Json(new { success = false, message = "An error occurred while deleting user" });
-        }
+    }
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
-    {
+  {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-    }
+ }
 }

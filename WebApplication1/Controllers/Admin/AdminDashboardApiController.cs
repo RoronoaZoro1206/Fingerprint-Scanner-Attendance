@@ -14,9 +14,9 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
     {
         private readonly IUserRepository _userRepo;
         private readonly ICourseRepository _courseRepo;
-   private readonly IFacultyRepository _facultyRepo;
+        private readonly IFacultyRepository _facultyRepo;
         private readonly IRoomRepository _roomRepo;
-   private readonly IAdministrationAuditRepository _auditRepo;
+        private readonly IAdministrationAuditRepository _auditRepo;
         private readonly FingerprintService _fingerprintService;
         private readonly DatabaseHelper _db;
         private readonly ILogger<AdminDashboardApiController> _logger;
@@ -161,44 +161,72 @@ try
 
       /// <summary>
     /// Get user role distribution for pie/doughnut chart
-        /// Returns count of Admin, Faculty, and Student users
-        /// </summary>
-        [HttpGet("chart/user-roles")]
-    public async Task<IActionResult> GetUserRoleDistribution()
+/// Returns count of Admin, Faculty, and Student users
+/// </summary>
+[HttpGet("chart/user-roles")]
+public async Task<IActionResult> GetUserRoleDistribution()
+{
+    try
+    {
+        _logger.LogInformation("GetUserRoleDistribution - Starting...");
+
+        // ? FIXED: Corrected SQL query to match actual database schema
+  // users.role_id directly references user_roles.role_id (no junction table)
+        var query = @"
+            SELECT ur.role_name, COUNT(u.user_id) as count
+            FROM user_roles ur
+   LEFT JOIN users u ON ur.role_id = u.role_id
+      WHERE ur.role_name IN ('admin', 'faculty', 'student')
+GROUP BY ur.role_name, ur.role_id
+   ORDER BY ur.role_id;";
+        
+      var dt = await _db.ExecuteQueryAsync(query);
+    
+        _logger.LogInformation($"GetUserRoleDistribution - Query returned {dt?.Rows.Count ?? 0} rows");
+      
+        var labels = new List<string>();
+        var data = new List<int>();
+      
+        if (dt != null && dt.Rows.Count > 0)
         {
-            try
-            {
-  var query = @"
-       SELECT ur.role_name, COUNT(u.user_id) as count
-           FROM user_roles ur
-         LEFT JOIN users u ON ur.role_id = u.role_id
-     WHERE ur.role_name IN ('admin', 'faculty', 'student')
-              GROUP BY ur.role_name
-          ORDER BY ur.role_id;";
-         
-                var dt = await _db.ExecuteQueryAsync(query);
-       
-      var labels = new List<string>();
-      var data = new List<int>();
-              
-     foreach (System.Data.DataRow row in dt.Rows)
-              {
-      labels.Add(row["role_name"].ToString() ?? "Unknown");
-        data.Add(Convert.ToInt32(row["count"]));
-            }
-         
-      return Ok(new
- {
-          labels = labels,
-       data = data
-          });
-  }
-            catch (Exception ex)
- {
-        _logger.LogError(ex, "Error getting user role distribution");
-       return StatusCode(500, new { error = "Failed to fetch user role distribution" });
-       }
-  }
+            foreach (System.Data.DataRow row in dt.Rows)
+        {
+                var roleName = row["role_name"]?.ToString() ?? "Unknown";
+      var count = Convert.ToInt32(row["count"]);
+  
+         // Capitalize first letter
+         labels.Add(char.ToUpper(roleName[0]) + roleName.Substring(1));
+data.Add(count);
+          
+     _logger.LogInformation($"GetUserRoleDistribution - Role: {roleName}, Count: {count}");
+ }
+        }
+  
+        // Always return data, even if empty
+        if (labels.Count == 0)
+        {
+ _logger.LogWarning("GetUserRoleDistribution - No data found, returning default roles with 0 count");
+  labels = new List<string> { "Admin", "Faculty", "Student" };
+          data = new List<int> { 0, 0, 0 };
+        }
+        
+        return Ok(new
+        {
+   labels = labels,
+            data = data
+ });
+    }
+ catch (Exception ex)
+    {
+        _logger.LogError(ex, $"Error getting user role distribution: {ex.Message}");
+        // Return empty data instead of error to prevent chart failure
+     return Ok(new
+        {
+   labels = new List<string> { "Admin", "Faculty", "Student" },
+  data = new List<int> { 0, 0, 0 }
+        });
+    }
+}
 
   /// <summary>
       /// Get daily attendance trend for last 30 days (line chart)

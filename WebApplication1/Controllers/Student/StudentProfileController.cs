@@ -42,13 +42,27 @@ public class StudentProfileController : Controller
     {
         try
         {
+            // Enhanced logging for debugging
             var userId = HttpContext.Session.GetInt32("UserId");
+            _logger.LogInformation($"GetProfile called - UserId from session: {userId}");
+
             if (!userId.HasValue || userId.Value == 0)
-                return Json(new { success = false, message = "User not authenticated" });
+            {
+                _logger.LogWarning("GetProfile - No userId in session or userId is 0");
+                return Json(new { success = false, message = "User not authenticated. Please log in again." });
+            }
+
+            _logger.LogInformation($"GetProfile - Fetching profile for userId: {userId.Value}");
 
             var profile = await _studentRepository.GetStudentProfileByUserIdAsync(userId.Value);
+
             if (profile == null)
-                return Json(new { success = false, message = "Profile not found" });
+            {
+                _logger.LogWarning($"GetProfile - No profile found for userId: {userId.Value}");
+                return Json(new { success = false, message = "Profile not found. Please contact administration." });
+            }
+
+            _logger.LogInformation($"GetProfile - Successfully retrieved profile for userId: {userId.Value}, StudId: {profile.StudId}");
 
             return Json(new
             {
@@ -80,8 +94,8 @@ public class StudentProfileController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting profile");
-            return Json(new { success = false, message = "Failed to load profile" });
+            _logger.LogError(ex, $"Error getting profile - UserId: {HttpContext.Session.GetInt32("UserId")}, Error: {ex.Message}, StackTrace: {ex.StackTrace}");
+            return Json(new { success = false, message = $"Failed to load profile: {ex.Message}" });
         }
     }
 
@@ -136,87 +150,143 @@ public class StudentProfileController : Controller
         try
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (!userId.HasValue || userId.Value == 0)
-                return Json(new { success = false, message = "User not authenticated" });
+            
+            // ? Enhanced logging for debugging
+ _logger.LogInformation($"UpdateProfile called - UserId from session: {userId}");
+  
+         if (!userId.HasValue || userId.Value == 0)
+            {
+    _logger.LogError("UpdateProfile - No userId in session or userId is 0");
+        return Json(new { success = false, message = "User not authenticated" });
+   }
 
-            var user = await _userRepository.GetByIdAsync(userId.Value);
+    // ? Verify user exists in database
+          var user = await _userRepository.GetByIdAsync(userId.Value);
             if (user == null)
-                return Json(new { success = false, message = "User not found" });
+ {
+                _logger.LogError($"UpdateProfile - User not found for userId: {userId.Value}");
+          return Json(new { success = false, message = "User not found" });
+   }
 
-            // Update user information
+            _logger.LogInformation($"UpdateProfile - Found user: {user.UserEmail} (UserID: {user.UserId})");
+
+        // Store old values for logging
+      var oldName = $"{user.UserFirstName} {user.UserLastName}";
+
+     // Update user information
             user.UserFirstName = request.UserFirstName;
             user.UserMiddleName = request.UserMiddleName;
             user.UserLastName = request.UserLastName;
-            user.UserPhone = request.UserPhone;
-            user.UserGender = request.UserGender;
-            user.UserBirthdate = request.UserBirthdate;
-            user.UserAddress = request.UserAddress;
+ user.UserPhone = request.UserPhone;
+         user.UserGender = request.UserGender;
+     user.UserBirthdate = request.UserBirthdate;
+      user.UserAddress = request.UserAddress;
             user.UserUpdatedAt = DateTime.Now;
 
-            var userResult = await _userRepository.UpdateAsync(user);
-            if (!userResult)
-                return Json(new { success = false, message = "Failed to update user information" });
+    var userResult = await _userRepository.UpdateAsync(user);
+        if (!userResult)
+     {
+      _logger.LogError($"UpdateProfile - Failed to update user information for userId: {userId.Value}");
+    return Json(new { success = false, message = "Failed to update user information" });
+            }
 
-            // Update session with new name
+            _logger.LogInformation($"UpdateProfile - Successfully updated user information for userId: {userId.Value}");
+
+     // Update session with new name
             HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
 
-            // Update or create student profile
-            var student = await _studentRepository.GetByUserIdAsync(userId.Value);
+        // Update or create student profile
+     var student = await _studentRepository.GetByUserIdAsync(userId.Value);
 
             if (student != null)
+     {
+   _logger.LogInformation($"UpdateProfile - Found student record (StudId: {student.StudId}) for userId: {userId.Value}");
+
+       // Store old values for logging
+        var oldProgram = student.ProgramId;
+ var oldYearLevel = student.StudYearLevel;
+      var oldSection = student.SectionId;
+
+// Check if profile is already submitted and trying to change PROGRAM
+  if (student.ProfileSubmitted)
+    {
+        // Only lock the PROGRAM - allow year level and section updates
+          bool programChanged = student.ProgramId != request.ProgramId;
+
+         if (programChanged)
             {
-                // Check if profile is already submitted and trying to change PROGRAM
-                if (student.ProfileSubmitted)
-                {
-                    // Only lock the PROGRAM - allow year level and section updates
-                    bool programChanged = student.ProgramId != request.ProgramId;
+           _logger.LogWarning($"UpdateProfile - Student {student.StudId} attempted to change locked program from {oldProgram} to {request.ProgramId}");
+      return Json(new
+        {
+         success = false,
+         message = "Your program is locked after first submission. Please contact administration if you need to change your program."
+       });
+  }
 
-                    if (programChanged)
-                    {
-                        return Json(new 
-                        { 
-                            success = false, 
-                            message = "Your program is locked after first submission. Please contact administration if you need to change your program." 
-                        });
-                    }
-                    
-                    // Year level and section can be updated freely
-                }
-                else
-                {
-                    // First time submitting with complete academic info - lock the profile
-                    if (request.ProgramId.HasValue)
-                    {
-                        student.ProfileSubmitted = true;
-                        student.ProfileSubmittedAt = DateTime.Now;
-                    }
-                }
-
-                // Update student profile (year level and section can always be updated)
-                student.ProgramId = request.ProgramId;
-                student.StudYearLevel = request.StudYearLevel;
-                student.SectionId = request.SectionId;
-
-                var studentResult = await _studentRepository.UpdateAsync(student);
-                if (!studentResult)
-                    return Json(new { success = false, message = "Failed to update student profile" });
+   // Year level and section can be updated freely
+      _logger.LogInformation($"UpdateProfile - Allowing year level/section update for submitted profile (StudId: {student.StudId})");
             }
             else
-            {
-                // Student profile doesn't exist - this shouldn't happen for registered students
-                // but we'll handle it gracefully
-                return Json(new { success = false, message = "Student profile not found. Please contact administration." });
-            }
+             {
+        // First time submitting with complete academic info - lock the profile
+        if (request.ProgramId.HasValue)
+         {
+     student.ProfileSubmitted = true;
+  student.ProfileSubmittedAt = DateTime.Now;
+             _logger.LogInformation($"UpdateProfile - Locking profile for student {student.StudId} (first submission with program)");
+                  }
+       }
 
-            string message = student.ProfileSubmitted 
-                ? "Profile updated successfully" 
-                : "Profile updated successfully. Your program is now locked.";
+                // Update student profile (year level and section can always be updated)
+         student.ProgramId = request.ProgramId;
+    student.StudYearLevel = request.StudYearLevel;
+        student.SectionId = request.SectionId;
 
-            return Json(new { success = true, message = message });
+      _logger.LogInformation($"UpdateProfile - Updating student record for StudId: {student.StudId}, UserId: {student.UserId}");
+
+          var studentResult = await _studentRepository.UpdateAsync(student);
+                if (!studentResult)
+              {
+        _logger.LogError($"UpdateProfile - Failed to update student profile for StudId: {student.StudId}");
+      return Json(new { success = false, message = "Failed to update student profile" });
+             }
+
+      _logger.LogInformation($"UpdateProfile - Successfully updated student profile for StudId: {student.StudId}");
+
+  // ? Log changes for tracking
+    var changes = new List<string>();
+              if (oldName != $"{user.UserFirstName} {user.UserLastName}")
+ changes.Add($"Name: {oldName} ? {user.UserFirstName} {user.UserLastName}");
+          if (oldProgram != student.ProgramId)
+       changes.Add($"Program: {oldProgram} ? {student.ProgramId}");
+  if (oldYearLevel != student.StudYearLevel)
+          changes.Add($"Year Level: {oldYearLevel} ? {student.StudYearLevel}");
+             if (oldSection != student.SectionId)
+ changes.Add($"Section: {oldSection} ? {student.SectionId}");
+
+      if (changes.Any())
+     {
+     _logger.LogInformation($"Profile changes for student {student.StudNumber}: {string.Join(", ", changes)}");
         }
+            }
+            else
+      {
+          // Student profile doesn't exist - this shouldn't happen for registered students
+        // but we'll handle it gracefully
+                _logger.LogError($"UpdateProfile - No student record found for userId: {userId.Value}");
+         return Json(new { success = false, message = "Student profile not found. Please contact administration." });
+        }
+
+            string message = student?.ProfileSubmitted == true
+     ? "Profile updated successfully"
+              : "Profile updated successfully. Your program is now locked.";
+
+            _logger.LogInformation($"UpdateProfile - Completed successfully for userId: {userId.Value}");
+    return Json(new { success = true, message = message });
+ }
         catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating profile");
+ {
+         _logger.LogError(ex, $"UpdateProfile - Exception occurred for userId: {HttpContext.Session.GetInt32("UserId")}");
             return Json(new { success = false, message = "An error occurred while updating profile" });
         }
     }

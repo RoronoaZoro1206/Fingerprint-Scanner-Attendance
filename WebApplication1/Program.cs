@@ -23,7 +23,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddControllers(); // ? ADD THIS LINE TO ENABLE API CONTROLLERS
+builder.Services.AddControllers(); // Enable API controllers
 
 builder.Services.AddSession(options =>
 {
@@ -75,13 +75,13 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     try
     {
-        var initializer = services.GetRequiredService<SuperAdminInitializer>();
+      var initializer = services.GetRequiredService<SuperAdminInitializer>();
         await initializer.InitializeAsync();
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while initializing super admin account.");
+   logger.LogError(ex, "An error occurred while initializing super admin account.");
     }
 }
 
@@ -101,12 +101,14 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
-// ? FIX: Map BOTH MVC routes AND API routes
-app.MapControllers(); // ? ADD THIS LINE TO MAP API CONTROLLER ROUTES
+// CRITICAL FIX: Map API controller routes FIRST (attribute-based routing)
+// This ensures /api/* routes are handled by API controllers, not MVC convention routing
+app.MapControllers();
 
+// Then map MVC routes (convention-based routing)
 app.MapControllerRoute(
       name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}")
+ pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 

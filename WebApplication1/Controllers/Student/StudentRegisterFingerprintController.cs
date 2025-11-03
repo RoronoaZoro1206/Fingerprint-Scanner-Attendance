@@ -135,15 +135,15 @@ _logger.LogError("Failed to open device");
      public IActionResult CaptureFingerprint()
     {
      try
-       {
+     {
       _logger.LogInformation("Attempting to capture fingerprint with image...");
-                
-      // Capture both image and template
-       var (imageData, width, height, template) = _fingerprintService.CaptureFingerprintWithImage();
+       
+  // Capture both image and template with detailed error information
+    var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
 
         if (template == null || imageData == null)
        {
-            _logger.LogWarning("Failed to capture fingerprint - no data");
+        _logger.LogWarning($"Failed to capture fingerprint - {errorMessage} (Error code: {errorCode})");
    
         // Error feedback: red light + beep sound
  _fingerprintService.SetLedLight("red", true);
@@ -154,17 +154,24 @@ _logger.LogError("Failed to open device");
   _fingerprintService.Beep(false);
 });
    
-      return Json(new { success = false, message = "Failed to capture fingerprint. Please try again." });
+    // Return specific error message from scanner
+      return Json(new { 
+           success = false, 
+   message = string.IsNullOrEmpty(errorMessage) 
+     ? "Failed to capture fingerprint. Please try again." 
+     : errorMessage,
+   errorCode = errorCode
+});
            }
 
-                // Convert image to Base64 for display
+        // Convert image to Base64 for display
   var imageBase64 = _fingerprintService.ConvertImageToBase64(imageData, width, height);
 var templateBase64 = Convert.ToBase64String(template);
 
          _logger.LogInformation($"Fingerprint captured successfully. Image: {width}x{height}, Template: {template.Length} bytes");
 
  // Success feedback: green light + beep sound
-          _fingerprintService.SetLedLight("green", true);
+        _fingerprintService.SetLedLight("green", true);
    _fingerprintService.Beep(true);
       _ = Task.Delay(200).ContinueWith(_ =>
 {
@@ -179,17 +186,17 @@ _fingerprintService.SetLedLight("green", false);
  imageBase64,  // Add image data for display
  imageWidth = width,
      imageHeight = height
-        });
-            }
+});
+         }
      catch (Exception ex)
-        {
+     {
      _logger.LogError(ex, "Error capturing fingerprint");
 
        // Error feedback: red light + beep sound
       _fingerprintService.SetLedLight("red", true);
    _fingerprintService.Beep(true);
       _ = Task.Delay(500).ContinueWith(_ =>
-          {
+   {
           _fingerprintService.SetLedLight("red", false);
   _fingerprintService.Beep(false);
   });
@@ -204,71 +211,88 @@ public async Task<IActionResult> RegisterFingerprint([FromBody] FingerprintRegis
         {
     try
     {
-   var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null)
-         {
+   // ? Get userId from session with enhanced logging
+var userId = HttpContext.Session.GetInt32("UserId");
+ _logger.LogInformation($"RegisterFingerprint - UserId from session: {userId}");
+ 
+   if (userId == null)
+       {
+      _logger.LogError("RegisterFingerprint - No userId in session");
      return Json(new { success = false, message = "User not logged in" });
     }
 
+            // ? Verify user exists in users table
+ _logger.LogInformation($"RegisterFingerprint - Checking if user {userId.Value} exists in database...");
+ var user = await _userRepo.GetByIdAsync(userId.Value);
+   
+   if (user == null)
+     {
+       _logger.LogError($"RegisterFingerprint - User not found in database for userId: {userId.Value}");
+  return Json(new { success = false, message = "User not found. Please contact administration." });
+  }
+
+ _logger.LogInformation($"RegisterFingerprint - User found: {user.UserEmail} (UserID: {user.UserId})");
+
  if (string.IsNullOrEmpty(dto.TemplateBase64))
     {
-       return Json(new { success = false, message = "No fingerprint data provided" });
+       _logger.LogWarning("RegisterFingerprint - No fingerprint data provided");
+          return Json(new { success = false, message = "No fingerprint data provided" });
 }
-
-   // Get user details for logging
-     var user = await _userRepo.GetByIdAsync(userId.Value);
 
    // Convert base64 to byte array
       byte[] templateData = Convert.FromBase64String(dto.TemplateBase64);
+ _logger.LogInformation($"RegisterFingerprint - Template data size: {templateData.Length} bytes");
 
      // Check if user already has a fingerprint
     var existingTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
  
      if (existingTemplate != null)
       {
+    _logger.LogWarning($"RegisterFingerprint - User {userId.Value} already has a registered fingerprint (TemplateId: {existingTemplate.FtempId})");
     // User already has a fingerprint - they can only update with password confirmation
   return Json(new { 
   success = false, 
         requirePasswordConfirmation = true,
       message = "You already have a registered fingerprint. To update it, please confirm your password first." 
      });
-    }
+ }
 
      // GLOBAL DUPLICATE CHECK: Compare new fingerprint against ALL registered fingerprints
-  _logger.LogInformation($"Checking for duplicate fingerprints across all users for new registration (user: {user?.UserEmail})...");
+  _logger.LogInformation($"Checking for duplicate fingerprints across all users for new registration (user: {user.UserEmail})...");
         var allTemplates = await _fingerprintRepo.GetAllAsync();
-  
+  _logger.LogInformation($"RegisterFingerprint - Found {allTemplates.Count()} existing fingerprint templates to check against");
+
        // Match threshold for duplicate detection
   const int duplicateMatchThreshold = 40;
          
 foreach (var existingDbTemplate in allTemplates)
    {
-              // Compare new template with this existing template
+    // Compare new template with this existing template
     int matchScore = _fingerprintService.GetMatchScore(templateData, existingDbTemplate.FtempData);
            
     _logger.LogInformation($"Comparing with user {existingDbTemplate.UserId}: Match score = {matchScore}");
          
    if (matchScore >= duplicateMatchThreshold)
      {
-         // Found a duplicate! This fingerprint is already registered to another user
+       // Found a duplicate! This fingerprint is already registered to another user
         var otherUser = await _userRepo.GetByIdAsync(existingDbTemplate.UserId);
-             
+        
   _logger.LogWarning(
-      $"DUPLICATE FINGERPRINT BLOCKED! User {user?.UserEmail} attempted to register " +
+      $"DUPLICATE FINGERPRINT BLOCKED! User {user.UserEmail} attempted to register " +
           $"a fingerprint that is already registered to user {otherUser?.UserEmail} (Match score: {matchScore})"
     );
        
-            // Error feedback: red light + beep
+  // Error feedback: red light + beep
     _fingerprintService.SetLedLight("red", true);
      _fingerprintService.Beep(true);
        _ = Task.Delay(500).ContinueWith(_ =>
 {
    _fingerprintService.SetLedLight("red", false);
-       _fingerprintService.Beep(false);
+   _fingerprintService.Beep(false);
   });
      
   return Json(new 
-         { 
+ { 
        success = false, 
      message = "This fingerprint is already registered to another user in the system. Please use a different finger.",
            isDuplicate = true,
@@ -277,39 +301,66 @@ foreach (var existingDbTemplate in allTemplates)
        }
    }
     
-      _logger.LogInformation($"No duplicate fingerprints found. Proceeding with registration for user {user?.UserEmail}");
+      _logger.LogInformation($"No duplicate fingerprints found. Proceeding with registration for user {user.UserEmail}");
 
-   // Create new template (first registration)
+   // ? Create new template with explicit userId logging
+     _logger.LogInformation($"RegisterFingerprint - Creating new template for UserId: {userId.Value}");
      var newTemplate = new FingerprintTemplate
   {
-     UserId = userId.Value,
+     UserId = userId.Value, // ? This MUST be a valid user_id from the users table
 FtempData = templateData,
-      FtempName = dto.TemplateName,
+      FtempName = dto.TemplateName ?? "Primary Fingerprint",
 FtempCreatedAt = DateTime.UtcNow
    };
 
+            _logger.LogInformation($"RegisterFingerprint - Template object created. UserId: {newTemplate.UserId}, DataSize: {newTemplate.FtempData.Length}, Name: {newTemplate.FtempName}");
+
+            // ? Attempt to insert into database with detailed logging
+  _logger.LogInformation($"RegisterFingerprint - Attempting to insert template into fingerprint_templates table...");
+      
+            try
+   {
   var templateId = await _fingerprintRepo.CreateAsync(newTemplate);
 
    if (templateId > 0)
    {
+          _logger.LogInformation($"RegisterFingerprint - ? SUCCESS! Template created with ID: {templateId} for userId: {userId.Value}");
   // Success feedback
     _fingerprintService.SetLedLight("green", true);
-      _fingerprintService.Beep(true);
+_fingerprintService.Beep(true);
          _ = Task.Delay(300).ContinueWith(_ =>
    {
  _fingerprintService.SetLedLight("green", false);
-       _fingerprintService.Beep(false);
+     _fingerprintService.Beep(false);
       });
   
-      _logger.LogInformation($"Fingerprint registered successfully for user {user?.UserEmail}");
+      _logger.LogInformation($"Fingerprint registered successfully for user {user.UserEmail}");
   return Json(new { success = true, message = "Fingerprint registered successfully" });
-}
-
+           }
+         else
+{
+      _logger.LogError($"RegisterFingerprint - CreateAsync returned 0 or negative ID");
 return Json(new { success = false, message = "Failed to save fingerprint" });
-   }
+            }
+  }
+    catch (Exception dbEx)
+   {
+          // ? Catch database-specific errors
+   _logger.LogError(dbEx, $"RegisterFingerprint - Database error when inserting template for userId: {userId.Value}. Error: {dbEx.Message}");
+        
+    // Check if it's a foreign key violation
+                if (dbEx.Message.Contains("23503") || dbEx.Message.Contains("foreign key"))
+      {
+           _logger.LogError($"RegisterFingerprint - FOREIGN KEY VIOLATION! UserId {userId.Value} does not exist in users table!");
+       return Json(new { success = false, message = $"Database error: User ID {userId.Value} is invalid. Please contact support." });
+      }
+  
+           return Json(new { success = false, message = $"Database error: {dbEx.Message}" });
+     }
+}
 catch (Exception ex)
   {
-_logger.LogError(ex, "Error registering fingerprint");
+_logger.LogError(ex, $"RegisterFingerprint - Unexpected error for userId: {HttpContext.Session.GetInt32("UserId")}");
 
    // Error feedback
       _fingerprintService.SetLedLight("red", true);

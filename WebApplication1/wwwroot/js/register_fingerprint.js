@@ -1,31 +1,31 @@
-// Fingerprint Registration JavaScript
+﻿// Fingerprint Registration JavaScript
 document.addEventListener('DOMContentLoaded', function () {
     const btnScan = document.getElementById('btnScan');
     const btnRegister = document.getElementById('btnRegister');
     const btnCancel = document.getElementById('btnCancel');
     const btnConfirmCancel = document.getElementById('btnConfirmCancel');
     const scannerStatus = document.getElementById('scannerStatus');
-  const registrationStatus = document.getElementById('registrationStatus');
+    const registrationStatus = document.getElementById('registrationStatus');
     const fingerprintScanner = document.getElementById('fingerprintScanner');
 
     let capturedTemplateBase64 = null;
-let capturedImageBase64 = null;
+    let capturedImageBase64 = null;
     let isRegistered = false;
 
     // Detect user role from URL
     const path = window.location.pathname;
     let baseUrl = '';
     let redirectUrl = '';
-    
+
     if (path.includes('/Admin/')) {
-     baseUrl = '/Admin/AdminRegisterFingerprint';
-      redirectUrl = '/Admin/Index';
+        baseUrl = '/Admin/AdminRegisterFingerprint';
+        redirectUrl = '/Admin/Index';
     } else if (path.includes('/Faculty/')) {
-    baseUrl = '/Faculty/FacultyRegisterFingerprint';
+        baseUrl = '/Faculty/FacultyRegisterFingerprint';
         redirectUrl = '/Faculty/Index';
     } else if (path.includes('/Student/')) {
         baseUrl = '/Student/StudentRegisterFingerprint';
-    redirectUrl = '/Student/StudentProfile';
+  redirectUrl = '/Student/';  // ✅ FIXED: Correct route to Student/Index
     }
 
     console.log('Base URL:', baseUrl);
@@ -43,70 +43,70 @@ let capturedImageBase64 = null;
     // Scan button click
     if (btnScan) {
         btnScan.addEventListener('click', async function () {
- try {
-   console.log('Scan button clicked');
-            btnScan.disabled = true;
-         btnScan.textContent = 'Scanning...';
+            try {
+                console.log('Scan button clicked');
+                btnScan.disabled = true;
+                btnScan.textContent = 'Scanning...';
                 fingerprintScanner.classList.add('scanning');
 
-           // ? Show "Scanning in progress" toast
-showToast('Scanning in progress, please wait...', 'info');
+                // ? Show "Scanning in progress" toast
+                showToast('Scanning in progress, please wait...', 'info');
 
-           const url = `${baseUrl}/CaptureFingerprint`;
-         console.log('Fetching:', url);
+                const url = `${baseUrl}/CaptureFingerprint`;
+                console.log('Fetching:', url);
 
-         // ? Track start time for minimum scanning duration
-  const scanStartTime = Date.now();
+                // ? Track start time for minimum scanning duration
+                const scanStartTime = Date.now();
                 const MIN_SCAN_DURATION = 2000; // 2 seconds minimum (matches login page feel)
 
-         const response = await fetch(url, {
-          method: 'POST',
- headers: {
-     'Content-Type': 'application/json'
-  }
-           });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-            console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers.get('content-type'));
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers.get('content-type'));
 
-     const result = await response.json();
-      console.log('Response data:', result);
+                const result = await response.json();
+                console.log('Response data:', result);
 
-    // ? Calculate elapsed time and wait if needed
+                // ? Calculate elapsed time and wait if needed
                 const scanElapsedTime = Date.now() - scanStartTime;
-       const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanElapsedTime);
-          
-          if (remainingTime > 0) {
-     console.log(`Extending scan display by ${remainingTime}ms for better UX`);
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-    }
+                const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanElapsedTime);
 
-           if (result.success) {
-   capturedTemplateBase64 = result.templateBase64;
-    capturedImageBase64 = result.imageBase64;
-      
-      // Display the fingerprint image in the circle
-           displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
-       
-            // Show success toast
-showToast('Fingerprint captured successfully!', 'success');
-  fingerprintScanner.classList.add('captured');
-      btnRegister.disabled = false;
-        } else {
-  // Show error toast
-         showToast(result.message || 'Failed to capture fingerprint', 'error');
-  fingerprintScanner.classList.add('error');
-        setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
-     }
-} catch (error) {
+                if (remainingTime > 0) {
+                    console.log(`Extending scan display by ${remainingTime}ms for better UX`);
+                    await new Promise(resolve => setTimeout(resolve, remainingTime));
+                }
+
+                if (result.success) {
+                    capturedTemplateBase64 = result.templateBase64;
+                    capturedImageBase64 = result.imageBase64;
+
+                    // Display the fingerprint image in the circle
+                    displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
+
+                    // Show success toast
+                    showToast('Fingerprint captured successfully!', 'success');
+                    fingerprintScanner.classList.add('captured');
+                    btnRegister.disabled = false;
+                } else {
+                    // Show error toast
+                    showToast(result.message || 'Failed to capture fingerprint', 'error');
+                    fingerprintScanner.classList.add('error');
+                    setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+                }
+            } catch (error) {
                 console.error('Error capturing fingerprint:', error);
-              // Show error toast
+                // Show error toast
                 showToast('Error: ' + error.message, 'error');
             } finally {
-     btnScan.disabled = false;
- btnScan.textContent = 'Scan Fingerprint';
+                btnScan.disabled = false;
+                btnScan.textContent = 'Scan Fingerprint';
                 fingerprintScanner.classList.remove('scanning');
-     }
+            }
         });
     }
 
@@ -114,115 +114,115 @@ showToast('Fingerprint captured successfully!', 'success');
     function displayFingerprintImage(imageBase64, width, height) {
         if (!imageBase64) return;
 
-  // Clear existing content
+        // Clear existing content
         fingerprintScanner.innerHTML = '';
 
-      // Create image element
+        // Create image element
         const img = document.createElement('img');
-     img.src = 'data:image/bmp;base64,' + imageBase64;
+        img.src = 'data:image/bmp;base64,' + imageBase64;
         img.alt = 'Captured Fingerprint';
-   
-      // Style to fit circle naturally without zoom
+
+        // Style to fit circle naturally without zoom
         img.style.width = '100%';
-   img.style.height = '100%';
- img.style.objectFit = 'contain';  // Changed from 'cover' to 'contain' - no zoom
-     img.style.borderRadius = '50%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';  // Changed from 'cover' to 'contain' - no zoom
+        img.style.borderRadius = '50%';
         // Removed filter: invert(1) - keep natural colors (white bg, black lines)
 
-    fingerprintScanner.appendChild(img);
-        
-   console.log(`Fingerprint image displayed: ${width}x${height} (natural colors, no zoom)`);
+        fingerprintScanner.appendChild(img);
+
+        console.log(`Fingerprint image displayed: ${width}x${height} (natural colors, no zoom)`);
     }
 
     // Register/Update button click
     if (btnRegister) {
-    btnRegister.addEventListener('click', async function () {
+        btnRegister.addEventListener('click', async function () {
             if (!capturedTemplateBase64) {
-            // KEEP TOASTIFY: Simple warning
-       showToast('Please scan your fingerprint first', 'warning');
-     return;
-     }
+                // KEEP TOASTIFY: Simple warning
+                showToast('Please scan your fingerprint first', 'warning');
+                return;
+            }
 
-      // If already registered, show password confirmation immediately
+            // If already registered, show password confirmation immediately
             if (isRegistered) {
-        showPasswordConfirmationModal();
-  return;
-     }
+                showPasswordConfirmationModal();
+                return;
+            }
 
-  // Otherwise, attempt to register
-          try {
-        console.log('Register button clicked');
-       btnRegister.disabled = true;
-   btnRegister.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Registering...';
+            // Otherwise, attempt to register
+            try {
+                console.log('Register button clicked');
+                btnRegister.disabled = true;
+                btnRegister.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Registering...';
 
-     const url = `${baseUrl}/RegisterFingerprint`;
-       console.log('Fetching:', url);
+                const url = `${baseUrl}/RegisterFingerprint`;
+                console.log('Fetching:', url);
 
                 const response = await fetch(url, {
- method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-         },
-         body: JSON.stringify({
-         templateBase64: capturedTemplateBase64,
-     templateName: 'Primary Fingerprint'
-   })
-     });
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        templateBase64: capturedTemplateBase64,
+                        templateName: 'Primary Fingerprint'
+                    })
+                });
 
-       console.log('Response status:', response.status);
-          const result = await response.json();
-       console.log('Response data:', result);
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response data:', result);
 
-     if (result.success) {
-             // REPLACE WITH SWEETALERT2: Final success message
-           SwalAlert.success('Good job!', result.message || 'Fingerprint registered successfully!').then(() => {
-      fingerprintScanner.classList.remove('captured');
-          fingerprintScanner.classList.add('registered');
-                capturedTemplateBase64 = null;
-    capturedImageBase64 = null;
-                checkRegistrationStatus();
-                 
-  // Redirect after alert closes
-         window.location.href = redirectUrl;
-       });
-    } else if (result.requirePasswordConfirmation) {
-       // User has existing fingerprint, need password confirmation
-   showPasswordConfirmationModal();
-      } else {
-// REPLACE WITH SWEETALERT2: Final error message
-         SwalAlert.error('Oops...', result.message || 'Failed to register fingerprint');
-          }
-  } catch (error) {
-   console.error('Error registering fingerprint:', error);
-  // REPLACE WITH SWEETALERT2: Final error message
-          SwalAlert.error('Oops...', 'Error: ' + error.message);
+                if (result.success) {
+                    // REPLACE WITH SWEETALERT2: Final success message
+                    SwalAlert.success('Good job!', result.message || 'Fingerprint registered successfully!').then(() => {
+                        fingerprintScanner.classList.remove('captured');
+                        fingerprintScanner.classList.add('registered');
+                        capturedTemplateBase64 = null;
+                        capturedImageBase64 = null;
+                        checkRegistrationStatus();
+
+                        // Redirect after alert closes
+                        window.location.href = redirectUrl;
+                    });
+                } else if (result.requirePasswordConfirmation) {
+                    // User has existing fingerprint, need password confirmation
+                    showPasswordConfirmationModal();
+                } else {
+                    // REPLACE WITH SWEETALERT2: Final error message
+                    SwalAlert.error('Oops...', result.message || 'Failed to register fingerprint');
+                }
+            } catch (error) {
+                console.error('Error registering fingerprint:', error);
+                // REPLACE WITH SWEETALERT2: Final error message
+                SwalAlert.error('Oops...', 'Error: ' + error.message);
             } finally {
                 btnRegister.disabled = false;
-           updateRegisterButtonText();
-        if (typeof lucide !== 'undefined') {
-lucide.createIcons();
-        }
-    }
-    });
+                updateRegisterButtonText();
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        });
     }
 
     // Update register button text based on registration status
     function updateRegisterButtonText() {
         if (btnRegister) {
-      if (isRegistered) {
-      btnRegister.innerHTML = '<i data-lucide="refresh-cw"></i> Update Fingerprint';
-   } else {
-  btnRegister.innerHTML = '<i data-lucide="shield-check"></i> Register Fingerprint';
+            if (isRegistered) {
+                btnRegister.innerHTML = '<i data-lucide="refresh-cw"></i> Update Fingerprint';
+            } else {
+                btnRegister.innerHTML = '<i data-lucide="shield-check"></i> Register Fingerprint';
             }
-   if (typeof lucide !== 'undefined') {
-       lucide.createIcons();
-      }
- }
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
     }
 
     // Show password confirmation modal for updating fingerprint
     function showPasswordConfirmationModal() {
-      const modalHTML = `
+        const modalHTML = `
         <div class="modal fade" id="passwordConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
    <div class="modal-content">
@@ -260,18 +260,18 @@ lucide.createIcons();
         </div>
         `;
 
-  // Remove existing modal if present
+        // Remove existing modal if present
         const existingModal = document.getElementById('passwordConfirmModal');
-if (existingModal) {
+        if (existingModal) {
             existingModal.remove();
         }
 
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-     // Initialize Lucide icons
-  if (typeof lucide !== 'undefined') {
-     lucide.createIcons();
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
         }
 
         // Show modal
@@ -282,250 +282,264 @@ if (existingModal) {
         // Initialize password toggle functionality
         initializePasswordToggle();
 
-      // Handle confirm button
- const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
+        // Handle confirm button
+        const btnConfirmUpdate = document.getElementById('btnConfirmUpdate');
         const updatePassword = document.getElementById('updatePassword');
         const passwordError = document.getElementById('passwordError');
 
         btnConfirmUpdate.addEventListener('click', async function () {
-       const password = updatePassword.value.trim();
-      
+            const password = updatePassword.value.trim();
+
             if (!password) {
-  updatePassword.classList.add('is-invalid');
-  passwordError.textContent = 'Password is required';
+                updatePassword.classList.add('is-invalid');
+                passwordError.textContent = 'Password is required';
                 return;
-    }
+            }
 
             try {
-       btnConfirmUpdate.disabled = true;
-   btnConfirmUpdate.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Updating...';
+                btnConfirmUpdate.disabled = true;
+                btnConfirmUpdate.innerHTML = '<i data-lucide="loader" class="icon-spin"></i> Updating...';
 
                 const url = `${baseUrl}/UpdateFingerprint`;
-    console.log('Updating fingerprint:', url);
+                console.log('Updating fingerprint:', url);
 
-           const response = await fetch(url, {
-        method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-              },
-         body: JSON.stringify({
-  templateBase64: capturedTemplateBase64,
-     templateName: 'Primary Fingerprint',
-password: password
-      })
-  });
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        templateBase64: capturedTemplateBase64,
+                        templateName: 'Primary Fingerprint',
+                        password: password
+                    })
+                });
 
-      const result = await response.json();
-   console.log('Update response:', result);
+                const result = await response.json();
+                console.log('Update response:', result);
 
-   if (result.success) {
-           // REPLACE WITH SWEETALERT2: Final success message
-             modal.hide();
-    SwalAlert.success('Success!', result.message || 'Fingerprint updated successfully!').then(() => {
-            fingerprintScanner.classList.remove('captured');
- fingerprintScanner.classList.add('registered');
-capturedTemplateBase64 = null;
-             capturedImageBase64 = null;
-               checkRegistrationStatus();
+                if (result.success) {
+                    // SUCCESS: Close modal and show success message
+                    modal.hide();
+                    SwalAlert.success('Success!', result.message || 'Fingerprint updated successfully!').then(() => {
+                        fingerprintScanner.classList.remove('captured');
+                        fingerprintScanner.classList.add('registered');
+                        capturedTemplateBase64 = null;
+                        capturedImageBase64 = null;
+                        checkRegistrationStatus();
 
-        // Redirect after alert closes
-     window.location.href = redirectUrl;
-        });
-         } else if (result.isDuplicate) {
-        // Handle duplicate fingerprint error
-         modal.hide();
-                    // REPLACE WITH SWEETALERT2: Final error message
-     SwalAlert.error('Duplicate Fingerprint!', result.message || 'This fingerprint is already registered to another user. Please use a different finger.');
-            
-      // Clear captured fingerprint to force re-scan
-        capturedTemplateBase64 = null;
-        capturedImageBase64 = null;
-        fingerprintScanner.classList.remove('captured');
-        fingerprintScanner.innerHTML = '<div class="scanner-instruction">Place finger here</div>';
-            btnRegister.disabled = true;
-         
-          // Log duplicate attempt
-      console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
-      } else {
- updatePassword.classList.add('is-invalid');
-   passwordError.textContent = result.message || 'Failed to update fingerprint';
-          }
+                        // Redirect after alert closes
+                        window.location.href = redirectUrl;
+                    });
+                } else if (result.isDuplicate) {
+                    // DUPLICATE FINGERPRINT: Close modal and show error
+                    modal.hide();
+                    SwalAlert.error('Duplicate Fingerprint!', result.message || 'This fingerprint is already registered to another user. Please use a different finger.');
+
+                    // Clear captured fingerprint to force re-scan
+                    capturedTemplateBase64 = null;
+                    capturedImageBase64 = null;
+                    fingerprintScanner.classList.remove('captured');
+                    fingerprintScanner.innerHTML = '<div class="scanner-instruction">Place finger here</div>';
+                    btnRegister.disabled = true;
+
+                    // Log duplicate attempt
+                    console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
+                } else {
+                    // ? INCORRECT PASSWORD: Show SweetAlert2 error + inline validation
+                    console.warn('Password validation failed:', result.message);
+
+                    // Close the modal first
+                    modal.hide();
+
+                    // Show SweetAlert2 error message
+                    SwalAlert.error(
+                        'Incorrect Password',
+                        result.message || 'The password you entered is incorrect. Please try again.'
+                    ).then(() => {
+                        // After user acknowledges the error, reopen the modal
+                        setTimeout(() => {
+                            showPasswordConfirmationModal();
+                        }, 300);
+                    });
+                }
             } catch (error) {
-     console.error('Error updating fingerprint:', error);
-         // KEEP TOASTIFY: Simple error notification
-                showToast('Error: ' + error.message, 'error');
+                console.error('Error updating fingerprint:', error);
+                // NETWORK/SERVER ERROR: Show error
+                modal.hide();
+                SwalAlert.error('Update Failed', 'An error occurred while updating your fingerprint. Please try again.');
             } finally {
-         btnConfirmUpdate.disabled = false;
-       btnConfirmUpdate.innerHTML = '<i data-lucide="shield-check" class="icon-sm"></i> Confirm & Update';
-          if (typeof lucide !== 'undefined') {
-           lucide.createIcons();
-     }
-          }
+                btnConfirmUpdate.disabled = false;
+                btnConfirmUpdate.innerHTML = '<i data-lucide="shield-check" class="icon-sm"></i> Confirm & Update';
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
         });
 
         // Clear error on input
- updatePassword.addEventListener('input', function () {
+        updatePassword.addEventListener('input', function () {
             updatePassword.classList.remove('is-invalid');
         });
 
-   // Clean up modal on hide
+        // Clean up modal on hide
         modalElement.addEventListener('hidden.bs.modal', function () {
-  modalElement.remove();
+            modalElement.remove();
         });
     }
 
     // Cancel button click - REPLACE WITH SWEETALERT2 CONFIRMATION
     if (btnCancel) {
-   btnCancel.addEventListener('click', function () {
-      SwalAlert.confirm(
-   'Cancel Registration?',
-       () => {
-      window.location.href = redirectUrl;
-     },
+        btnCancel.addEventListener('click', function () {
+            SwalAlert.confirm(
+                'Cancel Registration?',
+                () => {
+                    window.location.href = redirectUrl;
+                },
                 'Yes, cancel',
-         'Stay'
-      );
-    });
+                'Stay'
+            );
+        });
     }
 
     // Confirm cancel - NO LONGER NEEDED (handled by SweetAlert2)
     // if (btnConfirmCancel) { ... }
 
     // Check device status
-  async function checkDeviceStatus() {
- try {
-        const url = `${baseUrl}/GetDeviceStatus`;
+    async function checkDeviceStatus() {
+        try {
+            const url = `${baseUrl}/GetDeviceStatus`;
             console.log('Checking device status:', url);
 
-const response = await fetch(url);
-    console.log('Device status response:', response.status);
-            
-     const result = await response.json();
-     console.log('Device status data:', result);
+            const response = await fetch(url);
+            console.log('Device status response:', response.status);
 
-  if (scannerStatus) {
-        if (result.isDeviceConnected) {
-       scannerStatus.textContent = 'Online';
-          scannerStatus.classList.remove('offline');
-      scannerStatus.classList.add('online');
-     
-   // Update icon
-      const statusIcon = scannerStatus.closest('.status-card').querySelector('.status-icon');
-   if (statusIcon) {
-   statusIcon.classList.remove('offline');
-      statusIcon.classList.add('online');
-  }
-       } else {
-        scannerStatus.textContent = result.status || 'Offline';
-  scannerStatus.classList.remove('online');
-  scannerStatus.classList.add('offline');
-        
- // Update icon
-   const statusIcon = scannerStatus.closest('.status-card').querySelector('.status-icon');
-           if (statusIcon) {
-       statusIcon.classList.remove('online');
-           statusIcon.classList.add('offline');
-     }
-  
-        // Try to initialize
-  console.log('Device not connected, attempting to initialize...');
-          await initializeDevice();
-       }
-    }
+            const result = await response.json();
+            console.log('Device status data:', result);
+
+            if (scannerStatus) {
+                if (result.isDeviceConnected) {
+                    scannerStatus.textContent = 'Online';
+                    scannerStatus.classList.remove('offline');
+                    scannerStatus.classList.add('online');
+
+                    // Update icon
+                    const statusIcon = scannerStatus.closest('.status-card').querySelector('.status-icon');
+                    if (statusIcon) {
+                        statusIcon.classList.remove('offline');
+                        statusIcon.classList.add('online');
+                    }
+                } else {
+                    scannerStatus.textContent = result.status || 'Offline';
+                    scannerStatus.classList.remove('online');
+                    scannerStatus.classList.add('offline');
+
+                    // Update icon
+                    const statusIcon = scannerStatus.closest('.status-card').querySelector('.status-icon');
+                    if (statusIcon) {
+                        statusIcon.classList.remove('online');
+                        statusIcon.classList.add('offline');
+                    }
+
+                    // Try to initialize
+                    console.log('Device not connected, attempting to initialize...');
+                    await initializeDevice();
+                }
+            }
         } catch (error) {
-    console.error('Error checking device status:', error);
-  if (scannerStatus) {
- scannerStatus.textContent = 'Error: ' + error.message;
-        scannerStatus.classList.add('offline');
-     }
- }
+            console.error('Error checking device status:', error);
+            if (scannerStatus) {
+                scannerStatus.textContent = 'Error: ' + error.message;
+                scannerStatus.classList.add('offline');
+            }
+        }
     }
 
     // Initialize device
- async function initializeDevice() {
-    try {
+    async function initializeDevice() {
+        try {
             const url = `${baseUrl}/InitializeDevice`;
-   console.log('Initializing device:', url);
+            console.log('Initializing device:', url);
 
-    const response = await fetch(url, {
-  method: 'POST',
-       headers: {
-         'Content-Type': 'application/json'
-     }
-});
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-         console.log('Initialize response:', response.status);
+            console.log('Initialize response:', response.status);
             const result = await response.json();
-   console.log('Initialize data:', result);
-            
-   if (result.success) {
-      console.log('Device initialized successfully');
-     checkDeviceStatus();
-          } else {
-   console.error('Failed to initialize device:', result.message);
-   }
-      } catch (error) {
-     console.error('Error initializing device:', error);
+            console.log('Initialize data:', result);
+
+            if (result.success) {
+                console.log('Device initialized successfully');
+                checkDeviceStatus();
+            } else {
+                console.error('Failed to initialize device:', result.message);
+            }
+        } catch (error) {
+            console.error('Error initializing device:', error);
         }
     }
 
     // Check registration status
     async function checkRegistrationStatus() {
- try {
-   const url = `${baseUrl}/GetRegistrationStatus`;
- console.log('Checking registration status:', url);
+        try {
+            const url = `${baseUrl}/GetRegistrationStatus`;
+            console.log('Checking registration status:', url);
 
-        const response = await fetch(url);
+            const response = await fetch(url);
             const result = await response.json();
-        console.log('Registration status:', result);
+            console.log('Registration status:', result);
 
-      if (registrationStatus) {
-  if (result.isRegistered) {
-     isRegistered = true;
-  registrationStatus.textContent = 'Registered';
-       registrationStatus.classList.remove('pending');
-        registrationStatus.classList.add('registered');
-    
-            // Update icon
-         const statusIcon = registrationStatus.closest('.status-card').querySelector('.status-icon');
-          if (statusIcon) {
- statusIcon.classList.remove('pending');
-        statusIcon.classList.add('registered');
-        }
-    } else {
-       isRegistered = false;
-          registrationStatus.textContent = 'Not Registered';
-     registrationStatus.classList.remove('registered');
-   registrationStatus.classList.add('pending');
-     }
- 
-          // Update button text
-     updateRegisterButtonText();
-    }
-    } catch (error) {
- console.error('Error checking registration status:', error);
+            if (registrationStatus) {
+                if (result.isRegistered) {
+                    isRegistered = true;
+                    registrationStatus.textContent = 'Registered';
+                    registrationStatus.classList.remove('pending');
+                    registrationStatus.classList.add('registered');
+
+                    // Update icon
+                    const statusIcon = registrationStatus.closest('.status-card').querySelector('.status-icon');
+                    if (statusIcon) {
+                        statusIcon.classList.remove('pending');
+                        statusIcon.classList.add('registered');
+                    }
+                } else {
+                    isRegistered = false;
+                    registrationStatus.textContent = 'Not Registered';
+                    registrationStatus.classList.remove('registered');
+                    registrationStatus.classList.add('pending');
+                }
+
+                // Update button text
+                updateRegisterButtonText();
+            }
+        } catch (error) {
+            console.error('Error checking registration status:', error);
         }
     }
 
     // Toast notification helper - KEEP FOR SIMPLE NOTIFICATIONS
     function showToast(message, type = 'info') {
         console.log(`Toast: [${type}] ${message}`);
-        
+
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast-notification toast-${type}`;
         toast.textContent = message;
-        
+
         // Add to body
-   document.body.appendChild(toast);
-        
+        document.body.appendChild(toast);
+
         // Show with animation
         setTimeout(() => toast.classList.add('show'), 10);
-        
-    // Remove after 3 seconds
+
+        // Remove after 3 seconds
         setTimeout(() => {
             toast.classList.remove('show');
-       setTimeout(() => toast.remove(), 300);
+            setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
 });
@@ -575,7 +589,7 @@ document.head.appendChild(style);
 function initializePasswordToggle() {
     const toggleButton = document.getElementById('toggleUpdatePassword');
     const passwordInput = document.getElementById('updatePassword');
-    
+
     if (!toggleButton || !passwordInput) return;
 
     // Track current state
@@ -584,27 +598,27 @@ function initializePasswordToggle() {
     // Function to update icon
     function updateIcon() {
         const iconName = isVisible ? 'eye-off' : 'eye';
-   toggleButton.innerHTML = `<i data-lucide="${iconName}"></i>`;
-    
-      // Reinitialize Lucide icons
+        toggleButton.innerHTML = `<i data-lucide="${iconName}"></i>`;
+
+        // Reinitialize Lucide icons
         if (typeof lucide !== 'undefined') {
-       lucide.createIcons();
- }
+            lucide.createIcons();
+        }
     }
 
     // Initialize icon
     updateIcon();
 
-  // Toggle password visibility
-    toggleButton.addEventListener('click', function(e) {
-   e.preventDefault();
-    e.stopPropagation();
+    // Toggle password visibility
+    toggleButton.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
 
         // Toggle state
         isVisible = !isVisible;
-    
+
         // Update input type
-    passwordInput.setAttribute('type', isVisible ? 'text' : 'password');
+        passwordInput.setAttribute('type', isVisible ? 'text' : 'password');
 
         // Update icon
         updateIcon();

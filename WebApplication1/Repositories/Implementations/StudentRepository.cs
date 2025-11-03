@@ -3,16 +3,19 @@ using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Fingerprint_Attendance_System.Repositories.Implementations
 {
     public class StudentRepository : IStudentRepository
     {
         private readonly DatabaseHelper _db;
+        private readonly ILogger<StudentRepository> _logger;
 
-        public StudentRepository(DatabaseHelper db)
+        public StudentRepository(DatabaseHelper db, ILogger<StudentRepository> logger)
         {
             _db = db;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<Student>> GetAllAsync()
@@ -261,7 +264,11 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<StudentProfileDto?> GetStudentProfileByUserIdAsync(int userId)
         {
-            string query = @"
+            try
+            {
+                _logger.LogInformation($"GetStudentProfileByUserIdAsync - Querying profile for userId: {userId}");
+                
+                string query = @"
                 SELECT 
                     u.user_id,
                     u.user_profile_image,
@@ -289,39 +296,52 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
                 WHERE u.user_id = @userId
                 LIMIT 1;";
 
-            var parameters = new Dictionary<string, object> { { "@userId", userId } };
-            var dt = await _db.ExecuteQueryAsync(query, parameters);
+                var parameters = new Dictionary<string, object> { { "@userId", userId } };
+                var dt = await _db.ExecuteQueryAsync(query, parameters);
 
-            if (dt.Rows.Count == 0) return null;
+                if (dt.Rows.Count == 0)
+                {
+                    _logger.LogWarning($"GetStudentProfileByUserIdAsync - No data found for userId: {userId}");
+                    return null;
+                }
 
-            var row = dt.Rows[0];
-            return new StudentProfileDto
+                var row = dt.Rows[0];
+                
+                _logger.LogInformation($"GetStudentProfileByUserIdAsync - Found profile for userId: {userId}, Email: {row["user_email"]}, HasStudentRecord: {row["stud_id"] != DBNull.Value}");
+            
+                return new StudentProfileDto
+                {
+                    UserId = Convert.ToInt32(row["user_id"]),
+                    UserProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
+                    UserFirstName = row["user_first_name"]?.ToString() ?? "",
+                    UserMiddleName = row["user_middle_name"]?.ToString(),
+                    UserLastName = row["user_last_name"]?.ToString() ?? "",
+                    UserEmail = row["user_email"]?.ToString() ?? "",
+                    UserPhone = row["user_phone"]?.ToString(),
+                    UserGender = row["user_gender"]?.ToString(),
+                    UserBirthdate = row["user_birthdate"] != DBNull.Value 
+                        ? Convert.ToDateTime(row["user_birthdate"]).ToString("yyyy-MM-dd") 
+                        : null,
+                    UserAddress = row["user_address"]?.ToString(),
+                    StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : null,
+                    StudNumber = row["stud_number"]?.ToString(),
+                    ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+                    ProgramName = row["program_name"]?.ToString(),
+                    StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
+                    SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
+                    SectionName = row["section_name"]?.ToString(),
+                    ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
+                    ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value 
+                        ? Convert.ToDateTime(row["profile_submitted_at"]).ToString("yyyy-MM-dd HH:mm:ss") 
+                        : null,
+                    HasStudentProfile = row["stud_id"] != DBNull.Value
+                };
+            }
+            catch (Exception ex)
             {
-                UserId = Convert.ToInt32(row["user_id"]),
-                UserProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
-                UserFirstName = row["user_first_name"]?.ToString() ?? "",
-                UserMiddleName = row["user_middle_name"]?.ToString(),
-                UserLastName = row["user_last_name"]?.ToString() ?? "",
-                UserEmail = row["user_email"]?.ToString() ?? "",
-                UserPhone = row["user_phone"]?.ToString(),
-                UserGender = row["user_gender"]?.ToString(),
-                UserBirthdate = row["user_birthdate"] != DBNull.Value 
-                    ? Convert.ToDateTime(row["user_birthdate"]).ToString("yyyy-MM-dd") 
-                    : null,
-                UserAddress = row["user_address"]?.ToString(),
-                StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : null,
-                StudNumber = row["stud_number"]?.ToString(),
-                ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
-                ProgramName = row["program_name"]?.ToString(),
-                StudYearLevel = row["stud_year_level"] != DBNull.Value ? Convert.ToInt32(row["stud_year_level"]) : null,
-                SectionId = row["section_id"] != DBNull.Value ? Convert.ToInt32(row["section_id"]) : null,
-                SectionName = row["section_name"]?.ToString(),
-                ProfileSubmitted = row["profile_submitted"] != DBNull.Value && Convert.ToBoolean(row["profile_submitted"]),
-                ProfileSubmittedAt = row["profile_submitted_at"] != DBNull.Value 
-                    ? Convert.ToDateTime(row["profile_submitted_at"]).ToString("yyyy-MM-dd HH:mm:ss") 
-                    : null,
-                HasStudentProfile = row["stud_id"] != DBNull.Value
-            };
+                _logger.LogError(ex, $"GetStudentProfileByUserIdAsync - Error querying profile for userId: {userId} - {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<Student?> GetByUserIdAsync(int userId)

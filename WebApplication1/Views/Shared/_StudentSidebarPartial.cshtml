@@ -16,34 +16,39 @@
     </div>
     
     <nav class="sidebar-nav">
+        <a href="@Url.Action("Dashboard", "Student")" class="sidebar-link">
+     <i data-lucide="layout-dashboard"></i>
+  <span>Dashboard</span>
+        </a>
+
         <a href="@Url.Action("Index", "Student")" class="sidebar-link">
             <i data-lucide="user"></i>
-            <span>Profile</span>
+     <span>Profile</span>
         </a>
-        
-        <a href="@Url.Action("StudentEnrollment", "Student")" class="sidebar-link">
+  
+      <a href="@Url.Action("StudentEnrollment", "Student")" class="sidebar-link">
             <i data-lucide="clipboard-list"></i>
             <span>Enrollment</span>
         </a>
         
         <a href="@Url.Action("StudentClasses", "Student")" class="sidebar-link">
             <i data-lucide="book-open"></i>
-            <span>My Classes</span>
+        <span>My Classes</span>
         </a>
-        
+     
         <a href="@Url.Action("StudentAttendance", "Student")" class="sidebar-link">
-            <i data-lucide="calendar-check"></i>
-            <span>My Attendance</span>
+  <i data-lucide="calendar-check"></i>
+     <span>My Attendance</span>
         </a>
         
         <a href="@Url.Action("StudentRegisterFingerprint", "Student")" class="sidebar-link">
-            <i data-lucide="fingerprint"></i>
+       <i data-lucide="fingerprint"></i>
             <span>Register Fingerprint</span>
         </a>
         
-        <a href="@Url.Action("Logout", "Auth")" class="sidebar-link">
+   <a href="@Url.Action("Logout", "Auth")" class="sidebar-link">
             <i data-lucide="log-out"></i>
-            <span>Logout</span>
+   <span>Logout</span>
         </a>
     </nav>
 </aside>
@@ -54,45 +59,50 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body p-0">
-        <div class="sidebar-header">
+     <div class="sidebar-header">
             <a href="@Url.Action("Profile", "UserProfile")" class="user-profile" data-bs-dismiss="offcanvas">
-                <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
-                <div class="user-details">
-                    <span class="user-name">@userName</span>
-                    <span class="user-role">Student</span>
-                </div>
-            </a>
+     <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
+     <div class="user-details">
+  <span class="user-name">@userName</span>
+   <span class="user-role">Student</span>
         </div>
+            </a>
+</div>
         
         <nav class="sidebar-nav">
-            <a href="@Url.Action("Index", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="user"></i>
-                <span>Profile</span>
+            <a href="@Url.Action("Dashboard", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
+   <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+ </a>
+       
+    <a href="@Url.Action("Index", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
+      <i data-lucide="user"></i>
+          <span>Profile</span>
             </a>
-            
-            <a href="@Url.Action("StudentClasses", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="book-open"></i>
+   
+          <a href="@Url.Action("StudentClasses", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
+   <i data-lucide="book-open"></i>
                 <span>My Classes</span>
-            </a>
-            
-            <a href="@Url.Action("StudentEnrollment", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="clipboard-list"></i>
-                <span>Enrollment</span>
+    </a>
+     
+    <a href="@Url.Action("StudentEnrollment", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
+      <i data-lucide="clipboard-list"></i>
+          <span>Enrollment</span>
             </a>
             
             <a href="@Url.Action("StudentAttendance", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="calendar-check"></i>
-                <span>My Attendance</span>
+          <i data-lucide="calendar-check"></i>
+      <span>My Attendance</span>
             </a>
             
-            <a href="@Url.Action("StudentRegisterFingerprint", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="fingerprint"></i>
-                <span>Register Fingerprint</span>
-            </a>
+      <a href="@Url.Action("StudentRegisterFingerprint", "Student")" class="sidebar-link" data-bs-dismiss="offcanvas">
+      <i data-lucide="fingerprint"></i>
+              <span>Register Fingerprint</span>
+   </a>
             
-            <a href="@Url.Action("Logout", "Auth")" class="sidebar-link" data-bs-dismiss="offcanvas">
-                <i data-lucide="log-out"></i>
-                <span>Logout</span>
+ <a href="@Url.Action("Logout", "Auth")" class="sidebar-link" data-bs-dismiss="offcanvas">
+     <i data-lucide="log-out"></i>
+      <span>Logout</span>
             </a>
         </nav>
     </div>

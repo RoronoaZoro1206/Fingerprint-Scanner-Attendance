@@ -10,13 +10,14 @@ namespace Fingerprint_Attendance_System.Data
         public DatabaseHelper(IConfiguration config)
         {
             // Read connection string from appsettings.json
-            _connectionString = config.GetConnectionString("DefaultConnection");
+            _connectionString = config.GetConnectionString("DefaultConnection") 
+       ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
         }
 
         // Get a new PostgreSQL connection
         private NpgsqlConnection GetConnection()
         {
-            return new NpgsqlConnection(_connectionString);
+     return new NpgsqlConnection(_connectionString);
         }
 
         // =========================================================

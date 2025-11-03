@@ -27,6 +27,28 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             return View();
         }
         
+        // ✅ Simplified - frontend JavaScript handles empty data display
+        public IActionResult Dashboard()
+        {
+            try
+            {
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                {
+                    return RedirectToAction("Login", "Auth");
+                }
+
+                // Charts will always render on frontend
+                // JavaScript handles empty data gracefully
+                return View();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading dashboard");
+                return View();
+            }
+        }
+        
         public IActionResult FacultyAttendance()
         {
             return View();
@@ -36,7 +58,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         {
             return View();
         }
-        
+     
         public IActionResult FacultyRegisterFingerprint()
         {
             return View();

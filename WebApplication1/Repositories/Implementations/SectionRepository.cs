@@ -76,10 +76,10 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
             var parameters = new Dictionary<string, object>
             {
-                { "@name", section.SectionName },
-                { "@program", section.ProgramId },
-                { "@year", section.YearLevel },
-                { "@created", section.SectionCreatedAt }
+                { "@name", (object)section.SectionName },
+                { "@program", (object)section.ProgramId },
+                { "@year", (object)section.YearLevel },
+                { "@created", (object)section.SectionCreatedAt }
             };
 
             return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
@@ -96,10 +96,10 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
             var parameters = new Dictionary<string, object>
             {
-                { "@id", section.SectionId },
-                { "@name", section.SectionName },
-                { "@program", section.ProgramId },
-                { "@year", section.YearLevel }
+                { "@id", (object)section.SectionId },
+                { "@name", (object)section.SectionName },
+                { "@program", (object)section.ProgramId },
+                { "@year", (object)section.YearLevel }
             };
 
             return await _db.ExecuteNonQueryAsync(query, parameters) > 0;

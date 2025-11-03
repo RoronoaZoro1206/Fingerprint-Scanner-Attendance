@@ -55,7 +55,9 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 }
 
                 // Parse target date
-                var targetDate = string.IsNullOrEmpty(date) ? DateTime.Today : DateTime.Parse(date);
+                DateTime targetDate = string.IsNullOrEmpty(date) 
+                    ? DateTime.Today 
+                    : DateTime.TryParse(date, out DateTime parsedDate) ? parsedDate : DateTime.Today;
 
                 // Single optimized query with all JOINs and faculty verification
                 var attendanceData = await _attendanceRepository.GetClassAttendanceWithDetailsAsync(

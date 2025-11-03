@@ -135,12 +135,12 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             {
                 _logger.LogInformation("Attempting to capture fingerprint with image...");
 
-                // Capture both image and template
-                var (imageData, width, height, template) = _fingerprintService.CaptureFingerprintWithImage();
+                // Capture both image and template with detailed error information
+                var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
 
                 if (template == null || imageData == null)
                 {
-                    _logger.LogWarning("Failed to capture fingerprint - no data");
+                    _logger.LogWarning($"Failed to capture fingerprint - {errorMessage} (Error code: {errorCode})");
 
                     // Error feedback: red light + beep sound
                     _fingerprintService.SetLedLight("red", true);
@@ -151,7 +151,14 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                         _fingerprintService.Beep(false);
                     });
 
-                    return Json(new { success = false, message = "Failed to capture fingerprint. Please try again." });
+                    // Return specific error message from scanner
+                    return Json(new {
+                        success = false,
+                        message = string.IsNullOrEmpty(errorMessage)
+                        ? "Failed to capture fingerprint. Please try again."
+                        : errorMessage,
+                        errorCode = errorCode
+                    });
                 }
 
                 // Convert image to Base64 for display

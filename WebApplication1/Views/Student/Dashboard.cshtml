@@ -1,0 +1,57 @@
+@{
+    ViewData["Title"] = "My Dashboard";
+}
+
+<div class="page-header">
+    <h1 class="page-title">My Dashboard</h1>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-grid" style="margin-bottom: 2rem;">
+    <!-- Personal Attendance Overview Chart -->
+    <div class="chart-card">
+        <div class="chart-container" style="position: relative; height: 300px;">
+            <canvas id="attendanceOverviewChart"></canvas>
+  </div>
+    </div>
+
+    <!-- Course-wise Attendance Chart -->
+    <div class="chart-card">
+     <div class="chart-container" style="position: relative; height: 300px;">
+    <canvas id="courseAttendanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Punctuality Trend Chart (Full Width) -->
+<div class="charts-grid" style="margin-bottom: 2rem;">
+    <div class="chart-card" style="grid-column: 1 / -1;">
+        <div class="chart-container" style="position: relative; height: 350px;">
+<canvas id="punctualityTrendChart"></canvas>
+ </div>
+    </div>
+</div>
+
+@section Scripts {
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="~/js/student/student_charts.js" asp-append-version="true"></script>
+}
+
+<style>
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container {
+        position: relative;
+    }
+</style>
