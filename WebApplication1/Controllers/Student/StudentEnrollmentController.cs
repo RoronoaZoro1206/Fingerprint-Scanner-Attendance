@@ -3,6 +3,7 @@ using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services; // ? ADDED: For UniversalAuditService
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Student;
@@ -13,15 +14,24 @@ public class StudentEnrollmentController : Controller
     private readonly ILogger<StudentEnrollmentController> _logger;
     private readonly IEnrollmentRepository _enrollmentRepository;
     private readonly IStudentRepository _studentRepository;
+    private readonly IClassRepository _classRepository; // ? ADDED: For getting class details
+    private readonly ICourseRepository _courseRepository; // ? ADDED: For getting course details
+    private readonly UniversalAuditService _auditService; // ? ADDED: Universal audit service
 
     public StudentEnrollmentController(
         ILogger<StudentEnrollmentController> logger,
         IEnrollmentRepository enrollmentRepository,
-        IStudentRepository studentRepository)
+        IStudentRepository studentRepository,
+        IClassRepository classRepository, // ? ADDED: Inject class repository
+        ICourseRepository courseRepository, // ? ADDED: Inject course repository
+        UniversalAuditService auditService) // ? ADDED: Inject universal audit service
     {
         _logger = logger;
         _enrollmentRepository = enrollmentRepository;
         _studentRepository = studentRepository;
+        _classRepository = classRepository; // ? ADDED: Store class repository
+        _courseRepository = courseRepository; // ? ADDED: Store course repository
+        _auditService = auditService; // ? ADDED: Store audit service
     }
 
     public IActionResult Enrollment()
@@ -190,7 +200,24 @@ public class StudentEnrollmentController : Controller
             var result = await _enrollmentRepository.AddAsync(enrollment);
 
             if (result)
+            {
+                // ? Log audit for student enrollment
+                var classDetail = await _classRepository.GetByIdAsync(request.ClassId);
+                if (classDetail?.CourseId != null)
+                {
+                    var course = await _courseRepository.GetByIdAsync(classDetail.CourseId.Value);
+                    if (course != null)
+                    {
+                        await _auditService.LogEnrollmentActionAsync(
+                            course.CourseCode,
+                            course.CourseName,
+                            isEnrollment: true
+                        );
+                    }
+                }
+
                 return Json(new { success = true, message = "Successfully enrolled in class" });
+            }
 
             return Json(new { success = false, message = "Failed to enroll in class" });
         }
@@ -208,10 +235,36 @@ public class StudentEnrollmentController : Controller
         {
             _logger.LogInformation($"Attempting to unenroll: enrollId={request.EnrollId}");
             
+            // ? ADDED: Get enrollment details before deletion for audit log
+            var enrollment = await _enrollmentRepository.GetByIdAsync(request.EnrollId);
+            string courseCode = "Unknown";
+            string courseName = "Unknown";
+
+            if (enrollment?.ClassId != null)
+            {
+                var classDetail = await _classRepository.GetByIdAsync(enrollment.ClassId);
+                if (classDetail?.CourseId != null)
+                {
+                    var course = await _courseRepository.GetByIdAsync(classDetail.CourseId.Value);
+                    if (course != null)
+                    {
+                        courseCode = course.CourseCode;
+                        courseName = course.CourseName;
+                    }
+                }
+            }
+            
             var result = await _enrollmentRepository.DeleteAsync(request.EnrollId);
 
             if (result)
             {
+                // ? ADDED: Log audit for student unenrollment
+                await _auditService.LogEnrollmentActionAsync(
+                    courseCode,
+                    courseName,
+                    isEnrollment: false
+                );
+
                 _logger.LogInformation($"Successfully unenrolled: enrollId={request.EnrollId}");
                 return Json(new { success = true, message = "Successfully unenrolled from class" });
             }

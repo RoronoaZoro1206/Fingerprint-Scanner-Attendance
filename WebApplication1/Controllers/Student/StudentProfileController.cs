@@ -4,6 +4,7 @@ using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services; // ? ADDED: For UniversalAuditService
 using Microsoft.AspNetCore.Mvc;
 using StudentModel = Fingerprint_Attendance_System.Models.Student;
 
@@ -17,19 +18,22 @@ public class StudentProfileController : Controller
     private readonly IStudentRepository _studentRepository;
     private readonly IProgramRepository _programRepository;
     private readonly ISectionRepository _sectionRepository;
+    private readonly UniversalAuditService _auditService; // ? ADDED: Universal audit service
 
     public StudentProfileController(
         ILogger<StudentProfileController> logger,
         IUserRepository userRepository,
         IStudentRepository studentRepository,
         IProgramRepository programRepository,
-        ISectionRepository sectionRepository)
+        ISectionRepository sectionRepository,
+        UniversalAuditService auditService) // ? ADDED: Inject universal audit service
     {
         _logger = logger;
         _userRepository = userRepository;
         _studentRepository = studentRepository;
         _programRepository = programRepository;
         _sectionRepository = sectionRepository;
+        _auditService = auditService; // ? ADDED: Store audit service
     }
 
     public IActionResult Index()
@@ -229,13 +233,21 @@ public class StudentProfileController : Controller
             else
              {
         // First time submitting with complete academic info - lock the profile
-        if (request.ProgramId.HasValue)
-         {
-     student.ProfileSubmitted = true;
-  student.ProfileSubmittedAt = DateTime.Now;
-             _logger.LogInformation($"UpdateProfile - Locking profile for student {student.StudId} (first submission with program)");
-                  }
-       }
+       if (request.ProgramId.HasValue)
+  {
+         student.ProfileSubmitted = true;
+student.ProfileSubmittedAt = DateTime.Now;
+   _logger.LogInformation($"UpdateProfile - Locking profile for student {student.StudId} (first submission with program)");
+
+            // ? ADDED: Log audit for student profile submission (first time)
+   var program = await _programRepository.GetByIdAsync(request.ProgramId.Value);
+      await _auditService.LogProfileSubmissionAsync(
+         student.StudId,
+                program?.ProgramName ?? "Unknown Program",
+                 request.StudYearLevel ?? 1
+           );
+           }
+            }
 
                 // Update student profile (year level and section can always be updated)
          student.ProgramId = request.ProgramId;
@@ -253,7 +265,7 @@ public class StudentProfileController : Controller
 
       _logger.LogInformation($"UpdateProfile - Successfully updated student profile for StudId: {student.StudId}");
 
-  // ? Log changes for tracking
+  // ? ENHANCED: Log ALL profile updates (not just first submission)
     var changes = new List<string>();
               if (oldName != $"{user.UserFirstName} {user.UserLastName}")
  changes.Add($"Name: {oldName} ? {user.UserFirstName} {user.UserLastName}");
@@ -267,6 +279,12 @@ public class StudentProfileController : Controller
       if (changes.Any())
      {
      _logger.LogInformation($"Profile changes for student {student.StudNumber}: {string.Join(", ", changes)}");
+                
+                // ? ADDED: Log audit for ALL profile updates
+                await _auditService.LogActionAsync(
+                    "Student Profile Updated",
+                    $"Student {student.StudNumber} updated profile: {string.Join(", ", changes)}"
+                );
         }
             }
             else

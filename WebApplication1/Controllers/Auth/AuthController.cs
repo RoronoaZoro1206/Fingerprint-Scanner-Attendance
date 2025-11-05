@@ -1,6 +1,7 @@
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services; // ? ADDED: For UniversalAuditService
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Auth;
@@ -10,20 +11,23 @@ public class AuthController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
+    private readonly UniversalAuditService _auditService; // ? ADDED: Universal audit service
     private readonly ILogger<AuthController> _logger;
 
     // BCrypt work factor constant (recommended: 12 for 2024)
-  private const int BCRYPT_WORK_FACTOR = 12;
+    private const int BCRYPT_WORK_FACTOR = 12;
 
     public AuthController(
         IUserRepository userRepository, 
         IStudentRepository studentRepository, 
-     IStudentIdPoolRepository studentIdPoolRepository,
+        IStudentIdPoolRepository studentIdPoolRepository,
+        UniversalAuditService auditService, // ? ADDED: Inject audit service
         ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
         _studentRepository = studentRepository;
-  _studentIdPoolRepository = studentIdPoolRepository;
+        _studentIdPoolRepository = studentIdPoolRepository;
+        _auditService = auditService; // ? ADDED: Store audit service
         _logger = logger;
     }
 
@@ -33,7 +37,7 @@ public class AuthController : Controller
     }
 
     [HttpPost]
- [ValidateAntiForgeryToken]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid)
@@ -52,6 +56,11 @@ public class AuthController : Controller
 
     if (user == null)
    {
+    // ? ADDED: Log failed login attempt (invalid email)
+                await _auditService.LogActionAsync(
+                    "Failed Password Login",
+                    $"Failed login attempt for non-existent email: {model.Email}"
+                );
     if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
     {
      return Json(new { success = false, errors = new[] { "Invalid email or password." } });
@@ -63,6 +72,11 @@ public class AuthController : Controller
        // Check if account is active
         if (!user.IsActive)
          {
+                // ? ADDED: Log failed login attempt (inactive account)
+                await _auditService.LogActionAsync(
+                    "Failed Password Login",
+                    $"Failed login attempt for inactive account: {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType})"
+                );
                 if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
     {
       return Json(new { success = false, errors = new[] { "Your account has been deactivated. Please contact administration." } });
@@ -71,8 +85,7 @@ public class AuthController : Controller
      return View("Index", model);
             }
 
-            // Verify password using BCrypt.Net-Next 4.0.3 best practices
-  // The Verify method automatically detects the work factor from the stored hash
+            // Verify password
    bool isPasswordValid = false;
             try
    {
@@ -82,6 +95,11 @@ public class AuthController : Controller
          
         if (!isPasswordValid)
     {
+         // ? ADDED: Log failed login attempt (wrong password)
+                    await _auditService.LogActionAsync(
+                        "Failed Password Login",
+                        $"Failed login attempt for {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType}) - incorrect password"
+                    );
    _logger.LogWarning("Failed login attempt for user {Email} - invalid password", model.Email);
      }
     }
@@ -123,6 +141,12 @@ public class AuthController : Controller
       // Update last login timestamp
    await _userRepository.UpdateLastLoginAsync(user.UserId);
    
+            // ? ADDED: Log successful password login for ALL roles
+            await _auditService.LogActionAsync(
+                "Password Login",
+                $"User {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType}) logged in via password authentication"
+            );
+            
       _logger.LogInformation("Successful login for user {Email}", model.Email);
 
      // Store user information in session
@@ -173,8 +197,30 @@ HttpContext.Session.SetInt32("RoleId", user.RoleId);
     return View();
     }
 
-  public IActionResult Logout()
+  public async Task<IActionResult> Logout()
     {
+        // ? ADDED: Get user info before clearing session
+        var userId = HttpContext.Session.GetInt32("UserId");
+        var userEmail = HttpContext.Session.GetString("UserEmail");
+        var roleId = HttpContext.Session.GetInt32("RoleId");
+        
+        // ? ADDED: Log logout for all roles
+        if (userId.HasValue && !string.IsNullOrEmpty(userEmail) && roleId.HasValue)
+        {
+            var roleName = roleId.Value switch
+            {
+                1 => "ADMIN",
+                2 => "FACULTY",
+                3 => "STUDENT",
+                _ => "UNKNOWN"
+            };
+            
+            await _auditService.LogActionAsync(
+                "User Logout",
+                $"User {userEmail} (ID: {userId}, Role: {roleName}) logged out"
+            );
+        }
+        
         HttpContext.Session.Clear();
       return RedirectToAction("Index", "Auth");
     }

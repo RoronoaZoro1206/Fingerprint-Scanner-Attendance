@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -9,25 +9,28 @@ namespace Fingerprint_Attendance_System.Controllers.Student
     [Route("Student/StudentRegisterFingerprint")]
  public class StudentRegisterFingerprintController : Controller
     {
-        private readonly FingerprintService _fingerprintService;
+     private readonly FingerprintService _fingerprintService;
         private readonly IFingerprintTemplateRepository _fingerprintRepo;
         private readonly IUserRepository _userRepo;
 private readonly IStudentRepository _studentRepo;
-        private readonly ILogger<StudentRegisterFingerprintController> _logger;
+        private readonly UniversalAuditService _auditService; // ✅ ADDED: Universal audit service
+ private readonly ILogger<StudentRegisterFingerprintController> _logger;
 
-     public StudentRegisterFingerprintController(
-            FingerprintService fingerprintService,
-          IFingerprintTemplateRepository fingerprintRepo,
+  public StudentRegisterFingerprintController(
+FingerprintService fingerprintService,
+ IFingerprintTemplateRepository fingerprintRepo,
   IUserRepository userRepo,
    IStudentRepository studentRepo,
-            ILogger<StudentRegisterFingerprintController> logger)
-        {
-            _fingerprintService = fingerprintService;
+   UniversalAuditService auditService,
+      ILogger<StudentRegisterFingerprintController> logger)
+      {
+         _fingerprintService = fingerprintService;
       _fingerprintRepo = fingerprintRepo;
  _userRepo = userRepo;
   _studentRepo = studentRepo;
-            _logger = logger;
-        }
+ _auditService = auditService;
+     _logger = logger;
+}
 
  // GET: Student/StudentRegisterFingerprint
   [HttpGet("")]
@@ -324,7 +327,14 @@ FtempCreatedAt = DateTime.UtcNow
 
    if (templateId > 0)
    {
-          _logger.LogInformation($"RegisterFingerprint - ? SUCCESS! Template created with ID: {templateId} for userId: {userId.Value}");
+ // ✅ ADDED: Log audit for student fingerprint registration
+    await _auditService.LogFingerprintActionAsync(
+        "registered",
+   dto.TemplateName ?? "Primary Fingerprint",
+              isUpdate: false
+     );
+
+          _logger.LogInformation($"RegisterFingerprint - ✅ SUCCESS! Template created with ID: {templateId} for userId: {userId.Value}");
   // Success feedback
     _fingerprintService.SetLedLight("green", true);
 _fingerprintService.Beep(true);
@@ -334,7 +344,7 @@ _fingerprintService.Beep(true);
      _fingerprintService.Beep(false);
       });
   
-      _logger.LogInformation($"Fingerprint registered successfully for user {user.UserEmail}");
+   _logger.LogInformation($"Fingerprint registered successfully for user {user.UserEmail}");
   return Json(new { success = true, message = "Fingerprint registered successfully" });
            }
          else
@@ -469,24 +479,31 @@ var existingUserTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value)
 return Json(new { success = false, message = "No existing fingerprint found" });
        }
 
+ var oldTemplateName = existingUserTemplate.FtempName;
   existingUserTemplate.FtempData = newTemplateData;
  existingUserTemplate.FtempName = dto.TemplateName;
-  
+
   var updated = await _fingerprintRepo.UpdateAsync(existingUserTemplate);
       
        if (updated)
    {
-// Success feedback
-    _fingerprintService.SetLedLight("green", true);
-  _fingerprintService.Beep(true);
-  _ = Task.Delay(300).ContinueWith(_ =>
-  {
-  _fingerprintService.SetLedLight("green", false);
-  _fingerprintService.Beep(false);
+  // ✅ ADDED: Log audit for student fingerprint update
+  await _auditService.LogActionAsync(
+"Fingerprint Update (Student)",
+$"Student {user.UserEmail} updated fingerprint biometric data (Old: {oldTemplateName}, New: {dto.TemplateName})"
+       );
+
+// Success feedback: green light + beep sound
+        _fingerprintService.SetLedLight("green", true);
+   _fingerprintService.Beep(true);
+      _ = Task.Delay(300).ContinueWith(_ =>
+{
+_fingerprintService.SetLedLight("green", false);
+   _fingerprintService.Beep(false);
     });
      
   _logger.LogInformation($"Fingerprint updated successfully for user {user.UserEmail}");
-         return Json(new { success = true, message = "Fingerprint updated successfully" });
+ return Json(new { success = true, message = "Fingerprint updated successfully" });
   }
 
        return Json(new { success = false, message = "Failed to update fingerprint" });
@@ -506,27 +523,38 @@ return Json(new { success = false, message = "Error: " + ex.Message });
         // POST: Delete fingerprint
       [HttpPost("DeleteFingerprint")]
     public async Task<IActionResult> DeleteFingerprint()
-        {
+  {
         try
             {
-            var userId = HttpContext.Session.GetInt32("UserId");
-             if (userId == null)
+     var userId = HttpContext.Session.GetInt32("UserId");
+    if (userId == null)
 {
      return Json(new { success = false, message = "User not logged in" });
   }
 
+   // Get template name before deletion for audit log
+ var existingTemplate = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
+      var templateName = existingTemplate?.FtempName ?? "Unknown";
+
     var deleted = await _fingerprintRepo.DeleteByUserIdAsync(userId.Value);
      
        if (deleted)
-     {
-             return Json(new { success = true, message = "Fingerprint deleted successfully" });
+   {
+   // ✅ ADDED: Log audit for student fingerprint deletion
+            var user = await _userRepo.GetByIdAsync(userId.Value);
+       await _auditService.LogActionAsync(
+    "Fingerprint Deletion (Student)",
+       $"Student {user?.UserEmail} deleted fingerprint biometric data (Template: {templateName})"
+  );
+
+   return Json(new { success = true, message = "Fingerprint deleted successfully" });
       }
 
       return Json(new { success = false, message = "Failed to delete fingerprint" });
         }
           catch (Exception ex)
      {
-     _logger.LogError(ex, "Error deleting fingerprint");
+  _logger.LogError(ex, "Error deleting fingerprint");
  return Json(new { success = false, message = ex.Message });
        }
       }

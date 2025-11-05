@@ -57,9 +57,12 @@ builder.Services.AddScoped<IAdminOverviewRepository, AdminOverviewRepository>();
 // Add SuperAdminInitializer service
 builder.Services.AddScoped<SuperAdminInitializer>();
 
-// Add AdminAuditService
+// Add HttpContextAccessor for session access in services
 builder.Services.AddHttpContextAccessor();
+
+// Add Audit Services (both legacy and universal)
 builder.Services.AddScoped<AdminAuditService>();
+builder.Services.AddScoped<UniversalAuditService>(); // ? NEW: Universal audit service for all roles
 
 // Add AcademicTermService
 builder.Services.AddScoped<AcademicTermService>();

@@ -522,7 +522,7 @@ for (int x = 0; x < width; x++)
 byte[] enhancedData = new byte[imageData.Length];
 Array.Copy(imageData, enhancedData, imageData.Length);
 
-    byte threshold = 200; 
+    byte threshold = 220; 
 
       _logger.LogInformation($"Applying binarization with threshold={threshold} for detailed fingerprint");
 

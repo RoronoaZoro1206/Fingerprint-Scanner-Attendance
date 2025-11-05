@@ -1,7 +1,8 @@
-using Fingerprint_Attendance_System.Attributes;
+﻿using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
+using Fingerprint_Attendance_System.Services; // ✅ ADDED: For UniversalAuditService
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Faculty
@@ -14,19 +15,25 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         private readonly IAttendanceRepository _attendanceRepository;
         private readonly IEnrollmentRepository _enrollmentRepository;
         private readonly IClassRepository _classRepository;
+        private readonly ICourseRepository _courseRepository; // ✅ ADDED: For course details
+        private readonly UniversalAuditService _auditService; // ✅ ADDED: Universal audit service
 
         public FacultyAttendanceController(
             ILogger<FacultyAttendanceController> logger,
             IFacultyRepository facultyRepository,
             IAttendanceRepository attendanceRepository,
             IEnrollmentRepository enrollmentRepository,
-            IClassRepository classRepository)
+            IClassRepository classRepository,
+            ICourseRepository courseRepository, // ✅ ADDED: Inject course repository
+            UniversalAuditService auditService) // ✅ ADDED: Inject universal audit service
         {
             _logger = logger;
             _facultyRepository = facultyRepository;
             _attendanceRepository = attendanceRepository;
             _enrollmentRepository = enrollmentRepository;
             _classRepository = classRepository;
+            _courseRepository = courseRepository; // ✅ ADDED: Store course repository
+            _auditService = auditService; // ✅ ADDED: Store audit service
         }
 
         // GET: FacultyAttendance/Index
@@ -154,6 +161,20 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
                 if (result)
                 {
+                    // ✅ ADDED: Log audit for individual attendance update
+                    if (classEntity?.CourseId != null)
+                    {
+                        var course = await _courseRepository.GetByIdAsync(classEntity.CourseId.Value);
+                        if (course != null)
+                        {
+                            await _auditService.LogActionAsync(
+                                "Attendance Status Changed",
+                                $"Faculty changed attendance for student {request.StudId} in {course.CourseCode} " +
+                                $"on {targetDate:yyyy-MM-dd} to {request.Status}"
+                            );
+                        }
+                    }
+
                     var message = updatedCount > 1 
                         ? $"Attendance updated successfully ({updatedCount} records)" 
                         : "Attendance updated successfully";
@@ -219,6 +240,20 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
                 if (deletedCount > 0)
                 {
+                    // ✅ ADDED: Log audit for attendance deletion
+                    if (classEntity?.CourseId != null)
+                    {
+                        var course = await _courseRepository.GetByIdAsync(classEntity.CourseId.Value);
+                        if (course != null)
+                        {
+                            await _auditService.LogActionAsync(
+                                "Attendance Record Deleted",
+                                $"Faculty deleted attendance for student {request.StudId} in {course.CourseCode} " +
+                                $"on {targetDate:yyyy-MM-dd} ({deletedCount} record(s))"
+                            );
+                        }
+                    }
+
                     return Json(new { success = true, message = "Attendance deleted successfully" });
                 }
 
@@ -317,6 +352,25 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 var message = totalAffected > 0
                     ? $"Marked all students as present ({createdCount} created, {updatedCount} updated)"
                     : "No students to mark";
+
+                // ✅ ADDED: Log audit for faculty marking attendance
+                if (totalAffected > 0 && classEntity?.CourseId != null)
+                {
+                    var course = await _courseRepository.GetByIdAsync(classEntity.CourseId.Value);
+                    if (course != null)
+                    {
+                        var date = DateTime.Today;
+                        var studentCount = createdCount + updatedCount;
+                        var statusCounts = $"{createdCount} created, {updatedCount} updated";
+
+                        await _auditService.LogAttendanceActionAsync(
+                            course.CourseCode,
+                            date,
+                            studentCount,
+                            statusCounts
+                        );
+                    }
+                }
 
                 return Json(new
                 {
