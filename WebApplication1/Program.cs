@@ -53,6 +53,10 @@ builder.Services.AddScoped<IFingerprintTemplateRepository, FingerprintTemplateRe
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
 builder.Services.AddScoped<IAdminOverviewRepository, AdminOverviewRepository>();
+builder.Services.AddScoped<IAuthenticationAuditRepository, AuthenticationAuditRepository>();
+
+// ? NEW: Add Authentication Audit Service
+builder.Services.AddScoped<AuthenticationAuditService>();
 
 // Add SuperAdminInitializer service
 builder.Services.AddScoped<SuperAdminInitializer>();

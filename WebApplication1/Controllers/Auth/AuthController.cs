@@ -1,7 +1,7 @@
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
-using Fingerprint_Attendance_System.Services; // ? ADDED: For UniversalAuditService
+using Fingerprint_Attendance_System.Services; // ? For AuthenticationAuditService
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fingerprint_Attendance_System.Controllers.Auth;
@@ -11,7 +11,7 @@ public class AuthController : Controller
     private readonly IUserRepository _userRepository;
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
-    private readonly UniversalAuditService _auditService; // ? ADDED: Universal audit service
+    private readonly AuthenticationAuditService _authAuditService; // ? NEW: Authentication audit service
     private readonly ILogger<AuthController> _logger;
 
     // BCrypt work factor constant (recommended: 12 for 2024)
@@ -21,13 +21,13 @@ public class AuthController : Controller
         IUserRepository userRepository, 
         IStudentRepository studentRepository, 
         IStudentIdPoolRepository studentIdPoolRepository,
-        UniversalAuditService auditService, // ? ADDED: Inject audit service
+        AuthenticationAuditService authAuditService, // ? NEW: Inject authentication audit service
         ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
         _studentRepository = studentRepository;
         _studentIdPoolRepository = studentIdPoolRepository;
-        _auditService = auditService; // ? ADDED: Store audit service
+        _authAuditService = authAuditService; // ? NEW: Store authentication audit service
         _logger = logger;
     }
 
@@ -43,168 +43,155 @@ public class AuthController : Controller
         if (!ModelState.IsValid)
         {
             if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-    {
-       return Json(new { success = false, errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList() });
+            {
+                return Json(new { success = false, errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList() });
             }
-  return View("Index", model);
+            return View("Index", model);
         }
 
-  try
+        try
         {
-          // Get user by email
-      var user = await _userRepository.GetByEmailAsync(model.Email);
+            // Get user by email
+            var user = await _userRepository.GetByEmailAsync(model.Email);
 
-    if (user == null)
-   {
-    // ? ADDED: Log failed login attempt (invalid email)
-                await _auditService.LogActionAsync(
-                    "Failed Password Login",
-                    $"Failed login attempt for non-existent email: {model.Email}"
-                );
-    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-    {
-     return Json(new { success = false, errors = new[] { "Invalid email or password." } });
-  }
-         ModelState.AddModelError("", "Invalid email or password.");
-  return View("Index", model);
-       }
-
-       // Check if account is active
-        if (!user.IsActive)
-         {
-                // ? ADDED: Log failed login attempt (inactive account)
-                await _auditService.LogActionAsync(
-                    "Failed Password Login",
-                    $"Failed login attempt for inactive account: {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType})"
-                );
+            if (user == null)
+            {
+                // ? NEW: Log failed login attempt (invalid email)
+                await _authAuditService.LogFailedLoginAsync(null, model.Email, "Invalid email");
+                
                 if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-    {
-      return Json(new { success = false, errors = new[] { "Your account has been deactivated. Please contact administration." } });
-           }
-          ModelState.AddModelError("", "Your account has been deactivated. Please contact administration.");
-     return View("Index", model);
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
+            }
+
+            // Check if account is active
+            if (!user.IsActive)
+            {
+                // ? NEW: Log failed login attempt (inactive account)
+                await _authAuditService.LogFailedLoginAsync(user.UserId, user.UserEmail, "Inactive account");
+                
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Your account has been deactivated. Please contact administration." } });
+                }
+                ModelState.AddModelError("", "Your account has been deactivated. Please contact administration.");
+                return View("Index", model);
             }
 
             // Verify password
-   bool isPasswordValid = false;
+            bool isPasswordValid = false;
             try
-   {
-       // BCrypt.Verify is compatible with all hash formats: $2a$, $2b$, $2y$
-       // It automatically reads the work factor from the hash
-  isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.UserPassword);
-         
-        if (!isPasswordValid)
-    {
-         // ? ADDED: Log failed login attempt (wrong password)
-                    await _auditService.LogActionAsync(
-                        "Failed Password Login",
-                        $"Failed login attempt for {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType}) - incorrect password"
-                    );
-   _logger.LogWarning("Failed login attempt for user {Email} - invalid password", model.Email);
-     }
-    }
+            {
+                isPasswordValid = BCrypt.Net.BCrypt.Verify(model.Password, user.UserPassword);
+                
+                if (!isPasswordValid)
+                {
+                    // ? NEW: Log failed login attempt (wrong password)
+                    await _authAuditService.LogFailedLoginAsync(user.UserId, user.UserEmail, "Incorrect password");
+                    
+                    _logger.LogWarning("Failed login attempt for user {Email} - invalid password", model.Email);
+                }
+            }
             catch (BCrypt.Net.SaltParseException ex)
-       {
-         // Specific exception for malformed BCrypt hashes
-       _logger.LogError(ex, "Invalid BCrypt hash format for user {Email}", model.Email);
-   
-       if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-      {
-  return Json(new { success = false, errors = new[] { "Invalid email or password." } });
-   }
-       ModelState.AddModelError("", "Invalid email or password.");
- return View("Index", model);
-    }
-      catch (Exception ex)
-   {
-    // General BCrypt verification error
-      _logger.LogError(ex, "BCrypt verification failed for user {Email}", model.Email);
-        
-      if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-   {
-      return Json(new { success = false, errors = new[] { "Invalid email or password." } });
-           }
-   ModelState.AddModelError("", "Invalid email or password.");
-          return View("Index", model);
-  }
-
-            if (!isPasswordValid)
-   {   
-    if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-     {
-      return Json(new { success = false, errors = new[] { "Invalid email or password." } });
-        }
-             ModelState.AddModelError("", "Invalid email or password.");
-           return View("Index", model);
+            {
+                _logger.LogError(ex, "Invalid BCrypt hash format for user {Email}", model.Email);
+                
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BCrypt verification failed for user {Email}", model.Email);
+                
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
             }
 
-      // Update last login timestamp
-   await _userRepository.UpdateLastLoginAsync(user.UserId);
-   
-            // ? ADDED: Log successful password login for ALL roles
-            await _auditService.LogActionAsync(
-                "Password Login",
-                $"User {user.UserEmail} (ID: {user.UserId}, Role: {user.RoleType}) logged in via password authentication"
-            );
+            if (!isPasswordValid)
+            {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return Json(new { success = false, errors = new[] { "Invalid email or password." } });
+                }
+                ModelState.AddModelError("", "Invalid email or password.");
+                return View("Index", model);
+            }
+
+            // Update last login timestamp
+            await _userRepository.UpdateLastLoginAsync(user.UserId);
             
-      _logger.LogInformation("Successful login for user {Email}", model.Email);
+            // ? NEW: Log successful password login for ALL roles
+            await _authAuditService.LogPasswordLoginAsync(user.UserId, user.UserEmail, user.RoleType.ToString());
+            
+            _logger.LogInformation("Successful login for user {Email}", model.Email);
 
-     // Store user information in session
-   HttpContext.Session.SetInt32("UserId", user.UserId);
+            // Store user information in session
+            HttpContext.Session.SetInt32("UserId", user.UserId);
             HttpContext.Session.SetString("UserEmail", user.UserEmail);
-       HttpContext.Session.SetString("UserProfileImage", user.UserProfileImage);
-  HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
-HttpContext.Session.SetInt32("RoleId", user.RoleId);
+            HttpContext.Session.SetString("UserProfileImage", user.UserProfileImage);
+            HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
+            HttpContext.Session.SetInt32("RoleId", user.RoleId);
 
-  // Get redirect URL based on role
-   string redirectUrl = user.RoleType switch
-      {
-    USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
-        USER_ROLES.FACULTY => Url.Action("Index", "Faculty") ?? "/Faculty",
-            USER_ROLES.STUDENT => Url.Action("Index", "Student") ?? "/Student",
-      _ => Url.Action("Index", "Auth") ?? "/Auth"
+            // Get redirect URL based on role
+            string redirectUrl = user.RoleType switch
+            {
+                USER_ROLES.ADMIN => Url.Action("Index", "Admin") ?? "/Admin",
+                USER_ROLES.FACULTY => Url.Action("Index", "Faculty") ?? "/Faculty",
+                USER_ROLES.STUDENT => Url.Action("Index", "Student") ?? "/Student",
+                _ => Url.Action("Index", "Auth") ?? "/Auth"
             };
 
- if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
-  return Json(new { success = true, redirectUrl });
+                return Json(new { success = true, redirectUrl });
             }
 
             // Redirect based on role
-         return user.RoleType switch
-   {
-            USER_ROLES.ADMIN => RedirectToAction("Users", "Admin"),
-     USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
-  USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
-    _ => RedirectToAction("Index", "Auth")
-      };
+            return user.RoleType switch
+            {
+                USER_ROLES.ADMIN => RedirectToAction("Users", "Admin"),
+                USER_ROLES.FACULTY => RedirectToAction("Index", "Faculty"),
+                USER_ROLES.STUDENT => RedirectToAction("Index", "Student"),
+                _ => RedirectToAction("Index", "Auth")
+            };
         }
         catch (Exception ex)
- {
-   _logger.LogError(ex, "Error during login for user {Email}", model.Email);
-        
-   if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            _logger.LogError(ex, "Error during login for user {Email}", model.Email);
+            
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
             {
- return Json(new { success = false, errors = new[] { "An error occurred during login. Please try again." } });
- }
- ModelState.AddModelError("", "An error occurred during login. Please try again.");
+                return Json(new { success = false, errors = new[] { "An error occurred during login. Please try again." } });
+            }
+            ModelState.AddModelError("", "An error occurred during login. Please try again.");
             return View("Index", model);
-  }
+        }
     }
     
     public IActionResult FingerprintLogin()
     {
-    return View();
+        return View();
     }
 
-  public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout()
     {
-        // ? ADDED: Get user info before clearing session
+        // ? NEW: Get user info before clearing session
         var userId = HttpContext.Session.GetInt32("UserId");
         var userEmail = HttpContext.Session.GetString("UserEmail");
         var roleId = HttpContext.Session.GetInt32("RoleId");
         
-        // ? ADDED: Log logout for all roles
+        // ? NEW: Log logout for all roles
         if (userId.HasValue && !string.IsNullOrEmpty(userEmail) && roleId.HasValue)
         {
             var roleName = roleId.Value switch
@@ -215,14 +202,11 @@ HttpContext.Session.SetInt32("RoleId", user.RoleId);
                 _ => "UNKNOWN"
             };
             
-            await _auditService.LogActionAsync(
-                "User Logout",
-                $"User {userEmail} (ID: {userId}, Role: {roleName}) logged out"
-            );
+            await _authAuditService.LogLogoutAsync(userId.Value, userEmail, roleName);
         }
         
         HttpContext.Session.Clear();
-      return RedirectToAction("Index", "Auth");
+        return RedirectToAction("Index", "Auth");
     }
     
     [HttpGet]

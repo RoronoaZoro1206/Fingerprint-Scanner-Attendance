@@ -17,29 +17,32 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         private readonly IFacultyRepository _facultyRepo;
         private readonly IRoomRepository _roomRepo;
         private readonly IAdministrationAuditRepository _auditRepo;
+        private readonly IAuthenticationAuditRepository _authAuditRepo; // ? NEW: Authentication audit repository
         private readonly FingerprintService _fingerprintService;
         private readonly DatabaseHelper _db;
         private readonly ILogger<AdminDashboardApiController> _logger;
 
         public AdminDashboardApiController(
             IUserRepository userRepo,
-          ICourseRepository courseRepo,
-     IFacultyRepository facultyRepo,
+            ICourseRepository courseRepo,
+            IFacultyRepository facultyRepo,
             IRoomRepository roomRepo,
-     IAdministrationAuditRepository auditRepo,
-     FingerprintService fingerprintService,
-  DatabaseHelper db,
-   ILogger<AdminDashboardApiController> logger)
+            IAdministrationAuditRepository auditRepo,
+            IAuthenticationAuditRepository authAuditRepo, // ? NEW: Inject authentication audit repository
+            FingerprintService fingerprintService,
+            DatabaseHelper db,
+            ILogger<AdminDashboardApiController> logger)
         {
-     _userRepo = userRepo;
+            _userRepo = userRepo;
             _courseRepo = courseRepo;
-        _facultyRepo = facultyRepo;
-    _roomRepo = roomRepo;
-          _auditRepo = auditRepo;
-   _fingerprintService = fingerprintService;
-    _db = db;
-       _logger = logger;
-     }
+            _facultyRepo = facultyRepo;
+            _roomRepo = roomRepo;
+            _auditRepo = auditRepo;
+            _authAuditRepo = authAuditRepo; // ? NEW: Store authentication audit repository
+            _fingerprintService = fingerprintService;
+            _db = db;
+            _logger = logger;
+        }
 
         /// <summary>
         /// Get real-time system statistics
@@ -137,18 +140,25 @@ try
         {
           // Fetch all audit logs from administration_audit table
        var allActivities = await _auditRepo.GetAllAsync();
+       var allAuthActivities = await _authAuditRepo.GetAllAsync(); // ? NEW: Fetch all authentication audit logs
        
-         // Get top 3 (or specified limit) most recent activities, sorted by newest first
+         // Combine and sort by newest first
      var activities = allActivities
-  .OrderByDescending(a => a.AudActionTime)
-        .Take(limit)
-       .Select(a => new
+  .Select(a => new
          {
           action = a.AudAction,
        details = a.AudDetails ?? "No details",
                timestamp = a.AudActionTime
     })
-          .ToList();
+       .Concat(allAuthActivities.Select(a => new
+         {
+          action = a.AuthAction, // ? Correct: AuthAction (not Action)
+       details = a.AuthDetails ?? "No details", // ? Correct: AuthDetails (not Details)
+               timestamp = a.AuthActionTime // ? Correct: AuthActionTime (not Timestamp)
+    }))
+        .OrderByDescending(a => a.timestamp)
+        .Take(limit)
+        .ToList();
 
      return Ok(new { activities = activities });
             }

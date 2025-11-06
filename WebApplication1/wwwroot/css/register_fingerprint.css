@@ -195,7 +195,7 @@
 }
 
 .fingerprint-scanner.scanning {
- background: #ffffff !important; /* Keep white background when scanning */
+    background: #ffffff !important; /* Keep white background when scanning */
     border-color: #3b82f6 !important; /* Blue border when scanning */
     border-width: 4px;
     animation: pulse 1.5s ease-in-out;
@@ -203,13 +203,13 @@
 
 /* Scanning pulse animation - only border */
 @keyframes pulse {
- 0%, 100% {
+    0%, 100% {
         transform: scale(1);
         border-color: #3b82f6;
     }
     50% {
-transform: scale(1.02);
-   border-color: #2563eb;
+        transform: scale(1.02);
+        border-color: #2563eb;
     }
 }
 
@@ -227,13 +227,24 @@ transform: scale(1.02);
     animation: shake 0.5s ease-in-out;
 }
 
-/* Fingerprint image inside - black on white */
+/* ? CRITICAL: High-quality fingerprint image rendering */
 .fingerprint-scanner img {
     max-width: 90%;
     max-height: 90%;
     object-fit: contain;
     border-radius: 50%;
-    filter: contrast(1.2) brightness(1.1); /* Enhance black fingerprint lines */
+    
+    /* ? REMOVE pixelation - use smooth anti-aliasing for HD quality */
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    
+    /* ? Enhanced contrast for solid black ridges on white background */
+    filter: contrast(1.4) brightness(1.0);
+    
+    /* ? Ensure smooth edges */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .fingerprint-icon {

@@ -5,10 +5,11 @@
 
 CREATE EXTENSION IF NOT EXISTS citext;
 
-
 -- ============================================================
 -- ROLES & USERS
 -- ============================================================
+
+
 
 CREATE TABLE user_roles (
                             role_id     SERIAL PRIMARY KEY,
@@ -192,6 +193,21 @@ CREATE TABLE class_schedules (
                                  UNIQUE (class_id, sched_day_of_week, sched_start_time, sched_end_time)
 );
 
+-- ============================================================
+-- AUTHENTICATION AUDIT TABLE (UNIVERSAL)
+-- Stores ALL login/logout events for ALL user roles
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS authentication_audit (
+    auth_audit_id       SERIAL PRIMARY KEY,
+    user_id             INT REFERENCES users(user_id) ON DELETE CASCADE,
+    auth_action         VARCHAR(100) NOT NULL,           -- 'Password Login', 'Biometric Login', 'Failed Login', 'Logout'
+    auth_details        TEXT,                            -- Additional details (email, role, IP, etc.)
+    auth_action_time    TIMESTAMP NOT NULL DEFAULT NOW(),
+    auth_ip_address     VARCHAR(45),                     -- Optional: Store IP for security
+    auth_user_agent     TEXT                             -- Optional: Store browser info
+);
+
 
 -- ============================================================
 -- ENROLLMENT
@@ -309,6 +325,14 @@ CREATE INDEX idx_attendance_class_date      ON attendance(class_id, attend_date)
 CREATE INDEX idx_attendance_stud_date       ON attendance(stud_id, attend_date);
 
 
+-- Index for performance
+CREATE INDEX idx_auth_audit_user_id ON authentication_audit(user_id);
+CREATE INDEX idx_auth_audit_action ON authentication_audit(auth_action);
+CREATE INDEX idx_auth_audit_time ON authentication_audit(auth_action_time);
+
+-- Comment 
+COMMENT ON TABLE authentication_audit IS 'Universal audit log for ALL authentication events (password login, biometric login, logout) across all user roles (Admin, Faculty, Student)';
+
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
@@ -392,6 +416,7 @@ WHERE program_id IS NOT NULL
 SELECT * FROM academic_terms;
 SELECT * FROM administration;
 SELECT * FROM administration_audit;
+SELECT * FROM authentication_audit
 SELECT * FROM attendance;
 SELECT * FROM class_schedules;
 SELECT * FROM classes;

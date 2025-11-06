@@ -299,8 +299,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 // Get existing attendance for today
                 var allAttendance = await _attendanceRepository.GetAllAsync();
                 var todayAttendance = allAttendance
-                    .Where(a => a.ClassId == request.ClassId && a.AttendDate.Date == today)
-                    .GroupBy(a => a.StudId)
+                    .Where(a => a.ClassId == request.ClassId && a.StudId.HasValue && a.AttendDate.Date == today)
+                    .GroupBy(a => a.StudId!.Value)
                     .ToDictionary(g => g.Key, g => g.ToList());
 
                 int createdCount = 0;
