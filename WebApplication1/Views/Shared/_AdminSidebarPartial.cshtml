@@ -7,7 +7,7 @@
 <aside class="sidebar d-none d-lg-flex">
     <div class="sidebar-header">
         <a href="@Url.Action("Profile", "UserProfile")" class="user-profile">
-            <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
+            <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" onerror="this.src='/images/profile/default_profile.png'" />
             <div class="user-details">
                 <span class="user-name">@userName</span>
                 <span class="user-role">Admin</span>
@@ -138,7 +138,7 @@
     <div class="offcanvas-body p-0">
         <div class="sidebar-header">
             <a href="@Url.Action("Profile", "UserProfile")" class="user-profile" data-bs-dismiss="offcanvas">
-                <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" />
+                <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" onerror="this.src='/images/profile/default_profile.png'" />
                 <div class="user-details">
                     <span class="user-name">@userName</span>
                     <span class="user-role">Admin</span>

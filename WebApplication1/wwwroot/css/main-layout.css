@@ -71,6 +71,12 @@ body {
     object-fit: cover;
     border: 2px solid #e5e5e5;
     flex-shrink: 0;
+    background-color: #f3f4f6;
+}
+
+.profile-image[src=""],
+.profile-image:not([src]) {
+    content: url('/images/profile/default_profile.png');
 }
 
 .avatar-hash {
@@ -139,7 +145,6 @@ body {
 .sidebar-link i {
     width: 20px !important;
     height: 20px !important;
-    flex-shrink: 0;
 }
 
 .sidebar-link svg {

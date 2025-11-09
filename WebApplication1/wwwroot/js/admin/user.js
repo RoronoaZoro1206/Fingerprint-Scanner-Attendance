@@ -454,10 +454,15 @@ function updateUser() {
 
     ajaxPut('/AdminUser/Update', userData,
         async function () {
+            let profilePictureUpdated = false;
+            let newProfilePicture = null;
+            
             // If new profile picture selected, upload it
             if (editUserProfileFile) {
                 try {
-                    await uploadUserProfilePicture(userData.UserId, editUserProfileFile);
+                    const uploadResponse = await uploadUserProfilePicture(userData.UserId, editUserProfileFile);
+                    profilePictureUpdated = true;
+                    newProfilePicture = uploadResponse.fileName;
                     Toast.updated('User with profile picture');
                 } catch (error) {
                     Toast.warning('User updated but profile picture upload failed');
@@ -465,6 +470,9 @@ function updateUser() {
             } else {
                 Toast.updated('User');
             }
+            
+            // Update sidebar if editing current logged-in user
+            updateSidebarIfCurrentUser(userData.UserId, userData.UserFirstName, userData.UserLastName, newProfilePicture);
             
             hideModal('editUserModal');
             usersTable.ajax.reload(null, false);
@@ -475,6 +483,43 @@ function updateUser() {
     );
 
     resetButton($btn);
+}
+
+/**
+ * Update sidebar profile picture and name if editing current logged-in user
+ */
+function updateSidebarIfCurrentUser(editedUserId, firstName, lastName, newProfilePicture) {
+    // Check if we're editing the current logged-in user
+    // We can check session or compare user details
+    const currentUserName = $('.sidebar .user-name').first().text().trim();
+    const fullName = `${firstName} ${lastName}`;
+    
+    // Get current profile image from sidebar
+    const currentSidebarImage = $('.sidebar .profile-image').first().attr('src');
+    const currentUserId = extractUserIdFromImage(currentSidebarImage);
+    
+    // Update if it's the same user (match by userId in image path or by name)
+    if (currentUserId === editedUserId || currentUserName === fullName) {
+        // Update name in both desktop and mobile sidebars
+        $('.sidebar .user-name').text(fullName);
+        $('#sidebarOffcanvas .user-name').text(fullName);
+        
+        // Update profile picture if a new one was uploaded
+        if (newProfilePicture) {
+            const newImagePath = `/images/profile/${newProfilePicture}`;
+            $('.sidebar .profile-image').attr('src', newImagePath);
+            $('#sidebarOffcanvas .profile-image').attr('src', newImagePath);
+        }
+    }
+}
+
+/**
+ * Extract user ID from image path (e.g., /images/profile/user_1_abc123.jpg -> 1)
+ */
+function extractUserIdFromImage(imagePath) {
+    if (!imagePath) return null;
+    const match = imagePath.match(/user_(\d+)_/);
+    return match ? parseInt(match[1]) : null;
 }
 
 /**

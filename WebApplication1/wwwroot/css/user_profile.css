@@ -53,6 +53,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
+    padding: 0;
 }
 
 .btn-change-photo:hover {
@@ -60,9 +61,11 @@
     transform: scale(1.05);
 }
 
-.btn-change-photo svg {
+.btn-change-photo svg,
+.btn-change-photo i {
     width: 18px;
     height: 18px;
+    margin: 0 !important;
 }
 
 .profile-header-info {

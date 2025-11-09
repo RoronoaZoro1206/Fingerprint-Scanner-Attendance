@@ -13,6 +13,24 @@
     border: 2px solid #e5e7eb;
 }
 
+/* Profile Picture Modal Styling */
+.profile-picture-wrapper-modal {
+    display: inline-block;
+    position: relative;
+}
+
+.profile-picture-wrapper-modal .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.profile-picture-wrapper-modal .btn i,
+.profile-picture-wrapper-modal .btn svg {
+    margin: 0 !important;
+}
+
 /* Dropdown Menu Styles */
 .dropdown-menu {
     border-radius: 8px;
