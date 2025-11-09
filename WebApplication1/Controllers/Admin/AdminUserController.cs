@@ -75,13 +75,16 @@ return Json(new { success = false, message = "User not found" });
             {
         user.UserId,
             user.UserFirstName,
+            user.UserMiddleName,
         user.UserLastName,
      user.UserEmail,
      user.UserPhone,
        user.UserAddress,
+       user.UserGender,
              UserBirthdate = user.UserBirthdate?.ToString("yyyy-MM-dd"),
      user.RoleId,
-   user.IsActive
+   user.IsActive,
+   user.UserProfileImage
   };
 
        return Json(new { success = true, data = userData });
@@ -115,82 +118,85 @@ return Json(new { success = false, message = "Failed to fetch user" });
     {
         try
         {
-    if (!ModelState.IsValid)
-   {
-         return Json(new { success = false, message = "Invalid data provided" });
-   }
+            if (!ModelState.IsValid)
+            {
+                return Json(new { success = false, message = "Invalid data provided" });
+            }
 
-         // Check if email already exists
+            // Check if email already exists
             var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
-   if (emailExists)
-{
-       return Json(new { success = false, message = "This email address is already registered." });
-          }
+            if (emailExists)
+            {
+                return Json(new { success = false, message = "This email address is already registered." });
+            }
 
             // Hash password using BCrypt.Net-Next 4.0.3 best practices
-         user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
+            user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
             user.UserCreatedAt = DateTime.Now;
-      user.UserUpdatedAt = DateTime.Now;
-  user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
+            user.UserUpdatedAt = DateTime.Now;
+            user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
 
-  _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
+            _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
                 user.UserEmail, BCRYPT_WORK_FACTOR);
 
-      var result = await _userRepository.AddAsync(user);
+            var result = await _userRepository.AddAsync(user);
 
-        if (result)
+            if (result)
             {
-      // Get the created user to get the user_id
-         var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
+                // Get the created user to get the user_id
+                var createdUser = await _userRepository.GetByEmailAsync(user.UserEmail);
 
-        if (createdUser != null)
-        {
-         // Check if user role is admin (role_id = 1)
-        if (createdUser.RoleId == 1)
-         {
-   // Generate unique admin code
-            var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+                if (createdUser != null)
+                {
+                    // Check if user role is admin (role_id = 1)
+                    if (createdUser.RoleId == 1)
+                    {
+                        // Generate unique admin code
+                        var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
 
-  // Create administration record
-        var administration = new Administration
-        {
-         UserId = createdUser.UserId,
-      AdminCode = adminCode,
-              AdminCreatedAt = DateTime.Now
-              };
+                        // Create administration record
+                        var administration = new Administration
+                        {
+                            UserId = createdUser.UserId,
+                            AdminCode = adminCode,
+                            AdminCreatedAt = DateTime.Now
+                        };
 
-            var adminResult = await _administrationRepository.AddAsync(administration);
+                        var adminResult = await _administrationRepository.AddAsync(administration);
 
-       if (adminResult)
-          {
-     // ? LOG AUDIT: Created Admin User
-        await _auditService.LogActionAsync(
- "Created Admin User",
-   $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
-          }
-      else
-       {
-   _logger.LogWarning($"Failed to create administration record for user {createdUser.UserId}");
+                        if (adminResult)
+                        {
+                            // ? LOG AUDIT: Created Admin User
+                            await _auditService.LogActionAsync(
+                                "Created Admin User",
+                                $"Created admin user: {createdUser.UserEmail} with code {adminCode}");
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Failed to create administration record for user {createdUser.UserId}");
+                        }
+                    }
+                    else
+                    {
+                        // ? LOG AUDIT: Created Regular User
+                        var roleName = createdUser.RoleId == 2 ? "Faculty" : "Student";
+                        await _auditService.LogActionAsync(
+                            $"Created {roleName} User",
+                            $"Created {roleName.ToLower()} user: {createdUser.UserEmail} (ID: {createdUser.UserId})");
+                    }
+
+                    // Return success with userId for profile picture upload
+                    return Json(new { success = true, message = "User created successfully", userId = createdUser.UserId });
+                }
+
+                return Json(new { success = true, message = "User created successfully" });
+            }
+            return Json(new { success = false, message = "Failed to create user" });
         }
-   }
-  else
-             {
-   // ? LOG AUDIT: Created Regular User
-        var roleName = createdUser.RoleId == 2 ? "Faculty" : "Student";
-    await _auditService.LogActionAsync(
-  $"Created {roleName} User",
-             $"Created {roleName.ToLower()} user: {createdUser.UserEmail} (ID: {createdUser.UserId})");
-   }
-       }
-
-       return Json(new { success = true, message = "User created successfully" });
-       }
-     return Json(new { success = false, message = "Failed to create user" });
-  }
         catch (Exception ex)
-    {
-    _logger.LogError(ex, "Error creating user");
-  return Json(new { success = false, message = "An error occurred while creating user" });
+        {
+            _logger.LogError(ex, "Error creating user");
+            return Json(new { success = false, message = "An error occurred while creating user" });
         }
     }
 
@@ -335,6 +341,93 @@ await _auditService.LogActionAsync(
             _logger.LogError(ex, "Error deleting user");
             return Json(new { success = false, message = "An error occurred while deleting user" });
     }
+    }
+
+    // POST: AdminUser/UploadUserProfilePicture
+    [HttpPost]
+    public async Task<IActionResult> UploadUserProfilePicture(IFormFile profilePicture, int userId)
+    {
+        try
+        {
+            if (profilePicture == null || profilePicture.Length == 0)
+            {
+                return Json(new { success = false, message = "No file uploaded" });
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var extension = Path.GetExtension(profilePicture.FileName).ToLowerInvariant();
+            
+            if (!allowedExtensions.Contains(extension))
+            {
+                return Json(new { success = false, message = "Invalid file type. Only JPG, PNG, and GIF are allowed." });
+            }
+
+            // Validate file size (max 5MB)
+            if (profilePicture.Length > 5 * 1024 * 1024)
+            {
+                return Json(new { success = false, message = "File size must be less than 5MB" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            // Generate unique filename
+            var fileName = $"user_{userId}_{Guid.NewGuid()}{extension}";
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "profile");
+            
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            // Delete old profile picture if it exists and is not default
+            if (!string.IsNullOrEmpty(user.UserProfileImage) && user.UserProfileImage != "default_profile.png")
+            {
+                var oldFilePath = Path.Combine(uploadsFolder, user.UserProfileImage);
+                if (System.IO.File.Exists(oldFilePath))
+                {
+                    System.IO.File.Delete(oldFilePath);
+                }
+            }
+
+            // Save new file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await profilePicture.CopyToAsync(stream);
+            }
+
+            // Update user record
+            user.UserProfileImage = fileName;
+            user.UserUpdatedAt = DateTime.Now;
+            
+            var result = await _userRepository.UpdateAsync(user);
+
+            if (result)
+            {
+                // ? LOG AUDIT: Profile picture updated by admin
+                await _auditService.LogActionAsync(
+                    "Profile Picture Updated",
+                    $"Admin updated profile picture for user: {user.UserEmail} (ID: {user.UserId}, File: {fileName})"
+                );
+                
+                _logger.LogInformation($"Profile picture updated for user: {user.UserId}");
+                return Json(new { success = true, message = "Profile picture updated successfully", fileName = fileName, userId = userId });
+            }
+
+            return Json(new { success = false, message = "Failed to update profile picture" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading profile picture");
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

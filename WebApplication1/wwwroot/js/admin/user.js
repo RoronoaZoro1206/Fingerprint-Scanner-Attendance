@@ -5,6 +5,8 @@
 
 let usersTable;
 let rolesData = [];
+let addUserProfileFile = null;
+let editUserProfileFile = null;
 
 $(document).ready(function () {
     // Initialize icons
@@ -20,6 +22,18 @@ $(document).ready(function () {
     $('#btnSaveUser').on('click', saveUser);
     $('#btnUpdateUser').on('click', updateUser);
     $('#btnConfirmDelete').on('click', confirmDeleteUser);
+
+    // Profile picture handlers for Add User modal
+    $('#btnAddUserChangePicture').on('click', function () {
+        $('#addUserProfileInput').click();
+    });
+    $('#addUserProfileInput').on('change', handleAddUserProfilePictureChange);
+
+    // Profile picture handlers for Edit User modal
+    $('#btnEditUserChangePicture').on('click', function () {
+        $('#editUserProfileInput').click();
+    });
+    $('#editUserProfileInput').on('change', handleEditUserProfilePictureChange);
 
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
@@ -50,7 +64,115 @@ $(document).ready(function () {
 
     // Clear form when modal is hidden
     setupFormClearOnHide('addUserModal', 'addUserForm');
+    
+    // Reset profile pictures when modals are hidden
+    $('#addUserModal').on('hidden.bs.modal', function () {
+        addUserProfileFile = null;
+        $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
+    });
+    
+    $('#editUserModal').on('hidden.bs.modal', function () {
+        editUserProfileFile = null;
+    });
 });
+
+/**
+ * Handle profile picture change for Add User modal
+ */
+function handleAddUserProfilePictureChange(e) {
+    const file = e.target.files[0];
+    
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        Toast.error('Invalid file type. Only JPG, PNG, and GIF are allowed.');
+        $('#addUserProfileInput').val('');
+        return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        Toast.error('File size must be less than 5MB');
+        $('#addUserProfileInput').val('');
+        return;
+    }
+
+    // Store file for upload
+    addUserProfileFile = file;
+
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        $('#addUserProfilePreview').attr('src', e.target.result);
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * Handle profile picture change for Edit User modal
+ */
+function handleEditUserProfilePictureChange(e) {
+    const file = e.target.files[0];
+    
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        Toast.error('Invalid file type. Only JPG, PNG, and GIF are allowed.');
+        $('#editUserProfileInput').val('');
+        return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        Toast.error('File size must be less than 5MB');
+        $('#editUserProfileInput').val('');
+        return;
+    }
+
+    // Store file for upload
+    editUserProfileFile = file;
+
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        $('#editUserProfilePreview').attr('src', e.target.result);
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * Upload profile picture for a user
+ */
+function uploadUserProfilePicture(userId, file) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('profilePicture', file);
+        formData.append('userId', userId);
+
+        $.ajax({
+            url: '/AdminUser/UploadUserProfilePicture',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (response.success) {
+                    resolve(response);
+                } else {
+                    reject(response.message || 'Failed to upload profile picture');
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Error uploading profile picture:', error);
+                reject('Failed to upload profile picture');
+            }
+        });
+    });
+}
 
 /**
  * Load Roles for dropdown
@@ -200,6 +322,8 @@ function initializeDataTable() {
  */
 function showAddModal() {
     $('#addUserForm')[0].reset();
+    addUserProfileFile = null;
+    $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
     showModal('addUserModal');
 }
 
@@ -212,6 +336,7 @@ function showEditModal(userId) {
             const user = response.data;
             $('#editUserId').val(user.userId);
             $('#editUserFirstName').val(user.userFirstName);
+            $('#editUserMiddleName').val(user.userMiddleName || '');
             $('#editUserLastName').val(user.userLastName);
             $('#editUserEmail').val(user.userEmail);
             $('#editUserPhone').val(user.userPhone || '');
@@ -221,6 +346,12 @@ function showEditModal(userId) {
             $('#editRoleId').val(user.roleId);
             $('#editIsActive').val(user.isActive.toString());
             $('#editUserPassword').val('');
+            
+            // Set profile picture
+            const profileImage = user.userProfileImage || 'default_profile.png';
+            $('#editUserProfilePreview').attr('src', `/images/profile/${profileImage}`);
+            editUserProfileFile = null;
+            
             showModal('editUserModal');
         },
         function () {
@@ -242,6 +373,7 @@ function saveUser() {
 
     const userData = {
         UserFirstName: $('#addUserFirstName').val().trim(),
+        UserMiddleName: $('#addUserMiddleName').val().trim() || null,
         UserLastName: $('#addUserLastName').val().trim(),
         UserEmail: $('#addUserEmail').val().trim(),
         UserPhone: $('#addUserPhone').val().trim() || null,
@@ -262,8 +394,19 @@ function saveUser() {
     setButtonLoading($btn, 'Saving...');
 
     ajaxPost('/AdminUser/Create', userData,
-        function () {
-            Toast.created('User');
+        async function (response) {
+            // If profile picture selected, upload it
+            if (addUserProfileFile && response.userId) {
+                try {
+                    await uploadUserProfilePicture(response.userId, addUserProfileFile);
+                    Toast.created('User with profile picture');
+                } catch (error) {
+                    Toast.warning('User created but profile picture upload failed');
+                }
+            } else {
+                Toast.created('User');
+            }
+            
             hideModal('addUserModal');
             usersTable.ajax.reload(null, false);
         },
@@ -289,6 +432,7 @@ function updateUser() {
     const userData = {
         UserId: parseInt($('#editUserId').val()),
         UserFirstName: $('#editUserFirstName').val().trim(),
+        UserMiddleName: $('#editUserMiddleName').val().trim() || null,
         UserLastName: $('#editUserLastName').val().trim(),
         UserEmail: $('#editUserEmail').val().trim(),
         UserPhone: $('#editUserPhone').val().trim() || null,
@@ -309,8 +453,19 @@ function updateUser() {
     setButtonLoading($btn, 'Updating...');
 
     ajaxPut('/AdminUser/Update', userData,
-        function () {
-            Toast.updated('User');
+        async function () {
+            // If new profile picture selected, upload it
+            if (editUserProfileFile) {
+                try {
+                    await uploadUserProfilePicture(userData.UserId, editUserProfileFile);
+                    Toast.updated('User with profile picture');
+                } catch (error) {
+                    Toast.warning('User updated but profile picture upload failed');
+                }
+            } else {
+                Toast.updated('User');
+            }
+            
             hideModal('editUserModal');
             usersTable.ajax.reload(null, false);
         },

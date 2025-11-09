@@ -74,24 +74,40 @@
             </div>
             <div class="modal-body">
                 <form id="addUserForm">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="addUserFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="addUserFirstName" name="UserFirstName" required maxlength="50">
+                    <!-- Profile Picture Section -->
+                    <div class="text-center mb-4">
+                        <div class="profile-picture-wrapper-modal d-inline-block position-relative">
+                            <img src="~/images/profile/default_profile.png" alt="Profile Picture" id="addUserProfilePreview" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #e9ecef;">
+                            <button type="button" class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0" id="btnAddUserChangePicture" style="width: 36px; height: 36px; padding: 0;">
+                                <i data-lucide="camera" style="width: 18px; height: 18px;"></i>
+                            </button>
+                            <input type="file" id="addUserProfileInput" accept="image/*" style="display: none;">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="mt-2 text-muted small">Click camera icon to upload profile picture</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="addUserFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="addUserFirstName" name="UserFirstName" placeholder="Enter first name" required maxlength="50">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="addUserMiddleName" class="form-label">Middle Name</label>
+                            <input type="text" class="form-control" id="addUserMiddleName" name="UserMiddleName" placeholder="Enter middle name" maxlength="50">
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label for="addUserLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="addUserLastName" name="UserLastName" required maxlength="50">
+                            <input type="text" class="form-control" id="addUserLastName" name="UserLastName" placeholder="Enter last name" required maxlength="50">
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="addUserEmail" class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="addUserEmail" name="UserEmail" required maxlength="100">
+                            <input type="email" class="form-control" id="addUserEmail" name="UserEmail" placeholder="Enter email address" required maxlength="100">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="addUserPhone" class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="addUserPhone" name="UserPhone" maxlength="20">
+                            <label for="addUserPhone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="addUserPhone" name="UserPhone" placeholder="Enter phone number" maxlength="20">
                         </div>
                     </div>
                     <div class="row">
@@ -101,6 +117,7 @@
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
+                                <option value="Other">Other</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -110,7 +127,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="addUserAddress" class="form-label">Address</label>
-                        <textarea class="form-control" id="addUserAddress" name="UserAddress" rows="2" maxlength="200"></textarea>
+                        <textarea class="form-control" id="addUserAddress" name="UserAddress" rows="3" placeholder="Enter your address" maxlength="200"></textarea>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -121,7 +138,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="addUserPassword" class="form-label">Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="addUserPassword" name="UserPassword" required minlength="6">
+                            <input type="password" class="form-control" id="addUserPassword" name="UserPassword" placeholder="Enter password" required minlength="6">
                             <div class="form-text">Minimum 6 characters</div>
                         </div>
                     </div>
@@ -149,24 +166,41 @@
             <div class="modal-body">
                 <form id="editUserForm">
                     <input type="hidden" id="editUserId" name="UserId">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="editUserFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="editUserFirstName" name="UserFirstName" required maxlength="50">
+                    
+                    <!-- Profile Picture Section -->
+                    <div class="text-center mb-4">
+                        <div class="profile-picture-wrapper-modal d-inline-block position-relative">
+                            <img src="~/images/profile/default_profile.png" alt="Profile Picture" id="editUserProfilePreview" class="rounded-circle" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #e9ecef;">
+                            <button type="button" class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0" id="btnEditUserChangePicture" style="width: 36px; height: 36px; padding: 0;">
+                                <i data-lucide="camera" style="width: 18px; height: 18px;"></i>
+                            </button>
+                            <input type="file" id="editUserProfileInput" accept="image/*" style="display: none;">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="mt-2 text-muted small">Click camera icon to change profile picture</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="editUserFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editUserFirstName" name="UserFirstName" placeholder="Enter first name" required maxlength="50">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="editUserMiddleName" class="form-label">Middle Name</label>
+                            <input type="text" class="form-control" id="editUserMiddleName" name="UserMiddleName" placeholder="Enter middle name" maxlength="50">
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label for="editUserLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="editUserLastName" name="UserLastName" required maxlength="50">
+                            <input type="text" class="form-control" id="editUserLastName" name="UserLastName" placeholder="Enter last name" required maxlength="50">
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="editUserEmail" class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="editUserEmail" name="UserEmail" required maxlength="100">
+                            <input type="email" class="form-control" id="editUserEmail" name="UserEmail" placeholder="Enter email address" required maxlength="100">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="editUserPhone" class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="editUserPhone" name="UserPhone" maxlength="20">
+                            <label for="editUserPhone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="editUserPhone" name="UserPhone" placeholder="Enter phone number" maxlength="20">
                         </div>
                     </div>
                     <div class="row">
@@ -176,6 +210,7 @@
                                 <option value="">Select Gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
+                                <option value="Other">Other</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -185,27 +220,27 @@
                     </div>
                     <div class="mb-3">
                         <label for="editUserAddress" class="form-label">Address</label>
-                        <textarea class="form-control" id="editUserAddress" name="UserAddress" rows="2" maxlength="200"></textarea>
+                        <textarea class="form-control" id="editUserAddress" name="UserAddress" rows="3" placeholder="Enter your address" maxlength="200"></textarea>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="editRoleId" class="form-label">Role <span class="text-danger">*</span></label>
                             <select class="form-select" id="editRoleId" name="RoleId" required>
                                 <option value="">Select Role</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="editIsActive" class="form-label">Status <span class="text-danger">*</span></label>
                             <select class="form-select" id="editIsActive" name="IsActive" required>
                                 <option value="true">Active</option>
                                 <option value="false">Inactive</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editUserPassword" class="form-label">New Password</label>
-                        <input type="password" class="form-control" id="editUserPassword" name="UserPassword" minlength="6">
-                        <div class="form-text">Leave blank to keep current password</div>
+                        <div class="col-md-4 mb-3">
+                            <label for="editUserPassword" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="editUserPassword" name="UserPassword" placeholder="Enter new password" minlength="6">
+                            <div class="form-text">Leave blank to keep current password</div>
+                        </div>
                     </div>
                 </form>
             </div>

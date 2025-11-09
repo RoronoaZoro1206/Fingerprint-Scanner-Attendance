@@ -86,58 +86,58 @@ _environment = environment;
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         try
-    {
-     var userId = HttpContext.Session.GetInt32("UserId");
-   _logger.LogInformation($"UpdateProfile - UserId from session: {userId}");
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            _logger.LogInformation($"UpdateProfile - UserId from session: {userId}");
 
             if (!userId.HasValue)
             {
-  _logger.LogWarning("UpdateProfile - No userId in session");
-       return Json(new { success = false, message = "User not authenticated" });
-}
+                _logger.LogWarning("UpdateProfile - No userId in session");
+                return Json(new { success = false, message = "User not authenticated" });
+            }
 
-          var user = await _userRepository.GetByIdAsync(userId.Value);
+            var user = await _userRepository.GetByIdAsync(userId.Value);
 
             if (user == null)
             {
-          _logger.LogWarning($"UpdateProfile - No user found for userId: {userId.Value}");
-      return Json(new { success = false, message = "User not found" });
+                _logger.LogWarning($"UpdateProfile - No user found for userId: {userId.Value}");
+                return Json(new { success = false, message = "User not found" });
             }
 
-      // Store old values for audit logging
- var oldName = $"{user.UserFirstName} {user.UserLastName}";
+            // Store old values for audit logging
+            var oldName = $"{user.UserFirstName} {user.UserLastName}";
 
- // Update user information
-   user.UserFirstName = request.FirstName;
-     user.UserMiddleName = request.MiddleName;
-         user.UserLastName = request.LastName;
-   user.UserGender = request.Gender;
+            // Update user information
+            user.UserFirstName = request.FirstName;
+            user.UserMiddleName = request.MiddleName;
+            user.UserLastName = request.LastName;
+            user.UserGender = request.Gender;
             user.UserPhone = request.Phone;
-   user.UserAddress = request.Address;
-user.UserBirthdate = !string.IsNullOrEmpty(request.Birthdate) 
-  ? DateTime.Parse(request.Birthdate) 
-      : (DateTime?)null;
- user.UserUpdatedAt = DateTime.Now;
+            user.UserAddress = request.Address;
+            user.UserBirthdate = !string.IsNullOrEmpty(request.Birthdate) 
+                ? DateTime.Parse(request.Birthdate) 
+                : (DateTime?)null;
+            user.UserUpdatedAt = DateTime.Now;
 
             var result = await _userRepository.UpdateAsync(user);
 
-    if (result)
- {
-       // Update session
-       HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
+            if (result)
+            {
+                // Update session
+                HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
 
                 // ? AUDIT LOGGING - Only for Admin users
-    if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
-{
-      var newName = $"{user.UserFirstName} {user.UserLastName}";
-    await _auditService.LogActionAsync(
-    "Profile Update",
-             $"Updated own profile (Name: {oldName} ? {newName}, Email: {user.UserEmail})"
-       );
-     }
-      
-     _logger.LogInformation($"UpdateProfile - Successfully updated user: {user.UserId}");
-             return Json(new { success = true, message = "Profile updated successfully" });
+                if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
+                {
+                    var newName = $"{user.UserFirstName} {user.UserLastName}";
+                    await _auditService.LogActionAsync(
+                        "Profile Update",
+                        $"Updated own profile (Name: {oldName} ? {newName}, Email: {user.UserEmail})"
+                    );
+                }
+                
+                _logger.LogInformation($"UpdateProfile - Successfully updated user: {user.UserId}");
+                return Json(new { success = true, message = "Profile updated successfully" });
             }
 
             _logger.LogWarning($"UpdateProfile - Failed to update user: {user.UserId}");
@@ -146,7 +146,7 @@ user.UserBirthdate = !string.IsNullOrEmpty(request.Birthdate)
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error updating profile: {ex.Message}");
-        return Json(new { success = false, message = $"Error: {ex.Message}" });
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
         }
     }
 
