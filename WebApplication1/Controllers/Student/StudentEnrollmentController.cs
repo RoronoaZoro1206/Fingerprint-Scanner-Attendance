@@ -150,29 +150,35 @@ public class StudentEnrollmentController : Controller
             if (studentInfo == null)
             {
                 _logger.LogWarning($"GetAvailableClasses - No student found for userId: {userId.Value}");
-                return Json(new { success = false, data = new List<object>(), message = "Student profile not found" });
+                return Json(new { success = false, data = new List<object>(), message = "Student profile not found. Please complete your profile first." });
             }
 
             if (!studentInfo.ProgramId.HasValue)
             {
                 _logger.LogWarning($"GetAvailableClasses - Student {studentInfo.StudId} has no program assigned");
-                return Json(new { success = false, data = new List<object>(), message = "No program assigned" });
+                return Json(new { 
+                    success = false, 
+                    data = new List<object>(), 
+                    message = "Please complete your student profile with a program selection before enrolling in classes." 
+                });
             }
 
-            _logger.LogInformation($"GetAvailableClasses - Student: {studentInfo.StudId}, Program: {studentInfo.ProgramId}");
+            _logger.LogInformation($"GetAvailableClasses - Student: {studentInfo.StudId}, Program: {studentInfo.ProgramId}, ProgramName: {studentInfo.ProgramName}");
 
-            // Single optimized query with all JOINs and filtering instead of 7 separate queries
+            // Single optimized query with all JOINs and filtering
             var availableClasses = await _enrollmentRepository.GetAvailableClassesForStudentAsync(
                 studentInfo.StudId, 
                 studentInfo.ProgramId.Value);
 
-            _logger.LogInformation($"GetAvailableClasses - Found {availableClasses.Count()} available classes");
-            return Json(new { success = true, data = availableClasses });
+            var classList = availableClasses.ToList();
+            _logger.LogInformation($"GetAvailableClasses - Found {classList.Count} available classes for program {studentInfo.ProgramName}");
+            
+            return Json(new { success = true, data = classList });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error getting available classes: {ex.Message}");
-            return Json(new { success = false, data = new List<object>(), message = $"Error: {ex.Message}" });
+            _logger.LogError(ex, $"Error getting available classes: {ex.Message}\nStackTrace: {ex.StackTrace}");
+            return Json(new { success = false, data = new List<object>(), message = $"Error loading classes: {ex.Message}" });
         }
     }
 
@@ -182,13 +188,34 @@ public class StudentEnrollmentController : Controller
         try
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (!userId.HasValue) return Json(new { success = false, message = "User not authenticated" });
+            if (!userId.HasValue) 
+            {
+                _logger.LogWarning("Enroll - No userId in session");
+                return Json(new { success = false, message = "User not authenticated" });
+            }
             
             // Get student info with single query
             var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
 
             if (studentInfo == null)
-                return Json(new { success = false, message = "Student profile not found" });
+            {
+                _logger.LogError($"Enroll - No student found for userId: {userId.Value}");
+                return Json(new { success = false, message = "Student profile not found. Please complete your profile first." });
+            }
+
+            if (!studentInfo.ProgramId.HasValue)
+            {
+                _logger.LogError($"Enroll - Student {studentInfo.StudId} has no program assigned");
+                return Json(new { success = false, message = "Please complete your student profile with a program before enrolling." });
+            }
+
+            // Check if already enrolled
+            var existingEnrollments = await _enrollmentRepository.GetByStudentIdAsync(studentInfo.StudId);
+            if (existingEnrollments.Any(e => e.ClassId == request.ClassId))
+            {
+                _logger.LogWarning($"Enroll - Student {studentInfo.StudId} already enrolled in class {request.ClassId}");
+                return Json(new { success = false, message = "You are already enrolled in this class" });
+            }
 
             var enrollment = new Enrollment
             {
@@ -197,11 +224,12 @@ public class StudentEnrollmentController : Controller
                 EnrollAt = DateTime.Now
             };
 
+            _logger.LogInformation($"Enroll - Attempting to enroll student {studentInfo.StudId} in class {request.ClassId}");
             var result = await _enrollmentRepository.AddAsync(enrollment);
 
             if (result)
             {
-                // ? Log audit for student enrollment
+                // Log audit for student enrollment
                 var classDetail = await _classRepository.GetByIdAsync(request.ClassId);
                 if (classDetail?.CourseId != null)
                 {
@@ -213,18 +241,21 @@ public class StudentEnrollmentController : Controller
                             course.CourseName,
                             isEnrollment: true
                         );
+                        
+                        _logger.LogInformation($"Enroll - Successfully enrolled student {studentInfo.StudId} in {course.CourseCode}");
                     }
                 }
 
                 return Json(new { success = true, message = "Successfully enrolled in class" });
             }
 
-            return Json(new { success = false, message = "Failed to enroll in class" });
+            _logger.LogError($"Enroll - Failed to add enrollment for student {studentInfo.StudId} in class {request.ClassId}");
+            return Json(new { success = false, message = "Failed to enroll in class. Please try again." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enrolling in class");
-            return Json(new { success = false, message = "An error occurred while enrolling" });
+            _logger.LogError(ex, $"Error enrolling in class: {ex.Message}\nStackTrace: {ex.StackTrace}");
+            return Json(new { success = false, message = "An error occurred while enrolling. Please contact support." });
         }
     }
 

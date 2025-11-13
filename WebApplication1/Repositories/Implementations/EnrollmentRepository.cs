@@ -130,6 +130,7 @@ public class EnrollmentRepository : IEnrollmentRepository
     /// <summary>
     /// Gets student enrollments with all related details in a single optimized query
     /// Eliminates N+1 query problem by using JOINs instead of multiple repository calls
+    /// ? FIXED: Added NULL value handling with COALESCE
     /// </summary>
     public async Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId)
     {
@@ -137,25 +138,28 @@ public class EnrollmentRepository : IEnrollmentRepository
             SELECT 
                 e.enroll_id,
                 e.class_id,
-                co.course_code,
-                co.course_name,
-                CONCAT(u.user_first_name, ' ', u.user_last_name) as faculty_name,
-                r.room_code,
-                STRING_AGG(
-                    cs.sched_day_of_week || ' ' || 
-                    TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
-                    TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
-                    ', ' ORDER BY 
-                        CASE cs.sched_day_of_week
-                            WHEN 'Monday' THEN 1
-                            WHEN 'Tuesday' THEN 2
-                            WHEN 'Wednesday' THEN 3
-                            WHEN 'Thursday' THEN 4
-                            WHEN 'Friday' THEN 5
-                            WHEN 'Saturday' THEN 6
-                            WHEN 'Sunday' THEN 7
-                        END,
-                        cs.sched_start_time
+                COALESCE(co.course_code, 'UNKNOWN') as course_code,
+                COALESCE(co.course_name, 'Unknown Course') as course_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'No Faculty Assigned') as faculty_name,
+                COALESCE(r.room_code, 'TBA') as room_code,
+                COALESCE(
+                    STRING_AGG(
+                        cs.sched_day_of_week || ' ' || 
+                        TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                        TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
+                        ', ' ORDER BY 
+                            CASE cs.sched_day_of_week
+                                WHEN 'Monday' THEN 1
+                                WHEN 'Tuesday' THEN 2
+                                WHEN 'Wednesday' THEN 3
+                                WHEN 'Thursday' THEN 4
+                                WHEN 'Friday' THEN 5
+                                WHEN 'Saturday' THEN 6
+                                WHEN 'Sunday' THEN 7
+                            END,
+                            cs.sched_start_time
+                    ),
+                    'TBA'
                 ) as schedule
             FROM enrollment e
             INNER JOIN classes cl ON e.class_id = cl.class_id
@@ -176,50 +180,56 @@ public class EnrollmentRepository : IEnrollmentRepository
         {
             EnrollId = Convert.ToInt32(row["enroll_id"]),
             ClassId = Convert.ToInt32(row["class_id"]),
-            CourseCode = row["course_code"]?.ToString() ?? "N/A",
-            CourseName = row["course_name"]?.ToString() ?? "N/A",
-            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
-            RoomCode = row["room_code"]?.ToString() ?? "N/A",
-            Schedule = row["schedule"]?.ToString() ?? "No schedule"
+            CourseCode = row["course_code"]?.ToString() ?? "UNKNOWN",
+            CourseName = row["course_name"]?.ToString() ?? "Unknown Course",
+            FacultyName = row["faculty_name"]?.ToString() ?? "No Faculty Assigned",
+            RoomCode = row["room_code"]?.ToString() ?? "TBA",
+            Schedule = row["schedule"]?.ToString() ?? "TBA"
         });
     }
 
     /// <summary>
     /// Gets available classes for a student to enroll in with all details in a single query
     /// Filters out already enrolled classes and matches student's program
+    /// ? FIXED: Added NULL value handling, active term filtering, and better error handling
     /// </summary>
     public async Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId)
     {
         string query = @"
             SELECT 
                 cl.class_id,
-                co.course_code,
-                co.course_name,
-                CONCAT(u.user_first_name, ' ', u.user_last_name) as faculty_name,
-                r.room_code,
-                STRING_AGG(
-                    cs.sched_day_of_week || ' ' || 
-                    TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
-                    TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
-                    ', ' ORDER BY 
-                        CASE cs.sched_day_of_week
-                            WHEN 'Monday' THEN 1
-                            WHEN 'Tuesday' THEN 2
-                            WHEN 'Wednesday' THEN 3
-                            WHEN 'Thursday' THEN 4
-                            WHEN 'Friday' THEN 5
-                            WHEN 'Saturday' THEN 6
-                            WHEN 'Sunday' THEN 7
-                        END,
-                        cs.sched_start_time
+                COALESCE(co.course_code, 'UNKNOWN') as course_code,
+                COALESCE(co.course_name, 'Unknown Course') as course_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'No Faculty Assigned') as faculty_name,
+                COALESCE(r.room_code, 'TBA') as room_code,
+                COALESCE(
+                    STRING_AGG(
+                        cs.sched_day_of_week || ' ' || 
+                        TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                        TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
+                        ', ' ORDER BY 
+                            CASE cs.sched_day_of_WEEK
+                                WHEN 'Monday' THEN 1
+                                WHEN 'Tuesday' THEN 2
+                                WHEN 'Wednesday' THEN 3
+                                WHEN 'Thursday' THEN 4
+                                WHEN 'Friday' THEN 5
+                                WHEN 'Saturday' THEN 6
+                                WHEN 'Sunday' THEN 7
+                            END,
+                            cs.sched_start_time
+                    ), 
+                    'TBA'
                 ) as schedule
             FROM classes cl
             INNER JOIN courses co ON cl.course_id = co.course_id
+            INNER JOIN academic_terms at ON cl.term_id = at.term_id
             LEFT JOIN rooms r ON cl.room_id = r.room_id
             LEFT JOIN faculty f ON cl.fac_id = f.fac_id
             LEFT JOIN users u ON f.user_id = u.user_id
             LEFT JOIN class_schedules cs ON cl.class_id = cs.class_id
             WHERE co.program_id = @programId
+              AND at.is_active = TRUE
               AND cl.class_id NOT IN (
                   SELECT class_id FROM enrollment WHERE stud_id = @studId
               )
@@ -232,16 +242,17 @@ public class EnrollmentRepository : IEnrollmentRepository
             { "@studId", studId },
             { "@programId", programId }
         };
+        
         var dt = await _db.ExecuteQueryAsync(query, parameters);
         
         return dt.AsEnumerable().Select(row => new AvailableClassDto
         {
             ClassId = Convert.ToInt32(row["class_id"]),
-            CourseCode = row["course_code"]?.ToString() ?? "N/A",
-            CourseName = row["course_name"]?.ToString() ?? "N/A",
-            FacultyName = row["faculty_name"]?.ToString() ?? "N/A",
-            RoomCode = row["room_code"]?.ToString() ?? "N/A",
-            Schedule = row["schedule"]?.ToString() ?? "No schedule"
+            CourseCode = row["course_code"]?.ToString() ?? "UNKNOWN",
+            CourseName = row["course_name"]?.ToString() ?? "Unknown Course",
+            FacultyName = row["faculty_name"]?.ToString() ?? "No Faculty Assigned",
+            RoomCode = row["room_code"]?.ToString() ?? "TBA",
+            Schedule = row["schedule"]?.ToString() ?? "TBA"
         });
     }
 

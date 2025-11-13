@@ -90,6 +90,7 @@ function loadCurrentEnrollments() {
 
 /**
  * Display current enrollments
+ * ? FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
  */
 function displayCurrentEnrollments(enrollments) {
     const container = $('#currentEnrollments');
@@ -109,14 +110,22 @@ function displayCurrentEnrollments(enrollments) {
 
     let html = '';
     enrollments.forEach(enrollment => {
+        // ? FIX: Handle both camelCase and PascalCase with null/undefined checks
+        const enrollId = enrollment.enrollId || enrollment.EnrollId;
+        const courseCode = enrollment.courseCode || enrollment.CourseCode || 'UNKNOWN';
+        const courseName = enrollment.courseName || enrollment.CourseName || 'Unknown Course';
+        const facultyName = enrollment.facultyName || enrollment.FacultyName || 'No Faculty Assigned';
+        const roomCode = enrollment.roomCode || enrollment.RoomCode || 'TBA';
+        const schedule = enrollment.schedule || enrollment.Schedule || 'TBA';
+
         html += `
             <div class="enrollment-card">
                 <div class="enrollment-header">
                     <div class="course-info">
-                        <div class="course-code">${enrollment.courseCode}</div>
-                        <h3 class="course-name">${enrollment.courseName}</h3>
+                        <div class="course-code">${courseCode}</div>
+                        <h3 class="course-name">${courseName}</h3>
                     </div>
-                    <button class="btn-unenroll" onclick="showUnenrollModal(${enrollment.enrollId})">
+                    <button class="btn-unenroll" onclick="showUnenrollModal(${enrollId})">
                         <i data-lucide="x-circle" class="icon-sm"></i>
                         Unenroll
                     </button>
@@ -124,15 +133,15 @@ function displayCurrentEnrollments(enrollments) {
                 <div class="enrollment-details">
                     <div class="detail-item">
                         <span class="detail-label">Faculty</span>
-                        <span class="detail-value">${enrollment.facultyName}</span>
+                        <span class="detail-value">${facultyName}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Schedule</span>
-                        <span class="detail-value">${enrollment.schedule || 'TBA'}</span>
+                        <span class="detail-value">${schedule}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Room</span>
-                        <span class="detail-value">${enrollment.roomCode}</span>
+                        <span class="detail-value">${roomCode}</span>
                     </div>
                 </div>
             </div>
@@ -168,6 +177,7 @@ function loadAvailableClasses() {
 
 /**
  * Display available classes
+ * ? FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
  */
 function displayAvailableClasses(classes) {
     const container = $('#availableClasses');
@@ -178,7 +188,7 @@ function displayAvailableClasses(classes) {
             <div class="empty-state">
                 <i data-lucide="list" class="empty-state-icon"></i>
                 <h3 class="empty-state-title">No Available Classes</h3>
-                <p class="empty-state-description">There are no classes available for enrollment at this time, or you're already enrolled in all available classes.</p>
+                <p class="empty-state-description">There are no classes available for enrollment at this time, or you're already enrolled in all available classes for your program.</p>
             </div>
         `);
         initializeLucideIcons();
@@ -187,14 +197,22 @@ function displayAvailableClasses(classes) {
 
     let html = '';
     classes.forEach(classItem => {
+        // ? FIX: Handle both camelCase and PascalCase with null/undefined checks
+        const courseCode = classItem.courseCode || classItem.CourseCode || 'UNKNOWN';
+        const courseName = classItem.courseName || classItem.CourseName || 'Unknown Course';
+        const facultyName = classItem.facultyName || classItem.FacultyName || 'No Faculty Assigned';
+        const roomCode = classItem.roomCode || classItem.RoomCode || 'TBA';
+        const schedule = classItem.schedule || classItem.Schedule || 'TBA';
+        const classId = classItem.classId || classItem.ClassId;
+
         html += `
             <div class="enrollment-card">
                 <div class="enrollment-header">
                     <div class="course-info">
-                        <div class="course-code">${classItem.courseCode}</div>
-                        <h3 class="course-name">${classItem.courseName}</h3>
+                        <div class="course-code">${courseCode}</div>
+                        <h3 class="course-name">${courseName}</h3>
                     </div>
-                    <button class="btn-enroll" onclick="enrollInClass(${classItem.classId})">
+                    <button class="btn-enroll" onclick="enrollInClass(${classId})">
                         <i data-lucide="plus-circle" class="icon-sm"></i>
                         Enroll
                     </button>
@@ -202,15 +220,15 @@ function displayAvailableClasses(classes) {
                 <div class="enrollment-details">
                     <div class="detail-item">
                         <span class="detail-label">Faculty</span>
-                        <span class="detail-value">${classItem.facultyName}</span>
+                        <span class="detail-value">${facultyName}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Schedule</span>
-                        <span class="detail-value">${classItem.schedule || 'TBA'}</span>
+                        <span class="detail-value">${schedule}</span>
                     </div>
                     <div class="detail-item">
                         <span class="detail-label">Room</span>
-                        <span class="detail-value">${classItem.roomCode}</span>
+                        <span class="detail-value">${roomCode}</span>
                     </div>
                 </div>
             </div>
@@ -225,8 +243,16 @@ function displayAvailableClasses(classes) {
 
 /**
  * Enroll in a class
+ * ? FIXED: Added classId validation and better error handling
  */
 function enrollInClass(classId) {
+    // ? FIX: Validate classId
+    if (!classId || classId === 'undefined' || classId === undefined) {
+        Toast.error('Invalid class ID. Please refresh the page and try again.');
+        console.error('Invalid classId:', classId);
+        return;
+    }
+
     const $btn = window.event.target.closest('button');
     const originalHtml = $btn.innerHTML;
     $btn.disabled = true;
@@ -236,22 +262,33 @@ function enrollInClass(classId) {
         url: '/StudentEnrollment/Enroll',
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ ClassId: classId }),
+        data: JSON.stringify({ ClassId: parseInt(classId) }),
         success: function (response) {
             if (response.success) {
-                Toast.success(response.message);
+                Toast.success(response.message || 'Successfully enrolled in class');
                 loadCurrentEnrollments();
                 loadAvailableClasses();
             } else {
-                Toast.error(response.message);
+                Toast.error(response.message || 'Failed to enroll in class');
                 $btn.disabled = false;
                 $btn.innerHTML = originalHtml;
                 initializeLucideIcons();
             }
         },
-        error: function () {
-            console.error('Error enrolling');
-            Toast.error('Failed to enroll in class');
+        error: function (xhr, status, error) {
+            console.error('Enrollment error:', error);
+            console.error('Response:', xhr.responseText);
+            console.error('Status:', xhr.status);
+            
+            let errorMessage = 'An error occurred while enrolling';
+            try {
+                const response = JSON.parse(xhr.responseText);
+                errorMessage = response.message || errorMessage;
+            } catch (e) {
+                // Use default error message
+            }
+            
+            Toast.error(errorMessage);
             $btn.disabled = false;
             $btn.innerHTML = originalHtml;
             initializeLucideIcons();
