@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
@@ -144,7 +144,17 @@ public class AdminStudentController : Controller
         try
         {
             var programs = await _programRepository.GetAllAsync();
-            return Json(new { success = true, data = programs });
+            
+            // ✅ FIX: Explicitly format the response to ensure correct property names
+            var result = programs.Select(p => new
+            {
+                programId = p.ProgramId,
+                programCode = p.ProgramCode,
+                programName = p.ProgramName,
+                programDesc = p.ProgramDesc
+            }).ToList();
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {
@@ -160,7 +170,17 @@ public class AdminStudentController : Controller
         try
         {
             var sections = await _sectionRepository.GetAllAsync();
-            return Json(new { success = true, data = sections });
+            
+            // ✅ FIX: Explicitly format the response to ensure correct property names
+            var result = sections.Select(s => new
+            {
+                sectionId = s.SectionId,
+                sectionName = s.SectionName,
+                programId = s.ProgramId,
+                yearLevel = s.YearLevel
+            }).ToList();
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

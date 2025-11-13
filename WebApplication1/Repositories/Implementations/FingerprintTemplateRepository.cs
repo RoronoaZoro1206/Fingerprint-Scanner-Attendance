@@ -176,5 +176,47 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
             return templates;
         }
+
+        public async Task<User?> GetUserByTemplateAsync(int userId)
+        {
+            var query = @"
+                SELECT user_id, user_profile_image, user_first_name, user_middle_name, 
+                       user_last_name, user_gender, user_phone, user_address, user_birthdate, 
+                       user_email, user_password, role_id, user_created_at, user_updated_at, 
+                       user_last_login, is_active
+                FROM users
+                WHERE user_id = @user_id";
+
+            var parameters = new Dictionary<string, object>
+            {
+                { "@user_id", userId }
+            };
+
+            var result = await _db.ExecuteQueryAsync(query, parameters);
+
+            if (result.Rows.Count == 0)
+                return null;
+
+            var row = result.Rows[0];
+            return new User
+            {
+                UserId = Convert.ToInt32(row["user_id"]),
+                UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
+                UserFirstName = row["user_first_name"].ToString() ?? string.Empty,
+                UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
+                UserLastName = row["user_last_name"].ToString() ?? string.Empty,
+                UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+                UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+                UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+                UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
+                UserEmail = row["user_email"].ToString() ?? string.Empty,
+                UserPassword = row["user_password"].ToString() ?? string.Empty,
+                RoleId = Convert.ToInt32(row["role_id"]),
+                UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
+                UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+                UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
+                IsActive = Convert.ToBoolean(row["is_active"])
+            };
+        }
     }
 }

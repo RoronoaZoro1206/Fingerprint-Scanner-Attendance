@@ -537,7 +537,7 @@ for (int x = 0; x < width; x++)
             
             _logger.LogInformation($"Image statistics - Min: {minValue}, Max: {maxValue}, Mean: {meanValue}");
 
-            const int OPTIMAL_THRESHOLD = 220;
+            const int OPTIMAL_THRESHOLD = 200;
             
             _logger.LogInformation($"Using fixed optimal threshold: {OPTIMAL_THRESHOLD} (ensures consistent HD quality)");
 

@@ -1,0 +1,612 @@
+/* ============================================================
+   Attendance Scan Interface Styles
+   Matches existing design patterns from home.css
+   ============================================================ */
+
+.attendance-scan-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: calc(100vh - 80px);
+}
+
+/* Header Section */
+.scan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.scan-header-content {
+    flex: 1;
+}
+
+.scan-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.5rem 0;
+}
+
+.scan-title svg {
+    width: 2rem;
+    height: 2rem;
+    color: #3b82f6;
+}
+
+.scan-subtitle {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Scanner Status Badge */
+.scanner-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: white;
+    border-radius: 50px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9ca3af;
+    animation: statusPulse 2s infinite;
+}
+
+.status-indicator.online {
+    background: #10b981;
+}
+
+.status-indicator.offline {
+    background: #ef4444;
+}
+
+.status-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+@keyframes statusPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Main Content Area */
+.scan-content {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .scan-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Scanner Card */
+.scanner-card {
+    background: white;
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+/* Fingerprint Scanner - Matches home page style */
+.fingerprint-scanner-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+.fingerprint-scanner {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: #ffffff !important;
+    border: 3px solid #e5e7eb !important;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.fingerprint-scanner:hover {
+    transform: scale(1.02);
+    border-color: #3b82f6 !important;
+    box-shadow: 0 15px 50px rgba(59, 130, 246, 0.2);
+}
+
+.fingerprint-scanner.scanning {
+    background: #ffffff !important;
+    border-color: #3b82f6 !important;
+    border-width: 4px !important;
+    animation: scannerPulse 1.5s infinite;
+}
+
+.fingerprint-scanner.success {
+    background: #ffffff !important;
+    border-color: #10b981 !important;
+    border-width: 4px !important;
+    animation: successBounce 0.6s ease-out;
+}
+
+.fingerprint-scanner.error {
+    background: #ffffff !important;
+    border-color: #ef4444 !important;
+    border-width: 4px !important;
+    animation: errorShake 0.5s ease-out;
+}
+
+.scanner-icon {
+    width: 120px;
+    height: 120px;
+    color: #9ca3af;
+    z-index: 2;
+    transition: color 0.3s ease;
+}
+
+.fingerprint-scanner.scanning .scanner-icon {
+    color: #3b82f6;
+}
+
+.fingerprint-scanner.success .scanner-icon {
+    color: #10b981;
+}
+
+.fingerprint-scanner.error .scanner-icon {
+    color: #ef4444;
+}
+
+.scanner-ripple {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    animation: ripple 2s infinite;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.scanner-ripple:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.scanner-ripple:nth-child(3) {
+    animation-delay: 1s;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.2);
+        opacity: 0;
+    }
+}
+
+@keyframes scannerPulse {
+    0%, 100% {
+        transform: scale(1);
+        border-color: #3b82f6;
+    }
+    50% {
+        transform: scale(1.02);
+        border-color: #2563eb;
+    }
+}
+
+@keyframes successBounce {
+    0% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    75% {
+        transform: scale(1.02);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes errorShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-15px);
+    }
+    50% {
+        transform: translateX(15px);
+    }
+    75% {
+        transform: translateX(-10px);
+    }
+}
+
+.scanner-instruction {
+    font-size: 1rem;
+    color: rgba(107, 114, 128, 0.6);
+    font-weight: 500;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.fingerprint-scanner.scanning .scanner-instruction {
+    color: rgba(59, 130, 246, 0.9);
+}
+
+/* Fingerprint image display - matches home page */
+.fingerprint-scanner img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 50%;
+    filter: contrast(1.2) brightness(1.1);
+}
+
+/* Scan Status Message */
+.scan-status-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: #f3f4f6;
+    border-radius: 12px;
+    min-width: 300px;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-icon {
+    width: 24px;
+    height: 24px;
+    color: #6b7280;
+}
+
+.message-text {
+    color: #374151;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.scan-status-message.info {
+    background: #dbeafe;
+}
+
+.scan-status-message.info .message-icon,
+.scan-status-message.info .message-text {
+    color: #1e40af;
+}
+
+.scan-status-message.success {
+    background: #d1fae5;
+}
+
+.scan-status-message.success .message-icon,
+.scan-status-message.success .message-text {
+    color: #065f46;
+}
+
+.scan-status-message.error {
+    background: #fee2e2;
+}
+
+.scan-status-message.error .message-icon,
+.scan-status-message.error .message-text {
+    color: #991b1b;
+}
+
+/* Student Info Card */
+.student-info-card {
+    width: 100%;
+    padding: 2rem;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.student-avatar {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.avatar-icon {
+    width: 40px;
+    height: 40px;
+    color: white;
+}
+
+.student-details {
+    text-align: center;
+}
+
+.student-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem 0;
+}
+
+.student-number {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0 0 0.25rem 0;
+}
+
+.student-program {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin: 0;
+}
+
+.attendance-result {
+    width: 100%;
+    text-align: center;
+}
+
+.result-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border-radius: 50px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0.75rem;
+}
+
+.result-badge.time-in {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.result-badge.time-out {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.result-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.result-text {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.result-timestamp {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+/* Warning Message */
+.warning-message {
+    width: 100%;
+    padding: 1rem;
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.warning-icon {
+    width: 20px;
+    height: 20px;
+    color: #d97706;
+    flex-shrink: 0;
+}
+
+.warning-text {
+    color: #92400e;
+    font-size: 0.875rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Summary Card */
+.summary-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.summary-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f3f4f6;
+}
+
+.summary-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem 0;
+}
+
+.summary-date {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.summary-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-icon-in {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+}
+
+.stat-icon-out {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+.stat-icon-campus {
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+    color: #6b21a8;
+}
+
+.stat-icon-incomplete {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #d97706;
+}
+
+.stat-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.stat-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    color: #1a1a1a;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .attendance-scan-container {
+        padding: 1rem;
+    }
+
+    .scan-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .scanner-card {
+        padding: 2rem 1.5rem;
+    }
+
+    .fingerprint-scanner {
+        width: 250px;
+        height: 250px;
+    }
+
+    .scanner-icon {
+        width: 100px;
+        height: 100px;
+    }
+
+    .scan-status-message {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .student-info-card {
+        padding: 1.5rem;
+    }
+
+    .summary-card {
+        position: relative;
+        top: 0;
+    }
+}

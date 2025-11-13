@@ -4,13 +4,16 @@
  */
 
 let programsTable;
+let departmentsData = [];
 
 $(document).ready(function () {
     // Initialize icons
     initializeLucideIcons();
 
-    // Initialize DataTable
-    initializeDataTable();
+    // Load departments first, then initialize DataTable
+    loadDepartments().then(() => {
+        initializeDataTable();
+    });
 
     // Event Handlers
     $('#btnAddProgram').on('click', showAddModal);
@@ -50,6 +53,53 @@ $(document).ready(function () {
 });
 
 /**
+ * Load Departments for dropdown
+ */
+async function loadDepartments() {
+    try {
+        const response = await $.ajax({
+            url: '/AdminDepartment/GetAll',
+            type: 'GET'
+        });
+
+        if (response.data) {
+            departmentsData = response.data;
+            populateDepartmentDropdowns();
+        }
+    } catch (error) {
+        console.error('Error loading departments:', error);
+        Toast.error('Failed to load departments data');
+    }
+}
+
+/**
+ * Populate department dropdowns
+ */
+function populateDepartmentDropdowns() {
+    const addSelect = $('#addDeptId');
+    const editSelect = $('#editDeptId');
+
+    addSelect.find('option:not(:first)').remove();
+    editSelect.find('option:not(:first)').remove();
+
+    departmentsData.forEach(dept => {
+        // ? FIX: Use snake_case properties matching database
+        const option = `<option value="${dept.dept_id}">${dept.dept_name}</option>`;
+        addSelect.append(option);
+        editSelect.append(option);
+    });
+}
+
+/**
+ * Get department name by ID
+ */
+function getDepartmentName(deptId) {
+    if (!deptId) return 'No Department';
+    const dept = departmentsData.find(d => d.dept_id === deptId);
+    return dept ? dept.dept_name : 'Unknown Department';
+}
+
+/**
  * Initialize DataTable
  */
 function initializeDataTable() {
@@ -63,18 +113,29 @@ function initializeDataTable() {
         },
         columns: [
             {
-                data: 'programCode',
+                // ? FIX: Changed from 'programCode' to 'program_code' (snake_case)
+                data: 'program_code',
                 width: '15%'
             },
             {
-                data: 'programName',
+                // ? FIX: Changed from 'programName' to 'program_name' (snake_case)
+                data: 'program_name',
                 width: '25%'
             },
             {
-                data: 'programDesc',
-                width: '45%',
+                // ? FIX: Changed from 'programDesc' to 'program_desc' (snake_case)
+                data: 'program_desc',
+                width: '30%',
                 render: function (data) {
                     return data || '<span style="color: #9ca3af;">No description</span>';
+                }
+            },
+            {
+                // ? FIX: Changed from 'deptName' to 'dept_name' (snake_case)
+                data: 'dept_name',
+                width: '15%',
+                render: function (data) {
+                    return data || '<span style="color: #9ca3af;">No Department</span>';
                 }
             },
             {
@@ -83,12 +144,13 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data) {
+                    // ? FIX: Changed from data.programId to data.program_id (snake_case)
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${data.programId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.program_id})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteProgram(${data.programId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteProgram(${data.program_id})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -117,10 +179,12 @@ function showEditModal(programId) {
     ajaxGet(`/AdminProgram/GetById/${programId}`,
         function (response) {
             const program = response.data;
-            $('#editProgramId').val(program.programId);
-            $('#editProgramCode').val(program.programCode);
-            $('#editProgramName').val(program.programName);
-            $('#editProgramDesc').val(program.programDesc || '');
+            // ? FIX: Changed to snake_case properties
+            $('#editProgramId').val(program.program_id);
+            $('#editProgramCode').val(program.program_code);
+            $('#editProgramName').val(program.program_name);
+            $('#editProgramDesc').val(program.program_desc || '');
+            $('#editDeptId').val(program.dept_id || '');
             showModal('editProgramModal');
         },
         function () {
@@ -149,7 +213,8 @@ function saveProgram() {
     const programData = {
         ProgramCode: programCode.toUpperCase(),
         ProgramName: $('#addProgramName').val().trim(),
-        ProgramDesc: $('#addProgramDesc').val().trim() || null
+        ProgramDesc: $('#addProgramDesc').val().trim() || null,
+        DeptId: $('#addDeptId').val() ? parseInt($('#addDeptId').val()) : null
     };
 
     const $btn = $('#btnSaveProgram');
@@ -160,13 +225,12 @@ function saveProgram() {
             Toast.created('Program');
             hideModal('addProgramModal');
             programsTable.ajax.reload(null, false);
+            resetButton($btn);
         },
         function () {
-            // Error already handled by ajaxPost
+            resetButton($btn);
         }
     );
-
-    resetButton($btn);
 }
 
 /**
@@ -190,7 +254,8 @@ function updateProgram() {
         ProgramId: parseInt($('#editProgramId').val()),
         ProgramCode: programCode.toUpperCase(),
         ProgramName: $('#editProgramName').val().trim(),
-        ProgramDesc: $('#editProgramDesc').val().trim() || null
+        ProgramDesc: $('#editProgramDesc').val().trim() || null,
+        DeptId: $('#editDeptId').val() ? parseInt($('#editDeptId').val()) : null
     };
 
     const $btn = $('#btnUpdateProgram');
@@ -201,13 +266,12 @@ function updateProgram() {
             Toast.updated('Program');
             hideModal('editProgramModal');
             programsTable.ajax.reload(null, false);
+            resetButton($btn);
         },
         function () {
-            // Error already handled by ajaxPut
+            resetButton($btn);
         }
     );
-
-    resetButton($btn);
 }
 
 /**
@@ -237,13 +301,12 @@ function confirmDeleteProgram() {
             Toast.deleted('Program');
             hideModal('deleteProgramModal');
             programsTable.ajax.reload(null, false);
+            resetButton($btn);
         },
         function () {
-            // Error already handled by ajaxDelete
+            resetButton($btn);
         }
     );
-
-    resetButton($btn);
 }
 
 /**
@@ -253,10 +316,12 @@ function getProgramsData() {
     const data = [];
     programsTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
+        // ? FIX: Changed to snake_case properties
         data.push({
-            'Code': rowData.programCode,
-            'Name': rowData.programName,
-            'Description': rowData.programDesc || 'No description'
+            'Code': rowData.program_code,
+            'Name': rowData.program_name,
+            'Description': rowData.program_desc || 'No description',
+            'Department': rowData.dept_name || 'No Department'
         });
     });
     return data;

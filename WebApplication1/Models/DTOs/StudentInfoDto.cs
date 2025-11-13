@@ -10,6 +10,7 @@ public class StudentInfoDto
     public string FullName { get; set; } = string.Empty;
     public int? ProgramId { get; set; }
     public string ProgramName { get; set; } = string.Empty;
+    public string? SectionName { get; set; }
     public int? YearLevel { get; set; }
     public bool HasProfile { get; set; }
 }

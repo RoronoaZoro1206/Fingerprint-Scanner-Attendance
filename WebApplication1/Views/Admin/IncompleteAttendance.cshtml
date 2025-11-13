@@ -1,0 +1,133 @@
+@{
+    ViewData["Title"] = "Incomplete Attendance Records";
+}
+
+<div class="admin-incomplete-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i data-lucide="alert-triangle"></i>
+                Incomplete Attendance Records
+            </h1>
+            <p class="page-subtitle">Students who forgot to time out</p>
+        </div>
+        <button class="btn-refresh" id="btnRefresh">
+            <i data-lucide="refresh-cw"></i>
+            Refresh
+        </button>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-warning">
+                <i data-lucide="alert-circle"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value" id="statTotalIncomplete">-</span>
+                <span class="stat-label">Total Incomplete</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-recent">
+                <i data-lucide="clock"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value" id="statRecentIncomplete">-</span>
+                <span class="stat-label">Last 7 Days</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-resolved">
+                <i data-lucide="check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <span class="stat-value" id="statResolved">0</span>
+                <span class="stat-label">Resolved Today</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="records-card">
+        <div class="card-header">
+            <h2 class="card-title">Incomplete Records</h2>
+            <div class="card-actions">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search student...">
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="records-table" id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Student Number</th>
+                        <th>Date</th>
+                        <th>Time In</th>
+                        <th>Days Ago</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsTableBody">
+                    <tr class="loading-row">
+                        <td colspan="6">
+                            <div class="loading-container">
+                                <div class="loading-spinner"></div>
+                                <span>Loading records...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <i data-lucide="check-circle-2"></i>
+            <h3>No Incomplete Records</h3>
+            <p>All students have completed their attendance for today!</p>
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Record Modal -->
+<div class="modal" id="resolveModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Resolve Incomplete Record</h3>
+            <button class="modal-close" id="modalClose">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-info">
+                <p><strong>Student:</strong> <span id="modalStudentName">-</span></p>
+                <p><strong>Date:</strong> <span id="modalDate">-</span></p>
+                <p><strong>Time In:</strong> <span id="modalTimeIn">-</span></p>
+            </div>
+            <div class="form-group">
+                <label for="manualTimeOut">Manual Time Out <span class="required">*</span></label>
+                <input type="datetime-local" id="manualTimeOut" class="form-input" required>
+                <small class="form-help">Enter the approximate time the student left campus</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" id="btnCancelResolve">Cancel</button>
+            <button class="btn-primary" id="btnConfirmResolve">
+                <i data-lucide="check"></i>
+                Resolve Record
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin/incomplete-attendance.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/admin/incomplete-attendance.js" asp-append-version="true"></script>
+}

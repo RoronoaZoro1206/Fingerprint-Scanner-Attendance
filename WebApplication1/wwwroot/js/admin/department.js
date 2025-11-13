@@ -63,15 +63,18 @@ function initializeDataTable() {
         },
         columns: [
             {
-                data: 'deptCode',
+                // ? FIX: Changed from 'deptCode' to 'dept_code' (snake_case)
+                data: 'dept_code',
                 width: '15%'
             },
             {
-                data: 'deptName',
+                // ? FIX: Changed from 'deptName' to 'dept_name' (snake_case)
+                data: 'dept_name',
                 width: '25%'
             },
             {
-                data: 'deptDesc',
+                // ? FIX: Changed from 'deptDesc' to 'dept_desc' (snake_case)
+                data: 'dept_desc',
                 width: '45%',
                 render: function (data) {
                     return data || '<span style="color: #9ca3af;">No description</span>';
@@ -83,12 +86,13 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data) {
+                    // ? FIX: Changed from data.deptId to data.dept_id (snake_case)
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${data.deptId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.dept_id})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteDepartment(${data.deptId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteDepartment(${data.dept_id})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -117,10 +121,11 @@ function showEditModal(deptId) {
     ajaxGet(`/AdminDepartment/GetById/${deptId}`,
         function (response) {
             const dept = response.data;
-            $('#editDeptId').val(dept.deptId);
-            $('#editDeptCode').val(dept.deptCode);
-            $('#editDeptName').val(dept.deptName);
-            $('#editDeptDesc').val(dept.deptDesc || '');
+            // ? FIX: Changed from dept.deptId to dept.dept_id (snake_case)
+            $('#editDeptId').val(dept.dept_id);
+            $('#editDeptCode').val(dept.dept_code);
+            $('#editDeptName').val(dept.dept_name);
+            $('#editDeptDesc').val(dept.dept_desc || '');
             showModal('editDepartmentModal');
         },
         function () {
@@ -250,10 +255,11 @@ function getDepartmentsData() {
     const data = [];
     departmentsTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
+        // ? FIX: Changed to snake_case properties
         data.push({
-            'Code': rowData.deptCode,
-            'Name': rowData.deptName,
-            'Description': rowData.deptDesc || 'No description'
+            'Code': rowData.dept_code,
+            'Name': rowData.dept_name,
+            'Description': rowData.dept_desc || 'No description'
         });
     });
     return data;

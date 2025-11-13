@@ -10,7 +10,9 @@
     <!-- Common Styles (Shared across all modules) -->
     @await Html.PartialAsync("_CommonStyles")
 </head>
-<body data-role-id="@Context.Session.GetInt32("RoleId")">
+<body data-role-id="@Context.Session.GetInt32("RoleId")" 
+      data-user-id="@Context.Session.GetInt32("UserId")" 
+      data-user-email="@Context.Session.GetString("UserEmail")">
     <div class="app-container">
         <!-- Sidebar -->
         @{
@@ -43,6 +45,7 @@
 
     @await Html.PartialAsync("_LayoutScripts")
     <script src="~/js/fingerprint-prompt.js" asp-append-version="true"></script>
+    <script src="~/js/auto-logout-detection.js" asp-append-version="true"></script>
     <!-- Common JavaScript Utilities (Shared across all modules) -->
     @await Html.PartialAsync("_CommonScripts")
     @await RenderSectionAsync("Scripts", required: false)

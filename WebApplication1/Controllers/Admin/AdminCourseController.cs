@@ -43,7 +43,19 @@ public class AdminCourseController : Controller
             // Single optimized query with JOIN instead of 2 separate queries
             var courses = await _courseRepository.GetAllWithProgramAsync();
             
-            return Json(new { data = courses });
+            // ? FIX: Convert PascalCase to snake_case to match database and JavaScript
+            var result = courses.Select(c => new
+            {
+                course_id = c.CourseId,
+                course_code = c.CourseCode,
+                course_name = c.CourseName,
+                course_desc = c.CourseDesc,
+                course_units = c.CourseUnits,
+                program_id = c.ProgramId,
+                program_name = c.ProgramName
+            });
+            
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -63,7 +75,19 @@ public class AdminCourseController : Controller
             {
                 return Json(new { success = false, message = "Course not found" });
             }
-            return Json(new { success = true, data = course });
+            
+            // ? FIX: Convert PascalCase to snake_case
+            var result = new
+            {
+                course_id = course.CourseId,
+                course_code = course.CourseCode,
+                course_name = course.CourseName,
+                course_desc = course.CourseDesc,
+                course_units = course.CourseUnits,
+                program_id = course.ProgramId
+            };
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {
@@ -79,7 +103,17 @@ public class AdminCourseController : Controller
         try
         {
             var programs = await _programRepository.GetAllAsync();
-            return Json(new { success = true, data = programs });
+            
+            // ? FIX: Convert PascalCase to snake_case for JavaScript
+            var programsData = programs.Select(p => new
+            {
+                program_id = p.ProgramId,
+                program_name = p.ProgramName,
+                program_code = p.ProgramCode,
+                dept_id = p.DeptId
+            });
+            
+            return Json(new { success = true, data = programsData });
         }
         catch (Exception ex)
         {

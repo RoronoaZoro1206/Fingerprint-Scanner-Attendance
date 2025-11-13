@@ -80,10 +80,11 @@ public class AdminClassScheduleController : Controller
         try
         {
             var classes = await _classRepository.GetAllWithDetailsAsync();
+            // ? FIX: Explicitly format response with PascalCase to match other endpoints
             var classList = classes.Select(c => new
             {
-                classId = c.ClassId,
-                courseName = c.Course?.CourseName ?? "N/A"
+                ClassId = c.ClassId,
+                CourseName = c.Course?.CourseName ?? "N/A"
             });
             return Json(new { success = true, data = classList });
         }

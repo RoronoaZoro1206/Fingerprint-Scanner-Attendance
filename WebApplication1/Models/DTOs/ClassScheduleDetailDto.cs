@@ -13,3 +13,21 @@ public class ClassScheduleDetailDto
     public string SchedStartTime { get; set; } = string.Empty;
     public string SchedEndTime { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// DTO for student schedule with all necessary details
+/// Used for late detection and absence marking
+/// </summary>
+public class StudentScheduleDto
+{
+    public int ClassId { get; set; }
+    public int CourseId { get; set; }
+    public string CourseCode { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public int CourseUnits { get; set; }
+    public string DayOfWeek { get; set; } = string.Empty;
+    public TimeSpan StartTime { get; set; }
+    public TimeSpan EndTime { get; set; }
+    public string RoomCode { get; set; } = string.Empty;
+    public string FacultyName { get; set; } = string.Empty;
+}

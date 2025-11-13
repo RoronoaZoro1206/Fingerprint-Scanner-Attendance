@@ -47,21 +47,21 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 var isInitialized = status != "Not Initialized";
                 var isConnected = status == "Device Connected";
 
-                return Json(new DeviceStatusDto
+                return Json(new
                 {
-                    IsInitialized = isInitialized,
-                    IsDeviceConnected = isConnected,
-                    Status = status
+                    isInitialized = isInitialized,        // ? camelCase
+                    isDeviceConnected = isConnected,      // ? camelCase
+                    status = status                        // ? camelCase
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting device status");
-                return Json(new DeviceStatusDto
+                return Json(new
                 {
-                    IsInitialized = false,
-                    IsDeviceConnected = false,
-                    Status = "Error: " + ex.Message
+                    isInitialized = false,                // ? camelCase
+                    isDeviceConnected = false,            // ? camelCase
+                    status = "Error: " + ex.Message       // ? camelCase
                 });
             }
         }
@@ -116,11 +116,11 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
 
                 var template = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
 
-                return Json(new FingerprintStatusDto
+                return Json(new
                 {
-                    IsRegistered = template != null,
-                    TemplateName = template?.FtempName,
-                    RegisteredAt = template?.FtempCreatedAt
+                    isRegistered = template != null,              // ? camelCase
+                    templateName = template?.FtempName,           // ? camelCase
+                    registeredAt = template?.FtempCreatedAt       // ? camelCase
                 });
             }
             catch (Exception ex)
@@ -137,6 +137,33 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             try
             {
                 _logger.LogInformation("Attempting to capture fingerprint with image...");
+
+                // ? Ensure device is initialized before capture
+                if (!_fingerprintService.IsDeviceConnected)
+                {
+                    _logger.LogWarning("Device not connected. Attempting to initialize...");
+                    var initialized = _fingerprintService.Initialize();
+                    if (initialized)
+                    {
+                        var deviceOpened = _fingerprintService.TurnOnDevice();
+                        if (!deviceOpened)
+                        {
+                            return Json(new { 
+                                success = false, 
+                                message = "Failed to connect to scanner. Please check USB connection.",
+                                shouldRefreshStatus = true 
+                            });
+                        }
+                    }
+                    else
+                    {
+                        return Json(new { 
+                            success = false, 
+                            message = "Failed to initialize scanner SDK.",
+                            shouldRefreshStatus = true 
+                        });
+                    }
+                }
 
                 // Capture both image and template with detailed error information
                 var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
@@ -160,7 +187,8 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                         message = string.IsNullOrEmpty(errorMessage)
                         ? "Failed to capture fingerprint. Please try again."
                         : errorMessage,
-                        errorCode = errorCode
+                        errorCode = errorCode,
+                        shouldRefreshStatus = true // ? Tell frontend to refresh status
                     });
                 }
 
@@ -185,7 +213,8 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     templateBase64,
                     imageBase64,  // Add image data for display
                     imageWidth = width,
-                    imageHeight = height
+                    imageHeight = height,
+                    shouldRefreshStatus = true // ? Tell frontend to refresh status
                 });
             }
             catch (Exception ex)
@@ -201,7 +230,11 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     _fingerprintService.Beep(false);
                 });
 
-                return Json(new { success = false, message = "Error: " + ex.Message });
+                return Json(new { 
+                    success = false, 
+                    message = "Error: " + ex.Message,
+                    shouldRefreshStatus = true // ? Tell frontend to refresh status
+                });
             }
         }
 
@@ -252,7 +285,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 {
                     // Compare new template with this existing template
                     int matchScore = _fingerprintService.GetMatchScore(templateData, existingDbTemplate.FtempData);
-                   
+                  
                    _logger.LogInformation($"Comparing with user {existingDbTemplate.UserId}: Match score = {matchScore}");
                       
                    if (matchScore >= duplicateMatchThreshold)
@@ -322,7 +355,11 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
       });
 
            _logger.LogInformation($"Fingerprint registered successfully for user {user?.UserEmail}");
-         return Json(new { success = true, message = "Fingerprint registered successfully" });
+         return Json(new { 
+             success = true, 
+             message = "Fingerprint registered successfully",
+             shouldRefreshStatus = true // ? Tell frontend to refresh status
+         });
     }
 
        return Json(new { success = false, message = "Failed to save fingerprint" });
@@ -403,7 +440,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
 
                     // Compare new template with this existing template
                     int matchScore = _fingerprintService.GetMatchScore(newTemplateData, existingTemplate.FtempData);
-                   
+                  
                    _logger.LogInformation($"Comparing with user {existingTemplate.UserId}: Match score = {matchScore}");
                       
                    if (matchScore >= duplicateMatchThreshold)
@@ -476,7 +513,11 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
            });
 
      _logger.LogInformation($"Fingerprint updated successfully for user {user.UserEmail}");
-            return Json(new { success = true, message = "Fingerprint updated successfully" });
+            return Json(new { 
+                success = true, 
+                message = "Fingerprint updated successfully",
+                shouldRefreshStatus = true // ? Tell frontend to refresh status
+            });
             }
 
               return Json(new { success = false, message = "Failed to update fingerprint" });

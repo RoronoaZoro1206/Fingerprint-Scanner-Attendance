@@ -73,21 +73,22 @@ async function loadUsers() {
 }
 
 /**
- * Load departments
+ * Load departments for dropdown
  */
 async function loadDepartments() {
     try {
         const response = await $.ajax({
-            url: '/AdminFaculty/GetDepartments',
+            url: '/AdminDepartment/GetAll',
             type: 'GET'
         });
 
-        if (response.success) {
+        if (response.data) {
             departmentsData = response.data;
             populateDepartmentDropdowns();
         }
     } catch (error) {
         console.error('Error loading departments:', error);
+        Toast.error('Failed to load departments data');
     }
 }
 
@@ -107,16 +108,17 @@ function populateUserDropdown() {
  * Populate department dropdowns
  */
 function populateDepartmentDropdowns() {
-    const $addSelect = $('#addDeptId');
-    const $editSelect = $('#editDeptId');
-    
-    $addSelect.find('option:not(:first)').remove();
-    $editSelect.find('option:not(:first)').remove();
-    
+    const addSelect = $('#addDeptId');
+    const editSelect = $('#editDeptId');
+
+    addSelect.find('option:not(:first)').remove();
+    editSelect.find('option:not(:first)').remove();
+
     departmentsData.forEach(dept => {
-        const option = `<option value="${dept.deptId}">${dept.deptName}</option>`;
-        $addSelect.append(option);
-        $editSelect.append(option);
+        // ? FIX: Use snake_case properties matching database (dept_id, dept_name)
+        const option = `<option value="${dept.dept_id}">${dept.dept_name}</option>`;
+        addSelect.append(option);
+        editSelect.append(option);
     });
 }
 
@@ -317,6 +319,17 @@ function confirmDeleteFaculty() {
     );
 
     resetButton($btn);
+}
+
+/**
+ * Get department name by ID
+ */
+function getDepartmentName(deptId) {
+    if (!deptId) return 'No Department';
+    // ? FIX: Use snake_case property (dept_id)
+    const dept = departmentsData.find(d => d.dept_id === deptId);
+    // ? FIX: Use snake_case property (dept_name)
+    return dept ? dept.dept_name : 'Unknown Department';
 }
 
 /**

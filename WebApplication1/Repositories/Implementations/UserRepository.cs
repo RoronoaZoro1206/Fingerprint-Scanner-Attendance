@@ -239,32 +239,52 @@ public class UserRepository : IUserRepository
     {
         string query = @"
             SELECT 
-                u.user_id,
-                u.user_profile_image,
-                CONCAT(u.user_first_name, ' ', u.user_last_name) as full_name,
-                u.user_email,
-                u.user_phone,
-                u.role_id,
-                r.role_name,
-                u.is_active,
-                CASE WHEN u.is_active THEN 'Active' ELSE 'Inactive' END as status_text
+                u.user_id as UserId,
+                u.user_profile_image as UserProfileImage,
+                u.user_first_name as UserFirstName,
+                u.user_middle_name as UserMiddleName,
+                u.user_last_name as UserLastName,
+                u.user_email as UserEmail,
+                u.user_phone as UserPhone,
+                u.role_id as RoleId,
+                r.role_name as RoleName,
+                u.is_active as IsActive,
+                CASE WHEN u.is_active THEN 'Active' ELSE 'Inactive' END as StatusText
             FROM users u
             INNER JOIN user_roles r ON u.role_id = r.role_id
             ORDER BY u.user_id;";
 
         var dt = await _db.ExecuteQueryAsync(query);
 
-        return dt.AsEnumerable().Select(row => new UserListDto
+        return dt.AsEnumerable().Select(row =>
         {
-            UserId = Convert.ToInt32(row["user_id"]),
-            UserProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
-            FullName = row["full_name"]?.ToString() ?? string.Empty,
-            UserEmail = row["user_email"]?.ToString() ?? string.Empty,
-            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"]?.ToString(),
-            RoleId = Convert.ToInt32(row["role_id"]),
-            RoleName = row["role_name"]?.ToString() ?? "N/A",
-            IsActive = Convert.ToBoolean(row["is_active"]),
-            StatusText = row["status_text"]?.ToString() ?? "Inactive"
+            var firstName = row["UserFirstName"]?.ToString() ?? "";
+            var middleName = row["UserMiddleName"] == DBNull.Value ? "" : row["UserMiddleName"]?.ToString() ?? "";
+            var lastName = row["UserLastName"]?.ToString() ?? "";
+            
+            // Build full name properly
+            var fullName = string.IsNullOrWhiteSpace(middleName)
+                ? $"{firstName} {lastName}".Trim()
+                : $"{firstName} {middleName} {lastName}".Trim();
+            
+            // Fallback if name is empty
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                fullName = "Unnamed User";
+            }
+
+            return new UserListDto
+            {
+                UserId = Convert.ToInt32(row["UserId"]),
+                UserProfileImage = row["UserProfileImage"]?.ToString() ?? "default_profile.png",
+                FullName = fullName,
+                UserEmail = row["UserEmail"]?.ToString() ?? string.Empty,
+                UserPhone = row["UserPhone"] == DBNull.Value ? null : row["UserPhone"]?.ToString(),
+                RoleId = Convert.ToInt32(row["RoleId"]),
+                RoleName = row["RoleName"]?.ToString() ?? "N/A",
+                IsActive = Convert.ToBoolean(row["IsActive"]),
+                StatusText = row["StatusText"]?.ToString() ?? "Inactive"
+            };
         });
     }
 

@@ -1,8 +1,9 @@
-using DotNetEnv;
+﻿using DotNetEnv;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Repositories.Implementations;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Services;
+using Fingerprint_Attendance_System.Middleware; // ? NEW: For GlobalExceptionHandlerMiddleware
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,9 +23,15 @@ var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username=
 builder.Configuration["ConnectionStrings:DefaultConnection"] = connectionString;
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
-builder.Services.AddControllers(); // Enable API controllers
-
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        // ✅ FIX: Use PascalCase for JSON serialization (matches C# property names)
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = 
+            System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -54,6 +61,12 @@ builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
 builder.Services.AddScoped<IAdminOverviewRepository, AdminOverviewRepository>();
 builder.Services.AddScoped<IAuthenticationAuditRepository, AuthenticationAuditRepository>();
+builder.Services.AddScoped<IDailyAttendanceLogRepository, DailyAttendanceLogRepository>();
+
+// ? TODO: Faculty Attendance Management Repositories (Phase 1)
+// Uncomment after creating repository implementations:
+// builder.Services.AddScoped<IStudentExcuseRequestRepository, StudentExcuseRequestRepository>();
+// builder.Services.AddScoped<IFacultyAttendanceActionRepository, FacultyAttendanceActionRepository>();
 
 // ? NEW: Add Authentication Audit Service
 builder.Services.AddScoped<AuthenticationAuditService>();
@@ -71,10 +84,56 @@ builder.Services.AddScoped<UniversalAuditService>(); // ? NEW: Universal audit s
 // Add AcademicTermService
 builder.Services.AddScoped<AcademicTermService>();
 
+// Add DailyAttendanceService for Time In/Time Out toggle logic
+builder.Services.AddScoped<DailyAttendanceService>();
+
+// ? NEW: Phase 4 - Schedule Integration Services
+builder.Services.AddScoped<LateDetectionService>();
+builder.Services.AddScoped<AbsenceDetectionService>();
+
+// ============================================================
+// PHASE 5: ERROR HANDLING & EDGE CASES
+// ============================================================
+builder.Services.AddScoped<MissedTimeOutService>();
+
+// ? NEW: Background service for automatic absence detection at 11:59 PM daily
+builder.Services.AddHostedService<AttendanceBackgroundService>();
+
+// ============================================================
+// PHASE 6: API/SERVICE LAYER
+// ============================================================
+builder.Services.AddScoped<AttendanceProcessingService>();
+
+// Enable API documentation (Swagger/OpenAPI)
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() 
+    { 
+        Title = "Attendance API", 
+        Version = "v1",
+        Description = "RESTful API for fingerprint-based attendance system with Time In/Time Out management",
+        Contact = new()
+        {
+            Name = "Support Team"
+        }
+    });
+    
+    // Enable XML documentation comments (if you add <GenerateDocumentationFile>true</GenerateDocumentationFile> to .csproj)
+    // var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    // c.IncludeXmlComments(xmlPath);
+});
+
 // Add FingerprintService as Singleton (shared across requests for device management)
 builder.Services.AddSingleton<FingerprintService>();
 
 var app = builder.Build();
+
+// ============================================================
+// ADD GLOBAL EXCEPTION HANDLER MIDDLEWARE
+// ============================================================
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // Initialize super admin account
 using (var scope = app.Services.CreateScope())
@@ -118,5 +177,17 @@ app.MapControllerRoute(
  pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+// Enable Swagger in development
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Attendance API v1");
+        c.RoutePrefix = "api/docs"; // Access at https://localhost:7048/api/docs
+        c.DocumentTitle = "Attendance API Documentation";
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None); // Collapse all by default
+    });
+}
 
 app.Run();

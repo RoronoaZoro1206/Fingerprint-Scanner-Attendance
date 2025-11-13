@@ -24,6 +24,7 @@ public class ProgramRepository : IProgramRepository
             ProgramCode = row["program_code"].ToString() ?? "",
             ProgramName = row["program_name"].ToString() ?? "",
             ProgramDesc = row["program_desc"]?.ToString(),
+            DeptId = row["dept_id"] != DBNull.Value ? Convert.ToInt32(row["dept_id"]) : (int?)null,
             ProgramCreatedAt = Convert.ToDateTime(row["program_created_at"])
         });
     }
@@ -43,6 +44,7 @@ public class ProgramRepository : IProgramRepository
             ProgramCode = row["program_code"].ToString() ?? "",
             ProgramName = row["program_name"].ToString() ?? "",
             ProgramDesc = row["program_desc"]?.ToString(),
+            DeptId = row["dept_id"] != DBNull.Value ? Convert.ToInt32(row["dept_id"]) : (int?)null,
             ProgramCreatedAt = Convert.ToDateTime(row["program_created_at"])
         };
     }
@@ -50,14 +52,15 @@ public class ProgramRepository : IProgramRepository
     public async Task<bool> AddAsync(ProgramModel program)
     {
         string query = @"
-            INSERT INTO programs (program_code, program_name, program_desc, program_created_at)
-            VALUES (@code, @name, @desc, @created);";
+            INSERT INTO programs (program_code, program_name, program_desc, dept_id, program_created_at)
+            VALUES (@code, @name, @desc, @deptId, @created);";
 
         var parameters = new Dictionary<string, object>
         {
             { "@code", program.ProgramCode },
             { "@name", program.ProgramName },
             { "@desc", program.ProgramDesc ?? (object)DBNull.Value },
+            { "@deptId", program.DeptId ?? (object)DBNull.Value },
             { "@created", program.ProgramCreatedAt }
         };
 
@@ -70,7 +73,8 @@ public class ProgramRepository : IProgramRepository
             UPDATE programs
             SET program_code = @code,
                 program_name = @name,
-                program_desc = @desc
+                program_desc = @desc,
+                dept_id = @deptId
             WHERE program_id = @id;";
 
         var parameters = new Dictionary<string, object>
@@ -78,7 +82,8 @@ public class ProgramRepository : IProgramRepository
             { "@id", program.ProgramId },
             { "@code", program.ProgramCode },
             { "@name", program.ProgramName },
-            { "@desc", program.ProgramDesc ?? (object)DBNull.Value }
+            { "@desc", program.ProgramDesc ?? (object)DBNull.Value },
+            { "@deptId", program.DeptId ?? (object)DBNull.Value }
         };
 
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;

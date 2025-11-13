@@ -51,5 +51,12 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         /// </summary>
         /// <returns>List of all fingerprint templates</returns>
         Task<IEnumerable<FingerprintTemplate>> GetAllAsync();
+
+        /// <summary>
+        /// Get user by fingerprint template's user ID
+        /// </summary>
+        /// <param name="userId">The user ID</param>
+        /// <returns>User or null if not found</returns>
+        Task<User?> GetUserByTemplateAsync(int userId);
     }
 }

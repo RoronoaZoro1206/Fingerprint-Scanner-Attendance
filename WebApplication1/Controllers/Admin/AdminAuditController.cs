@@ -15,20 +15,20 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         private readonly IAdministrationAuditRepository _auditRepo;
         private readonly IAdministrationRepository _adminRepo;
         private readonly IUserRepository _userRepo;
-        private readonly IAuthenticationAuditRepository _authAuditRepo; // ? NEW: Authentication audit repository
+        private readonly IAuthenticationAuditRepository _authAuditRepo;
 
         public AdminAuditController(
             ILogger<AdminAuditController> logger,
             IAdministrationAuditRepository auditRepo,
             IAdministrationRepository adminRepo,
             IUserRepository userRepo,
-            IAuthenticationAuditRepository authAuditRepo) // ? NEW: Inject authentication audit repository
+            IAuthenticationAuditRepository authAuditRepo)
         {
             _logger = logger;
             _auditRepo = auditRepo;
             _adminRepo = adminRepo;
             _userRepo = userRepo;
-            _authAuditRepo = authAuditRepo; // ? NEW: Store authentication audit repository
+            _authAuditRepo = authAuditRepo;
         }
 
         public IActionResult Index()
@@ -60,17 +60,17 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             }
         }
 
-    // Get all audit logs from administration_audit table only (unified source)
+        // Get all audit logs from administration_audit table only (unified source)
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             try
             {
-                // ? STEP 1: Get administration audit logs
+                // STEP 1: Get administration audit logs
                 var adminAudits = await _auditRepo.GetAllAsync();
                 _logger.LogInformation($"Found {adminAudits.Count()} administration audit logs");
                 
-                // ? STEP 2: Get authentication audit logs
+                // STEP 2: Get authentication audit logs
                 var authAudits = await _authAuditRepo.GetAllAsync();
                 _logger.LogInformation($"Found {authAudits.Count()} authentication audit logs");
                 
@@ -80,7 +80,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 var users = await _userRepo.GetAllAsync();
                 _logger.LogInformation($"Found {users.Count()} users");
 
-                // ? STEP 3: Map administration audit logs
+                // STEP 3: Map administration audit logs
                 var adminAuditData = adminAudits.Select(audit =>
                 {
                     var admin = admins.FirstOrDefault(a => a.AdminId == audit.AdminId);
@@ -90,7 +90,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
 
                     return new
                     {
-                        audId = $"ADM-{audit.AudId}", // ? Prefix to identify source
+                        audId = $"ADM-{audit.AudId}",
                         adminId = audit.AdminId,
                         adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
                         adminCode = admin?.AdminCode ?? "N/A",
@@ -102,7 +102,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     };
                 }).ToList();
 
-                // ? STEP 4: Map authentication audit logs
+                // STEP 4: Map authentication audit logs
                 var authAuditData = authAudits.Select(authAudit =>
                 {
                     var user = users.FirstOrDefault(u => u.UserId == authAudit.UserId);
@@ -120,7 +120,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
 
                     return new
                     {
-                        audId = $"AUTH-{authAudit.AuthAuditId}", // ? Prefix to identify source
+                        audId = $"AUTH-{authAudit.AuthAuditId}",
                         adminId = admin?.AdminId ?? 0,
                         adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
                         adminCode = admin?.AdminCode ?? "N/A",
@@ -132,7 +132,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     };
                 }).ToList();
 
-                // ? STEP 5: Combine and sort by timestamp (newest first)
+                // STEP 5: Combine and sort by timestamp (newest first)
                 var combinedData = adminAuditData.Concat(authAuditData)
                     .OrderByDescending(a => a.audActionTime)
                     .ToList();
@@ -148,50 +148,83 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             }
         }
 
+        // ? FIX: Updated to handle both admin and auth audit logs
         [HttpGet]
-        public async Task<IActionResult> GetById(int id)
-     {
+        public async Task<IActionResult> GetById(int id, bool isAuth = false)
+        {
             try
-      {
-         var audit = await _auditRepo.GetByIdAsync(id);
-           if (audit == null)
-    {
-         return Json(new { success = false, message = "Audit log not found" });
-         }
-
-      var admins = await _adminRepo.GetAllAsync();
-            var admin = admins.FirstOrDefault(a => a.AdminId == audit.AdminId);
-          
-      var users = await _userRepo.GetAllAsync();
- var user = admin != null ? users.FirstOrDefault(u => u.UserId == admin.UserId) : null;
-
-                var auditData = new
+            {
+                if (isAuth)
                 {
-       audId = audit.AudId,
-        adminId = audit.AdminId,
-     adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
-           adminCode = admin?.AdminCode ?? "N/A",
-        audAction = audit.AudAction,
- audDetails = audit.AudDetails ?? "",
-        audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
-    };
+                    // Get from authentication_audit table
+                    var authAudit = await _authAuditRepo.GetByIdAsync(id);
+                    if (authAudit == null)
+                    {
+                        return Json(new { success = false, message = "Authentication audit log not found" });
+                    }
 
-                return Json(new { success = true, data = auditData });
+                    var users = await _userRepo.GetAllAsync();
+                    var user = users.FirstOrDefault(u => u.UserId == authAudit.UserId);
+                    
+                    var admins = await _adminRepo.GetAllAsync();
+                    var admin = admins.FirstOrDefault(a => a.UserId == authAudit.UserId);
+
+                    var auditData = new
+                    {
+                        audId = id,
+                        adminId = admin?.AdminId ?? 0,
+                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
+                        adminCode = admin?.AdminCode ?? "N/A",
+                        audAction = authAudit.AuthAction,
+                        audDetails = authAudit.AuthDetails ?? "",
+                        audActionTime = authAudit.AuthActionTime.ToString("yyyy-MM-dd HH:mm:ss")
+                    };
+
+                    return Json(new { success = true, data = auditData });
+                }
+                else
+                {
+                    // Get from administration_audit table
+                    var audit = await _auditRepo.GetByIdAsync(id);
+                    if (audit == null)
+                    {
+                        return Json(new { success = false, message = "Audit log not found" });
+                    }
+
+                    var admins = await _adminRepo.GetAllAsync();
+                    var admin = admins.FirstOrDefault(a => a.AdminId == audit.AdminId);
+                    
+                    var users = await _userRepo.GetAllAsync();
+                    var user = admin != null ? users.FirstOrDefault(u => u.UserId == admin.UserId) : null;
+
+                    var auditData = new
+                    {
+                        audId = audit.AudId,
+                        adminId = audit.AdminId,
+                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
+                        adminCode = admin?.AdminCode ?? "N/A",
+                        audAction = audit.AudAction,
+                        audDetails = audit.AudDetails ?? "",
+                        audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
+                    };
+
+                    return Json(new { success = true, data = auditData });
+                }
             }
             catch (Exception ex)
-    {
-     _logger.LogError(ex, "Error fetching audit log by ID");
+            {
+                _logger.LogError(ex, "Error fetching audit log by ID");
                 return Json(new { success = false, message = "Failed to fetch audit log" });
             }
         }
 
-  // Get audit statistics from administration_audit table only
+        // Get audit statistics from administration_audit table only
         [HttpGet]
         public async Task<IActionResult> GetStats()
- {
- try
+        {
+            try
             {
-                // ? Get logs from BOTH tables
+                // Get logs from BOTH tables
                 var adminAudits = await _auditRepo.GetAllAsync();
                 var authAudits = await _authAuditRepo.GetAllAsync();
 
@@ -199,7 +232,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 var thisWeek = today.AddDays(-(int)today.DayOfWeek);
                 var thisMonth = new DateTime(today.Year, today.Month, 1);
 
-                // ? Calculate combined statistics
+                // Calculate combined statistics
                 var totalLogs = adminAudits.Count() + authAudits.Count();
                 var todayLogs = adminAudits.Count(a => a.AudActionTime.Date == today) + 
                                authAudits.Count(a => a.AuthActionTime.Date == today);
@@ -208,7 +241,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 var monthLogs = adminAudits.Count(a => a.AudActionTime >= thisMonth) + 
                                authAudits.Count(a => a.AuthActionTime >= thisMonth);
 
-                // ? Get top 3 recent actions from BOTH tables
+                // Get top 3 recent actions from BOTH tables
                 var adminRecentActions = adminAudits
                     .OrderByDescending(a => a.AudActionTime)
                     .Take(3)
@@ -249,44 +282,66 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 };
 
                 return Json(new { success = true, data = stats });
- }
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching audit stats");
                 return Json(new { success = false, message = "Failed to fetch statistics" });
-   }
+            }
         }
 
+        // ? FIX: Updated to handle both admin and auth audit logs
         [HttpDelete]
-  public async Task<IActionResult> Delete(int id)
-   {
-try
-  {
-     var exists = await _auditRepo.ExistsAsync(id);
-         if (!exists)
-              {
-         return Json(new { success = false, message = "Audit log not found" });
-       }
+        public async Task<IActionResult> Delete(int id, bool isAuth = false)
+        {
+            try
+            {
+                if (isAuth)
+                {
+                    // Delete from authentication_audit table
+                    var authAudit = await _authAuditRepo.GetByIdAsync(id);
+                    if (authAudit == null)
+                    {
+                        return Json(new { success = false, message = "Authentication audit log not found" });
+                    }
 
-                var result = await _auditRepo.DeleteAsync(id);
+                    var result = await _authAuditRepo.DeleteAsync(id);
 
-     if (result)
-  {
-       return Json(new { success = true, message = "Audit log deleted successfully" });
-         }
-  return Json(new { success = false, message = "Failed to delete audit log" });
-          }
+                    if (result)
+                    {
+                        return Json(new { success = true, message = "Authentication audit log deleted successfully" });
+                    }
+                    return Json(new { success = false, message = "Failed to delete authentication audit log" });
+                }
+                else
+                {
+                    // Delete from administration_audit table
+                    var exists = await _auditRepo.ExistsAsync(id);
+                    if (!exists)
+                    {
+                        return Json(new { success = false, message = "Audit log not found" });
+                    }
+
+                    var result = await _auditRepo.DeleteAsync(id);
+
+                    if (result)
+                    {
+                        return Json(new { success = true, message = "Audit log deleted successfully" });
+                    }
+                    return Json(new { success = false, message = "Failed to delete audit log" });
+                }
+            }
             catch (Exception ex)
             {
-        _logger.LogError(ex, "Error deleting audit log");
-  return Json(new { success = false, message = "An error occurred while deleting audit log" });
+                _logger.LogError(ex, "Error deleting audit log");
+                return Json(new { success = false, message = "An error occurred while deleting audit log" });
             }
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-     return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }
 }

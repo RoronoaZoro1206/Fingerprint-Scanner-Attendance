@@ -40,6 +40,12 @@ document.addEventListener('DOMContentLoaded', function () {
     checkDeviceStatus();
     checkRegistrationStatus();
 
+    // ✅ Auto-refresh status indicators to keep them current
+    setInterval(checkDeviceStatus, 10000);       // Refresh scanner status every 10 seconds
+    setInterval(checkRegistrationStatus, 30000); // Refresh registration status every 30 seconds
+    
+    console.log('✅ Auto-refresh enabled: Scanner status (10s), Registration status (30s)');
+
     // Scan button click
     if (btnScan) {
         btnScan.addEventListener('click', async function () {
@@ -92,11 +98,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     showToast('Fingerprint captured successfully!', 'success');
                     fingerprintScanner.classList.add('captured');
                     btnRegister.disabled = false;
+
+                    // ✅ Refresh status if indicated by server
+                    if (result.shouldRefreshStatus) {
+                        console.log('Refreshing device status after successful capture');
+                        await checkDeviceStatus();
+                    }
                 } else {
                     // Show error toast
                     showToast(result.message || 'Failed to capture fingerprint', 'error');
                     fingerprintScanner.classList.add('error');
                     setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+
+                    // ✅ Refresh status even on error (device might have come online)
+                    if (result.shouldRefreshStatus) {
+                        console.log('Refreshing device status after capture error');
+                        await checkDeviceStatus();
+                    }
                 }
             } catch (error) {
                 console.error('Error capturing fingerprint:', error);
@@ -180,6 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         fingerprintScanner.classList.add('registered');
                         capturedTemplateBase64 = null;
                         capturedImageBase64 = null;
+
+                        // ✅ Refresh registration status after successful register
                         checkRegistrationStatus();
 
                         // Redirect after alert closes
@@ -191,6 +211,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     // REPLACE WITH SWEETALERT2: Final error message
                     SwalAlert.error('Oops...', result.message || 'Failed to register fingerprint');
+
+                    // ✅ Refresh status after registration error
+                    if (result.shouldRefreshStatus) {
+                        console.log('Refreshing registration status after registration error');
+                        await checkRegistrationStatus();
+                    }
                 }
             } catch (error) {
                 console.error('Error registering fingerprint:', error);
@@ -326,6 +352,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         fingerprintScanner.classList.add('registered');
                         capturedTemplateBase64 = null;
                         capturedImageBase64 = null;
+
+                        // ✅ Refresh registration status after successful update
                         checkRegistrationStatus();
 
                         // Redirect after alert closes
@@ -362,6 +390,13 @@ document.addEventListener('DOMContentLoaded', function () {
                             showPasswordConfirmationModal();
                         }, 300);
                     });
+                }
+
+                // ✅ Refresh status after any update attempt
+                if (result.shouldRefreshStatus) {
+                    console.log('Refreshing registration status after update attempt');
+                    await checkRegistrationStatus();
+                    await checkDeviceStatus();
                 }
             } catch (error) {
                 console.error('Error updating fingerprint:', error);

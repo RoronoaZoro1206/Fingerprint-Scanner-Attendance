@@ -14,15 +14,18 @@ public class AdminProgramController : Controller
     private readonly ILogger<AdminProgramController> _logger;
     private readonly IProgramRepository _programRepository;
     private readonly AdminAuditService _auditService;
+    private readonly IDepartmentRepository _departmentRepository; // Injecting the department repository
 
     public AdminProgramController(
         ILogger<AdminProgramController> logger, 
         IProgramRepository programRepository,
-        AdminAuditService auditService)
+        AdminAuditService auditService,
+        IDepartmentRepository departmentRepository) // Adding to constructor
     {
         _logger = logger;
         _programRepository = programRepository;
         _auditService = auditService;
+        _departmentRepository = departmentRepository; // Assigning
     }
 
     // GET: Program/Index
@@ -37,8 +40,27 @@ public class AdminProgramController : Controller
     {
         try
         {
+            // ? FIX: Use GetAllAsync() instead of GetAllWithDetailsAsync()
             var programs = await _programRepository.GetAllAsync();
-            return Json(new { data = programs });
+            
+            // Get all departments for joining
+            var departments = await _departmentRepository.GetAllAsync();
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = programs.Select(p => new
+            {
+                program_id = p.ProgramId,
+                program_code = p.ProgramCode,
+                program_name = p.ProgramName,
+                program_desc = p.ProgramDesc,
+                dept_id = p.DeptId,
+                dept_name = p.DeptId.HasValue 
+                    ? departments.FirstOrDefault(d => d.DeptId == p.DeptId)?.DeptName 
+                    : null,
+                program_created_at = p.ProgramCreatedAt
+            });
+            
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -58,7 +80,18 @@ public class AdminProgramController : Controller
             {
                 return Json(new { success = false, message = "Program not found" });
             }
-            return Json(new { success = true, data = program });
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = new
+            {
+                program_id = program.ProgramId,
+                program_code = program.ProgramCode,
+                program_name = program.ProgramName,
+                program_desc = program.ProgramDesc,
+                dept_id = program.DeptId
+            };
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

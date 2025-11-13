@@ -38,7 +38,18 @@ public class AdminDepartmentController : Controller
         try
         {
             var departments = await _departmentRepository.GetAllAsync();
-            return Json(new { data = departments });
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = departments.Select(d => new
+            {
+                dept_id = d.DeptId,
+                dept_code = d.DeptCode,
+                dept_name = d.DeptName,
+                dept_desc = d.DeptDesc,
+                dept_created_at = d.DeptCreatedAt
+            });
+            
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -58,7 +69,17 @@ public class AdminDepartmentController : Controller
             {
                 return Json(new { success = false, message = "Department not found" });
             }
-            return Json(new { success = true, data = department });
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = new
+            {
+                dept_id = department.DeptId,
+                dept_code = department.DeptCode,
+                dept_name = department.DeptName,
+                dept_desc = department.DeptDesc
+            };
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

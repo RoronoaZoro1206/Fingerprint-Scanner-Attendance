@@ -16,4 +16,7 @@ public interface IAttendanceRepository
     Task<IEnumerable<FacultyAttendanceRecordDto>> GetFacultyAttendanceRecordsAsync(int facId, int limit = 20);
     Task<FacultyReportStatsDto> GetFacultyReportStatsAsync(int facId);
     Task<StudentAttendanceDataDto> GetStudentAttendanceDataAsync(int studId, int limit = 20);
+    
+    // ? NEW: Phase 4 - Schedule integration
+    Task<Attendance?> GetByClassStudentDateAsync(int classId, int studId, DateTime date);
 }

@@ -105,12 +105,22 @@
     color: #3730a3;
 }
 
+.action-badge.login {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.action-badge.logout {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
 .action-badge.other {
     background: #f3f4f6;
     color: #374151;
 }
 
-/* NEW: Log Type Badge Styles */
+/* Log Type Badge Styles */
 .log-type-badge {
     display: inline-flex;
     align-items: center;
@@ -122,16 +132,46 @@
     text-transform: uppercase;
 }
 
+.log-type-badge.password {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
 .log-type-badge.biometric {
     background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     color: #065f46;
     border: 1px solid #10b981;
 }
 
+.log-type-badge.failed {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+.log-type-badge.logout {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    color: #6b21a8;
+    border: 1px solid #a855f7;
+}
+
 .log-type-badge.admin {
     background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
     color: #92400e;
     border: 1px solid #f59e0b;
+}
+
+.log-type-badge.auth {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #3730a3;
+    border: 1px solid #6366f1;
+}
+
+.log-type-badge.other {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #374151;
+    border: 1px solid #9ca3af;
 }
 
 .log-type-badge .icon-xs {

@@ -41,7 +41,18 @@ public class AdminAcademicTermController : Controller
         try
         {
             var terms = await _academicTermRepository.GetAllAsync();
-            return Json(new { data = terms });
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = terms.Select(t => new
+            {
+                term_id = t.TermId,
+                term_name = t.TermName,
+                start_date = t.StartDate,
+                end_date = t.EndDate,
+                is_active = t.IsActive
+            });
+            
+            return Json(new { data = result });
         }
         catch (Exception ex)
         {
@@ -61,7 +72,18 @@ public class AdminAcademicTermController : Controller
             {
                 return Json(new { success = false, message = "Academic term not found" });
             }
-            return Json(new { success = true, data = term });
+            
+            // ? FIX: Return snake_case properties to match database column names
+            var result = new
+            {
+                term_id = term.TermId,
+                term_name = term.TermName,
+                start_date = term.StartDate,
+                end_date = term.EndDate,
+                is_active = term.IsActive
+            };
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

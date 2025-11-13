@@ -23,6 +23,29 @@ $(document).ready(function () {
     $('#btnUpdateUser').on('click', updateUser);
     $('#btnConfirmDelete').on('click', confirmDeleteUser);
 
+    // ? FIX: Use event delegation with data attributes
+    // This ensures edit buttons work even after DataTable reloads
+    $('#usersTable tbody').on('click', '.btn-edit', function(e) {
+        e.preventDefault();
+        const userId = $(this).data('user-id');
+        if (userId) {
+            showEditModal(userId);
+        } else {
+            console.error('No user ID found on edit button');
+        }
+    });
+
+    // ? FIX: Use event delegation for delete buttons too
+    $('#usersTable tbody').on('click', '.btn-delete', function(e) {
+        e.preventDefault();
+        const userId = $(this).data('user-id');
+        if (userId) {
+            deleteUser(userId);
+        } else {
+            console.error('No user ID found on delete button');
+        }
+    });
+
     // Profile picture handlers for Add User modal
     $('#btnAddUserChangePicture').on('click', function () {
         $('#addUserProfileInput').click();
@@ -190,11 +213,13 @@ async function loadRoles() {
         }
     } catch (error) {
         console.error('Error loading roles:', error);
+        Toast.error('Failed to load roles data');
     }
 }
 
 /**
  * Populate role dropdowns
+ * ? FIX: Using correct C# property names (RoleId, RoleName)
  */
 function populateRoleDropdowns() {
     const addSelect = $('#addRoleId');
@@ -204,7 +229,8 @@ function populateRoleDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     rolesData.forEach(role => {
-        const option = `<option value="${role.roleId}">${role.roleName}</option>`;
+        // ? FIX: Changed role.roleId to role.RoleId and role.roleName to role.RoleName
+        const option = `<option value="${role.RoleId}">${role.RoleName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -244,11 +270,11 @@ function initializeDataTable() {
         },
         columns: [
             {
-                data: 'fullName',
+                data: 'FullName',
                 width: '30%',
                 render: function (data, type, row) {
                     if (type === 'display') {
-                        const profileImage = row.userProfileImage || 'default_profile.png';
+                        const profileImage = row.UserProfileImage || 'default_profile.png';
                         const imagePath = `/images/profile/${profileImage}`;
                         return `
                             <div class="d-flex align-items-center">
@@ -262,34 +288,34 @@ function initializeDataTable() {
                 }
             },
             {
-                data: 'userEmail',
+                data: 'UserEmail',
                 width: '25%'
             },
             {
-                data: 'userPhone',
+                data: 'UserPhone',
                 width: '25%',
                 render: function (data) {
                     return data || '-';
                 }
             },
             {
-                data: 'roleName',
+                data: 'RoleName',
                 width: '12%',
                 render: function (data, type, row) {
                     if (type === 'display') {
-                        return getRoleBadge(row.roleId, data);
+                        return getRoleBadge(row.RoleId, data);
                     }
                     return data;
                 }
             },
             {
-                data: 'isActive',
+                data: 'IsActive',
                 width: '10%',
                 render: function (data, type, row) {
                     if (type === 'display') {
                         return getStatusBadge(data);
                     }
-                    return row.statusText;
+                    return row.StatusText;
                 }
             },
             {
@@ -297,13 +323,14 @@ function initializeDataTable() {
                 width: '18%',
                 orderable: false,
                 searchable: false,
-                render: function (data) {
+                render: function (data, type, row) {
+                    // ? FIX: Store UserId as data attribute on buttons
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${data.userId})" title="Edit">
+                            <button class="btn-action btn-edit" data-user-id="${row.UserId}" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteUser(${data.userId})" title="Delete">
+                            <button class="btn-action btn-delete" data-user-id="${row.UserId}" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -313,7 +340,11 @@ function initializeDataTable() {
         ],
         order: [[0, 'asc']],
         ...commonDataTableConfig,
-        language: getDataTableLanguage('users', 'user')
+        language: getDataTableLanguage('users', 'user'),
+        // ? FIX: Reinitialize icons after each draw
+        drawCallback: function() {
+            initializeLucideIcons();
+        }
     });
 }
 
@@ -334,21 +365,22 @@ function showEditModal(userId) {
     ajaxGet(`/AdminUser/GetById/${userId}`,
         function (response) {
             const user = response.data;
-            $('#editUserId').val(user.userId);
-            $('#editUserFirstName').val(user.userFirstName);
-            $('#editUserMiddleName').val(user.userMiddleName || '');
-            $('#editUserLastName').val(user.userLastName);
-            $('#editUserEmail').val(user.userEmail);
-            $('#editUserPhone').val(user.userPhone || '');
-            $('#editUserGender').val(user.userGender || '');
-            $('#editUserBirthdate').val(user.userBirthdate || '');
-            $('#editUserAddress').val(user.userAddress || '');
-            $('#editRoleId').val(user.roleId);
-            $('#editIsActive').val(user.isActive.toString());
+            // ? FIX: Use PascalCase property names (matches API response)
+            $('#editUserId').val(user.UserId);
+            $('#editUserFirstName').val(user.UserFirstName);
+            $('#editUserMiddleName').val(user.UserMiddleName || '');
+            $('#editUserLastName').val(user.UserLastName);
+            $('#editUserEmail').val(user.UserEmail);
+            $('#editUserPhone').val(user.UserPhone || '');
+            $('#editUserGender').val(user.UserGender || '');
+            $('#editUserBirthdate').val(user.UserBirthdate || '');
+            $('#editUserAddress').val(user.UserAddress || '');
+            $('#editRoleId').val(user.RoleId);
+            $('#editIsActive').val(user.IsActive.toString());
             $('#editUserPassword').val('');
             
             // Set profile picture
-            const profileImage = user.userProfileImage || 'default_profile.png';
+            const profileImage = user.UserProfileImage || 'default_profile.png';
             $('#editUserProfilePreview').attr('src', `/images/profile/${profileImage}`);
             editUserProfileFile = null;
             
@@ -566,11 +598,11 @@ function getUsersData() {
     usersTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
         data.push({
-            'Name': rowData.fullName,
-            'Email': rowData.userEmail,
-            'Phone': rowData.userPhone || '-',
-            'Role': rowData.roleName,
-            'Status': rowData.isActive ? 'Active' : 'Inactive'
+            'Name': rowData.FullName,
+            'Email': rowData.UserEmail,
+            'Phone': rowData.UserPhone || '-',
+            'Role': rowData.RoleName,
+            'Status': rowData.IsActive ? 'Active' : 'Inactive'
         });
     });
     return data;

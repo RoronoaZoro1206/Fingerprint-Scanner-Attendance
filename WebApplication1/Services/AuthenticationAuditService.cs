@@ -72,6 +72,18 @@ namespace Fingerprint_Attendance_System.Services
         }
 
         /// <summary>
+        /// Logs an auto logout event (when user closes browser/tab without clicking logout)
+        /// </summary>
+        public async Task LogAutoLogoutAsync(int userId, string userEmail, string role, string reason)
+        {
+            await LogAuthenticationEventAsync(
+                userId,
+                "Auto Logout",
+                $"User {userEmail} (ID: {userId}, Role: {role}) automatically logged out - {reason}"
+            );
+        }
+
+        /// <summary>
         /// Core method to log authentication events
         /// </summary>
         private async Task LogAuthenticationEventAsync(int userId, string action, string details)

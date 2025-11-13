@@ -51,6 +51,7 @@
                         <th>Code</th>
                         <th>Name</th>
                         <th>Description</th>
+                        <th>Department</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -84,6 +85,14 @@
                     <div class="mb-3">
                         <label for="addProgramDesc" class="form-label">Description</label>
                         <textarea class="form-control" id="addProgramDesc" name="ProgramDesc" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addDeptId" class="form-label">Department</label>
+                        <select class="form-select" id="addDeptId" name="DeptId">
+                            <option value="">No Department</option>
+                            <!-- Departments will be populated via JavaScript -->
+                        </select>
+                        <div class="form-text">Select the department this program belongs to</div>
                     </div>
                 </form>
             </div>
@@ -120,6 +129,14 @@
                     <div class="mb-3">
                         <label for="editProgramDesc" class="form-label">Description</label>
                         <textarea class="form-control" id="editProgramDesc" name="ProgramDesc" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDeptId" class="form-label">Department</label>
+                        <select class="form-select" id="editDeptId" name="DeptId">
+                            <option value="">No Department</option>
+                            <!-- Departments will be populated via JavaScript -->
+                        </select>
+                        <div class="form-text">Select the department this program belongs to</div>
                     </div>
                 </form>
             </div>

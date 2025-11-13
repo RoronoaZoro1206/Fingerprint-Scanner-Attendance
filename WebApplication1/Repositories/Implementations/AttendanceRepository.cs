@@ -438,4 +438,51 @@ public class AttendanceRepository : IAttendanceRepository
 
         return result;
     }
+    
+    // ============================================================
+    // NEW METHODS FOR PHASE 4 - SCHEDULE INTEGRATION
+    // ============================================================
+    
+    /// <summary>
+    /// Get attendance record for a specific class, student, and date
+    /// Used for checking if attendance already exists before creating duplicate
+    /// </summary>
+    public async Task<Attendance?> GetByClassStudentDateAsync(int classId, int studId, DateTime date)
+    {
+        string query = @"
+            SELECT attend_id, class_id, stud_id, attend_date, attend_scan_time, 
+                   attend_type, attend_status, attend_remark, attend_created_at,
+                   daily_attend_id, is_present
+            FROM attendance
+            WHERE class_id = @classId 
+              AND stud_id = @studId 
+              AND attend_date = @date
+            LIMIT 1;";
+        
+        var parameters = new Dictionary<string, object>
+        {
+            { "@classId", classId },
+            { "@studId", studId },
+            { "@date", date.Date }
+        };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new Attendance
+        {
+            AttendId = Convert.ToInt32(row["attend_id"]),
+            ClassId = row["class_id"] != DBNull.Value ? Convert.ToInt32(row["class_id"]) : null,
+            StudId = row["stud_id"] != DBNull.Value ? Convert.ToInt32(row["stud_id"]) : null,
+            AttendDate = Convert.ToDateTime(row["attend_date"]),
+            AttendScanTime = Convert.ToDateTime(row["attend_scan_time"]),
+            AttendType = Enum.Parse<ScanType>(row["attend_type"].ToString() ?? "In", true),
+            AttendStatus = Enum.Parse<AttendanceStatus>(row["attend_status"].ToString() ?? "Pending", true),
+            AttendRemark = row["attend_remark"]?.ToString(),
+            AttendCreatedAt = Convert.ToDateTime(row["attend_created_at"]),
+            DailyAttendId = row["daily_attend_id"] != DBNull.Value ? Convert.ToInt32(row["daily_attend_id"]) : null,
+            IsPresent = row["is_present"] != DBNull.Value && Convert.ToBoolean(row["is_present"])
+        };
+    }
 }

@@ -64,25 +64,29 @@ function initializeDataTable() {
         },
         columns: [
             {
-                data: 'termName',
+                // ? FIX: Changed from 'termName' to 'term_name' (snake_case)
+                data: 'term_name',
                 width: '30%'
             },
             {
-                data: 'startDate',
+                // ? FIX: Changed from 'startDate' to 'start_date' (snake_case)
+                data: 'start_date',
                 width: '20%',
                 render: function (data) {
                     return formatDate(data);
                 }
             },
             {
-                data: 'endDate',
+                // ? FIX: Changed from 'endDate' to 'end_date' (snake_case)
+                data: 'end_date',
                 width: '20%',
                 render: function (data) {
                     return formatDate(data);
                 }
             },
             {
-                data: 'isActive',
+                // ? FIX: Changed from 'isActive' to 'is_active' (snake_case)
+                data: 'is_active',
                 width: '15%',
                 render: function (data) {
                     if (data) {
@@ -98,18 +102,20 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data) {
-                    const setActiveBtn = !data.isActive ?
-                        `<button class="btn-action btn-activate" onclick="setActiveTerm(${data.termId})" title="Set as Active">
+                    // ? FIX: Changed from data.isActive to data.is_active (snake_case)
+                    // ? FIX: Changed from data.termId to data.term_id (snake_case)
+                    const setActiveBtn = !data.is_active ?
+                        `<button class="btn-action btn-activate" onclick="setActiveTerm(${data.term_id})" title="Set as Active">
                             <i data-lucide="check-circle" class="icon-sm" style="color: #10b981;"></i>
                         </button>` : '';
 
                     return `
                         <div class="action-buttons">
                             ${setActiveBtn}
-                            <button class="btn-action btn-edit" onclick="showEditModal(${data.termId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.term_id})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteTerm(${data.termId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteTerm(${data.term_id})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -138,11 +144,12 @@ function showEditModal(termId) {
     ajaxGet(`/AdminAcademicTerm/GetById/${termId}`,
         function (response) {
             const term = response.data;
-            $('#editTermId').val(term.termId);
-            $('#editTermName').val(term.termName);
-            $('#editStartDate').val(formatDateForInput(term.startDate));
-            $('#editEndDate').val(formatDateForInput(term.endDate));
-            $('#editIsActive').prop('checked', term.isActive);
+            // ? FIX: Changed to snake_case properties
+            $('#editTermId').val(term.term_id);
+            $('#editTermName').val(term.term_name);
+            $('#editStartDate').val(formatDateForInput(term.start_date));
+            $('#editEndDate').val(formatDateForInput(term.end_date));
+            $('#editIsActive').prop('checked', term.is_active);
             showModal('editTermModal');
         },
         function () {
@@ -333,11 +340,12 @@ function getTermsData() {
     const data = [];
     termsTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
+        // ? FIX: Changed to snake_case properties
         data.push({
-            'Term Name': rowData.termName,
-            'Start Date': formatDate(rowData.startDate),
-            'End Date': formatDate(rowData.endDate),
-            'Status': rowData.isActive ? 'Active' : 'Inactive'
+            'Term Name': rowData.term_name,
+            'Start Date': formatDate(rowData.start_date),
+            'End Date': formatDate(rowData.end_date),
+            'Status': rowData.is_active ? 'Active' : 'Inactive'
         });
     });
     return data;

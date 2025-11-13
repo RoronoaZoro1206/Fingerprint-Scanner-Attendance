@@ -1,0 +1,124 @@
+@{
+    ViewData["Title"] = "Attendance Scanner";
+}
+
+<div class="attendance-scan-container">
+    <!-- Header Section -->
+    <div class="scan-header">
+        <div class="scan-header-content">
+            <h1 class="scan-title">
+                <i data-lucide="fingerprint"></i>
+                Attendance Scanner
+            </h1>
+            <p class="scan-subtitle">Place your finger on the scanner to record attendance</p>
+        </div>
+        
+        <!-- Scanner Status Badge -->
+        <div class="scanner-status-badge" id="scannerStatusBadge">
+            <div class="status-indicator"></div>
+            <span class="status-text">Checking scanner...</span>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="scan-content">
+        <!-- Scanner Card -->
+        <div class="scanner-card">
+            <!-- Fingerprint Scanner -->
+            <div class="fingerprint-scanner-wrapper">
+                <div class="fingerprint-scanner" id="fingerprintScanner">
+                    <div class="scanner-ripple"></div>
+                    <div class="scanner-ripple"></div>
+                    <div class="scanner-ripple"></div>
+                    <i data-lucide="fingerprint" class="scanner-icon"></i>
+                    <div class="scanner-instruction">Place your finger here</div>
+                </div>
+            </div>
+
+            <!-- Scan Status Message -->
+            <div class="scan-status-message" id="scanStatusMessage">
+                <i data-lucide="hand" class="message-icon"></i>
+                <p class="message-text">Ready to scan. Click the scanner to begin.</p>
+            </div>
+
+            <!-- Student Info Card (shown after successful scan) -->
+            <div class="student-info-card" id="studentInfoCard" style="display: none;">
+                <div class="student-avatar">
+                    <i data-lucide="user" class="avatar-icon"></i>
+                </div>
+                <div class="student-details">
+                    <h3 class="student-name" id="studentName">-</h3>
+                    <p class="student-number" id="studentNumber">-</p>
+                    <p class="student-program" id="studentProgram">-</p>
+                </div>
+                <div class="attendance-result">
+                    <div class="result-badge" id="resultBadge">
+                        <i data-lucide="clock" class="result-icon"></i>
+                        <span class="result-text" id="resultText">-</span>
+                    </div>
+                    <p class="result-timestamp" id="resultTimestamp">-</p>
+                </div>
+            </div>
+
+            <!-- Warning Messages (e.g., incomplete records) -->
+            <div class="warning-message" id="warningMessage" style="display: none;">
+                <i data-lucide="alert-triangle" class="warning-icon"></i>
+                <p class="warning-text" id="warningText"></p>
+            </div>
+        </div>
+
+        <!-- Today's Summary Card -->
+        <div class="summary-card">
+            <div class="summary-header">
+                <h2 class="summary-title">Today's Summary</h2>
+                <span class="summary-date" id="summaryDate">-</span>
+            </div>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-icon stat-icon-in">
+                        <i data-lucide="log-in"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Timed In</span>
+                        <span class="stat-value" id="statTimedIn">-</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon stat-icon-out">
+                        <i data-lucide="log-out"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Timed Out</span>
+                        <span class="stat-value" id="statTimedOut">-</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon stat-icon-campus">
+                        <i data-lucide="users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">On Campus</span>
+                        <span class="stat-value" id="statOnCampus">-</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon stat-icon-incomplete">
+                        <i data-lucide="alert-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Incomplete</span>
+                        <span class="stat-value" id="statIncomplete">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/attendance-scan.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/attendance-scan.js" asp-append-version="true"></script>
+}

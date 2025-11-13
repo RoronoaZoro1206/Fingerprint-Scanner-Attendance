@@ -76,7 +76,8 @@ function populateClassDropdowns() {
     addSelect.find('option:not(:first)').remove();
     editSelect.find('option:not(:first)').remove();
     classesData.forEach(cls => {
-        const option = `<option value="${cls.classId}">${cls.courseName}</option>`;
+        // ? FIX: Changed from cls.courseName to cls.CourseName (PascalCase)
+        const option = `<option value="${cls.ClassId}">${cls.CourseName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -94,7 +95,8 @@ function initializeDataTable() {
                 data: null,
                 defaultContent: '<i data-lucide="chevron-right" class="expand-icon"></i>'
             },
-            { data: 'courseName' },
+            // ? FIX: Changed from 'courseName' to 'CourseName' (PascalCase)
+            { data: 'CourseName' },
             { 
                 data: 'scheduleCount',
                 render: function(data) {
@@ -107,7 +109,7 @@ function initializeDataTable() {
                 render: function (data, type, row) {
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModalForClass(${row.classId})" title="Add/Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModalForClass(${row.ClassId})" title="Add/Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
                         </div>
@@ -149,16 +151,18 @@ function initializeDataTable() {
 function groupSchedulesByClass() {
     const grouped = {};
     schedulesData.forEach(s => {
-        if (!grouped[s.classId]) {
-            grouped[s.classId] = {
-                classId: s.classId,
-                courseName: s.courseName,
+        // ? FIX: Changed from s.classId to s.ClassId (PascalCase)
+        if (!grouped[s.ClassId]) {
+            grouped[s.ClassId] = {
+                // ? FIX: All properties using PascalCase
+                ClassId: s.ClassId,
+                CourseName: s.CourseName,
                 schedules: [],
                 scheduleCount: 0
             };
         }
-        grouped[s.classId].schedules.push(s);
-        grouped[s.classId].scheduleCount++;
+        grouped[s.ClassId].schedules.push(s);
+        grouped[s.ClassId].scheduleCount++;
     });
     return Object.values(grouped);
 }
@@ -166,15 +170,16 @@ function groupSchedulesByClass() {
 function formatChildRow(d) {
     let html = '<table class="child-table"><thead><tr><th>Day</th><th>Start</th><th>End</th><th>Actions</th></tr></thead><tbody>';
     d.schedules.forEach(s => {
+        // ? FIX: Changed to PascalCase properties (SchedId, SchedDayOfWeek, SchedStartTime, SchedEndTime)
         html += `<tr>
-            <td>${s.schedDayOfWeek}</td>
-            <td>${s.schedStartTime}</td>
-            <td>${s.schedEndTime}</td>
+            <td>${s.SchedDayOfWeek}</td>
+            <td>${s.SchedStartTime}</td>
+            <td>${s.SchedEndTime}</td>
             <td>
-                <button class="btn-action btn-edit" onclick="showEditModal(${s.schedId})" title="Edit">
+                <button class="btn-action btn-edit" onclick="showEditModal(${s.SchedId})" title="Edit">
                     <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                 </button>
-                <button class="btn-action btn-delete" onclick="deleteSchedule(${s.schedId})" title="Delete">
+                <button class="btn-action btn-delete" onclick="deleteSchedule(${s.SchedId})" title="Delete">
                     <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                 </button>
             </td>
@@ -243,13 +248,14 @@ function showEditModalForClass(classId) {
 }
 
 function showEditModal(schedId) {
-    const sched = schedulesData.find(s => s.schedId === schedId);
+    // ? FIX: Changed to PascalCase properties to match ClassScheduleDetailDto
+    const sched = schedulesData.find(s => s.SchedId === schedId);
     if (sched) {
-        $('#editSchedId').val(sched.schedId);
-        $('#editClassId').val(sched.classId);
-        $('#editDayOfWeek').val(sched.schedDayOfWeek);
-        $('#editStartTime').val(sched.schedStartTime);
-        $('#editEndTime').val(sched.schedEndTime);
+        $('#editSchedId').val(sched.SchedId);
+        $('#editClassId').val(sched.ClassId);
+        $('#editDayOfWeek').val(sched.SchedDayOfWeek);
+        $('#editStartTime').val(sched.SchedStartTime);
+        $('#editEndTime').val(sched.SchedEndTime);
         $('#editScheduleModal').modal('show');
     }
 }
@@ -407,11 +413,12 @@ function confirmDelete() {
 function getFlatScheduleData() {
     const flatData = [];
     schedulesData.forEach(s => {
+        // ? FIX: Changed to PascalCase properties
         flatData.push({
-            'Course': s.courseName,
-            'Day': s.schedDayOfWeek,
-            'Start Time': s.schedStartTime,
-            'End Time': s.schedEndTime
+            'Course': s.CourseName,
+            'Day': s.SchedDayOfWeek,
+            'Start Time': s.SchedStartTime,
+            'End Time': s.SchedEndTime
         });
     });
     return flatData;

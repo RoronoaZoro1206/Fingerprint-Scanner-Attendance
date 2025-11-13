@@ -71,7 +71,18 @@ public class AdminSectionController : Controller
             {
                 return Json(new { success = false, message = "Section not found" });
             }
-            return Json(new { success = true, data = section });
+            
+            // ? FIX: Explicitly format the response to ensure correct property names
+            var result = new
+            {
+                sectionId = section.SectionId,
+                sectionName = section.SectionName,
+                programId = section.ProgramId,
+                programName = section.ProgramName,
+                yearLevel = section.YearLevel
+            };
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {
@@ -87,7 +98,17 @@ public class AdminSectionController : Controller
         try
         {
             var programs = await _programRepository.GetAllAsync();
-            return Json(new { success = true, data = programs });
+            
+            // ? FIX: Explicitly format the response to ensure correct property names
+            var result = programs.Select(p => new
+            {
+                programId = p.ProgramId,
+                programCode = p.ProgramCode,
+                programName = p.ProgramName,
+                programDesc = p.ProgramDesc
+            }).ToList();
+            
+            return Json(new { success = true, data = result });
         }
         catch (Exception ex)
         {

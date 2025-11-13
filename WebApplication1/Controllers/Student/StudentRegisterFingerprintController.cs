@@ -46,27 +46,27 @@ FingerprintService fingerprintService,
     {
             try
             {
-   var status = _fingerprintService.GetStatus();
-     var isInitialized = status != "Not Initialized";
-    var isConnected = status == "Device Connected";
+                var status = _fingerprintService.GetStatus();
+                var isInitialized = status != "Not Initialized";
+                var isConnected = status == "Device Connected";
 
- return Json(new DeviceStatusDto
-      {
-         IsInitialized = isInitialized,
-       IsDeviceConnected = isConnected,
-       Status = status
-  });
+                return Json(new
+                {
+                    isInitialized = isInitialized,        // ✅ camelCase
+                    isDeviceConnected = isConnected,      // ✅ camelCase
+                    status = status                        // ✅ camelCase
+                });
             }
-      catch (Exception ex)
-     {
-       _logger.LogError(ex, "Error getting device status");
-       return Json(new DeviceStatusDto
-      {
-         IsInitialized = false,
-   IsDeviceConnected = false,
-    Status = "Error: " + ex.Message
-    });
-    }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting device status");
+                return Json(new
+                {
+                    isInitialized = false,                // ✅ camelCase
+                    isDeviceConnected = false,            // ✅ camelCase
+                    status = "Error: " + ex.Message       // ✅ camelCase
+                });
+            }
         }
 
         // POST: Initialize device
@@ -119,12 +119,12 @@ _logger.LogError("Failed to open device");
 
          var template = await _fingerprintRepo.GetByUserIdAsync(userId.Value);
           
-                return Json(new FingerprintStatusDto
-     {
-         IsRegistered = template != null,
-         TemplateName = template?.FtempName,
-            RegisteredAt = template?.FtempCreatedAt
-     });
+                return Json(new
+                {
+                    isRegistered = template != null,              // ✅ camelCase
+                    templateName = template?.FtempName,           // ✅ camelCase
+                    registeredAt = template?.FtempCreatedAt       // ✅ camelCase
+                });
             }
             catch (Exception ex)
             {
@@ -141,6 +141,33 @@ _logger.LogError("Failed to open device");
      {
       _logger.LogInformation("Attempting to capture fingerprint with image...");
        
+      // ✅ Ensure device is initialized before capture
+      if (!_fingerprintService.IsDeviceConnected)
+      {
+          _logger.LogWarning("Device not connected. Attempting to initialize...");
+          var initialized = _fingerprintService.Initialize();
+          if (initialized)
+          {
+              var deviceOpened = _fingerprintService.TurnOnDevice();
+              if (!deviceOpened)
+              {
+                  return Json(new { 
+                      success = false, 
+                      message = "Failed to connect to scanner. Please check USB connection.",
+                      shouldRefreshStatus = true 
+                  });
+              }
+          }
+          else
+          {
+              return Json(new { 
+                  success = false, 
+                  message = "Failed to initialize scanner SDK.",
+                  shouldRefreshStatus = true 
+              });
+          }
+      }
+      
   // Capture both image and template with detailed error information
     var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
 
@@ -163,7 +190,8 @@ _logger.LogError("Failed to open device");
    message = string.IsNullOrEmpty(errorMessage) 
      ? "Failed to capture fingerprint. Please try again." 
      : errorMessage,
-   errorCode = errorCode
+   errorCode = errorCode,
+   shouldRefreshStatus = true // ✅ Tell frontend to refresh status
 });
            }
 
@@ -188,7 +216,8 @@ _fingerprintService.SetLedLight("green", false);
   templateBase64,
  imageBase64,  // Add image data for display
  imageWidth = width,
-     imageHeight = height
+     imageHeight = height,
+     shouldRefreshStatus = true // ✅ Tell frontend to refresh status
 });
          }
      catch (Exception ex)
@@ -204,7 +233,11 @@ _fingerprintService.SetLedLight("green", false);
   _fingerprintService.Beep(false);
   });
  
-    return Json(new { success = false, message = "Error: " + ex.Message });
+    return Json(new { 
+        success = false, 
+        message = "Error: " + ex.Message,
+        shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+    });
    }
  }
 
@@ -345,7 +378,11 @@ _fingerprintService.Beep(true);
       });
   
    _logger.LogInformation($"Fingerprint registered successfully for user {user.UserEmail}");
-  return Json(new { success = true, message = "Fingerprint registered successfully" });
+  return Json(new { 
+      success = true, 
+      message = "Fingerprint registered successfully",
+      shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+  });
            }
          else
 {
@@ -503,7 +540,11 @@ _fingerprintService.SetLedLight("green", false);
     });
      
   _logger.LogInformation($"Fingerprint updated successfully for user {user.UserEmail}");
- return Json(new { success = true, message = "Fingerprint updated successfully" });
+ return Json(new { 
+     success = true, 
+     message = "Fingerprint updated successfully",
+     shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+ });
   }
 
        return Json(new { success = false, message = "Failed to update fingerprint" });

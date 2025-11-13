@@ -1,6 +1,8 @@
 /**
  * Course Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
+ * 
+ * ? FIXED: Case sensitivity - changed to snake_case to match backend
  */
 
 let coursesTable;
@@ -82,7 +84,8 @@ function populateProgramDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     programsData.forEach(program => {
-        const option = `<option value="${program.programId}">${program.programName}</option>`;
+        // ? FIX: Changed to snake_case
+        const option = `<option value="${program.program_id}">${program.program_name}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -102,20 +105,24 @@ function initializeDataTable() {
         },
         columns: [
             { 
-                data: 'courseCode',
+                // ? FIX: Changed from 'courseCode' to 'course_code' (snake_case)
+                data: 'course_code',
                 width: '12%'
             },
             { 
-                data: 'courseName',
+                // ? FIX: Changed from 'courseName' to 'course_name' (snake_case)
+                data: 'course_name',
                 width: '30%'
             },
             { 
-                data: 'courseUnits',
+                // ? FIX: Changed from 'courseUnits' to 'course_units' (snake_case)
+                data: 'course_units',
                 width: '8%',
                 className: 'text-center'
             },
             { 
-                data: 'programName',
+                // ? FIX: Changed from 'programName' to 'program_name' (snake_case)
+                data: 'program_name',
                 width: '30%'
             },
             {
@@ -124,12 +131,13 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data) {
+                    // ? FIX: Changed from data.courseId to data.course_id (snake_case)
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${data.courseId})" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${data.course_id})" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteCourse(${data.courseId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteCourse(${data.course_id})" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -158,12 +166,13 @@ function showEditModal(courseId) {
     ajaxGet(`/AdminCourse/GetById/${courseId}`,
         function (response) {
             const course = response.data;
-            $('#editCourseId').val(course.courseId);
-            $('#editCourseCode').val(course.courseCode);
-            $('#editCourseName').val(course.courseName);
-            $('#editCourseUnits').val(course.courseUnits);
-            $('#editProgramId').val(course.programId || '');
-            $('#editCourseDesc').val(course.courseDesc || '');
+            // ? FIX: Changed to snake_case
+            $('#editCourseId').val(course.course_id);
+            $('#editCourseCode').val(course.course_code);
+            $('#editCourseName').val(course.course_name);
+            $('#editCourseUnits').val(course.course_units);
+            $('#editProgramId').val(course.program_id || '');
+            $('#editCourseDesc').val(course.course_desc || '');
             showModal('editCourseModal');
         },
         function () {
@@ -314,11 +323,12 @@ function getCoursesData() {
     const data = [];
     coursesTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
+        // ? FIX: Changed to snake_case
         data.push({
-            'Code': rowData.courseCode,
-            'Name': rowData.courseName,
-            'Units': rowData.courseUnits,
-            'Program': rowData.programName
+            'Code': rowData.course_code,
+            'Name': rowData.course_name,
+            'Units': rowData.course_units,
+            'Program': rowData.program_name
         });
     });
     return data;

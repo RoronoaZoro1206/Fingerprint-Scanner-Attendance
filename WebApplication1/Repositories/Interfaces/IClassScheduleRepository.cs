@@ -14,4 +14,8 @@ public interface IClassScheduleRepository
     
     // Optimized methods to reduce N+1 queries
     Task<IEnumerable<ClassScheduleDetailDto>> GetAllWithDetailsAsync();
+    
+    // ? NEW: Schedule integration methods for Phase 4
+    Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDateAsync(int studId, DateTime date);
+    Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDayAsync(int studId, string dayOfWeek);
 }

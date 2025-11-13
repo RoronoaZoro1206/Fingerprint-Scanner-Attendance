@@ -1,6 +1,8 @@
-/**
+﻿/**
  * Class Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
+ * 
+ * ✅ FIXED: Case sensitivity - using PascalCase to match C# API responses
  */
 
 let classesTable;
@@ -72,6 +74,7 @@ async function loadCourses() {
 
         if (response.success) {
             coursesData = response.data;
+            console.log('Loaded courses:', coursesData); // Debug log
             populateCourseDropdowns();
         }
     } catch (error) {
@@ -92,6 +95,7 @@ async function loadRooms() {
 
         if (response.success) {
             roomsData = response.data;
+            console.log('Loaded rooms:', roomsData); // Debug log
             populateRoomDropdowns();
         }
     } catch (error) {
@@ -112,6 +116,7 @@ async function loadFaculties() {
 
         if (response.success) {
             facultiesData = response.data;
+            console.log('Loaded faculties:', facultiesData); // Debug log
             populateFacultyDropdowns();
         }
     } catch (error) {
@@ -132,6 +137,7 @@ async function loadTerms() {
 
         if (response.success) {
             termsData = response.data;
+            console.log('Loaded terms:', termsData); // Debug log
             populateTermDropdowns();
         }
     } catch (error) {
@@ -142,6 +148,7 @@ async function loadTerms() {
 
 /**
  * Populate course dropdowns
+ * ✅ FIX: Using PascalCase properties (CourseId, CourseName)
  */
 function populateCourseDropdowns() {
     const addSelect = $('#addCourseId');
@@ -151,7 +158,9 @@ function populateCourseDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     coursesData.forEach(course => {
-        const option = `<option value="${course.courseId}">${course.courseName}</option>`;
+        // ✅ FIX: Changed from course.courseId to course.CourseId (PascalCase)
+        // ✅ FIX: Changed from course.courseName to course.CourseName (PascalCase)
+        const option = `<option value="${course.CourseId}">${course.CourseName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -159,6 +168,7 @@ function populateCourseDropdowns() {
 
 /**
  * Populate room dropdowns
+ * ✅ FIX: Using PascalCase properties (RoomId, RoomCode)
  */
 function populateRoomDropdowns() {
     const addSelect = $('#addRoomId');
@@ -168,7 +178,9 @@ function populateRoomDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     roomsData.forEach(room => {
-        const option = `<option value="${room.roomId}">${room.roomName}</option>`;
+        // ✅ FIX: Changed from room.roomId to room.RoomId (PascalCase)
+        // ✅ FIX: Changed from room.roomName to room.RoomCode (correct property name)
+        const option = `<option value="${room.RoomId}">${room.RoomCode}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -176,6 +188,7 @@ function populateRoomDropdowns() {
 
 /**
  * Populate faculty dropdowns
+ * ✅ FIX: Using camelCase properties (facId, facName) - matches FacultySimpleDto
  */
 function populateFacultyDropdowns() {
     const addSelect = $('#addFacId');
@@ -185,6 +198,7 @@ function populateFacultyDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     facultiesData.forEach(faculty => {
+        // ✅ FIX: Using camelCase (facId, facName) as returned by GetFaculties endpoint
         const option = `<option value="${faculty.facId}">${faculty.facName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
@@ -193,6 +207,7 @@ function populateFacultyDropdowns() {
 
 /**
  * Populate academic term dropdowns
+ * ✅ FIX: Using PascalCase properties (TermId, TermName)
  */
 function populateTermDropdowns() {
     const addSelect = $('#addTermId');
@@ -202,7 +217,9 @@ function populateTermDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     termsData.forEach(term => {
-        const option = `<option value="${term.termId}">${term.termName}</option>`;
+        // ✅ FIX: Changed from term.termId to term.TermId (PascalCase)
+        // ✅ FIX: Changed from term.termName to term.TermName (PascalCase)
+        const option = `<option value="${term.TermId}">${term.TermName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
     });
@@ -272,16 +289,22 @@ function showAddModal() {
 
 /**
  * Show Edit Class Modal
+ * ✅ FIX: Use PascalCase properties to match ClassDetailDto response
  */
 function showEditModal(classId) {
     ajaxGet(`/AdminClass/GetById/${classId}`,
         function (response) {
             const cls = response.data;
-            $('#editClassId').val(cls.classId);
-            $('#editCourseId').val(cls.courseId);
-            $('#editRoomId').val(cls.roomId);
-            $('#editFacId').val(cls.facId);
-            $('#editTermId').val(cls.termId);
+            // ✅ FIX: Changed from cls.classId to cls.ClassId (PascalCase)
+            $('#editClassId').val(cls.ClassId);
+            // ✅ FIX: Changed from cls.courseId to cls.CourseId (PascalCase)
+            $('#editCourseId').val(cls.CourseId);
+            // ✅ FIX: Changed from cls.roomId to cls.RoomId (PascalCase)
+            $('#editRoomId').val(cls.RoomId);
+            // ✅ FIX: Changed from cls.facId to cls.FacId (PascalCase)
+            $('#editFacId').val(cls.FacId);
+            // ✅ FIX: Changed from cls.termId to cls.TermId (PascalCase)
+            $('#editTermId').val(cls.TermId);
             showModal('editClassModal');
         },
         function () {

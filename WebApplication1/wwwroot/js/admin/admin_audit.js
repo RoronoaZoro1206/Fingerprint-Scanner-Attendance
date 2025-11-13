@@ -34,7 +34,7 @@ function initializeDataTable() {
             }
         },
         columns: [
-            { data: 'audId', width: '6%' },
+            { data: 'audId', width: '8%' },
             { data: 'adminName', width: '13%' },
             { data: 'adminCode', width: '10%' },
             // NEW: Log Type column with badges
@@ -42,11 +42,15 @@ function initializeDataTable() {
                 data: 'logType',
                 width: '12%',
                 render: function (data) {
-                    if (data === 'Biometric Login') {
-                        return `<span class="log-type-badge biometric"><i data-lucide="fingerprint" class="icon-xs"></i> Biometric</span>`;
-                    } else {
-                        return `<span class="log-type-badge admin"><i data-lucide="shield" class="icon-xs"></i> Admin</span>`;
-                    }
+                    const badges = {
+                        'Password Login': '<span class="log-type-badge password"><i data-lucide="key" class="icon-xs"></i> Password</span>',
+                        'Biometric Login': '<span class="log-type-badge biometric"><i data-lucide="fingerprint" class="icon-xs"></i> Biometric</span>',
+                        'Failed Login': '<span class="log-type-badge failed"><i data-lucide="alert-circle" class="icon-xs"></i> Failed</span>',
+                        'User Logout': '<span class="log-type-badge logout"><i data-lucide="log-out" class="icon-xs"></i> Logout</span>',
+                        'Admin Action': '<span class="log-type-badge admin"><i data-lucide="shield" class="icon-xs"></i> Admin</span>',
+                        'Authentication': '<span class="log-type-badge auth"><i data-lucide="lock" class="icon-xs"></i> Auth</span>'
+                    };
+                    return badges[data] || `<span class="log-type-badge other"><i data-lucide="info" class="icon-xs"></i> ${data}</span>`;
                 }
             },
             {
@@ -58,25 +62,30 @@ function initializeDataTable() {
             },
             {
                 data: 'audDetails',
-                width: '25%',
+                width: '23%',
                 render: function (data) {
                     if (!data || data === '') return '<span class="text-muted">No details</span>';
                     return data.length > 50 ? data.substring(0, 50) + '...' : data;
                 }
             },
-            { data: 'audActionTime', width: '13%' },
+            { 
+                data: 'audActionTimeFormatted', 
+                width: '13%' 
+            },
             {
                 data: null,
                 width: '10%',
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
+                    // ? FIX: Properly escape the ID string and wrap in quotes for onclick
+                    const escapedId = String(row.audId).replace(/'/g, "\\'");
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-view" onclick="viewAudit(${row.audId})" title="View Details">
+                            <button class="btn-action btn-view" onclick="viewAudit('${escapedId}')" title="View Details">
                                 <i data-lucide="eye" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="deleteAudit(${row.audId})" title="Delete">
+                            <button class="btn-action btn-delete" onclick="deleteAudit('${escapedId}')" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -112,6 +121,10 @@ function formatActionBadge(action) {
         badgeClass = 'delete';
     } else if (lowerAction.includes('view') || lowerAction.includes('read')) {
         badgeClass = 'view';
+    } else if (lowerAction.includes('login')) {
+        badgeClass = 'login';
+    } else if (lowerAction.includes('logout')) {
+        badgeClass = 'logout';
     }
 
     return `<span class="action-badge ${badgeClass}">${escapeHtml(action)}</span>`;
@@ -141,15 +154,20 @@ async function loadStatistics() {
 
 /**
  * View audit log details
+ * @param {string} id - Audit ID (can be "ADM-123" or "AUTH-456")
  */
-async function viewAudit(id) {
+window.viewAudit = async function(id) {
     try {
-        const response = await fetch(`/AdminAudit/GetById?id=${id}`);
+        // ? Parse the ID to extract the numeric part and type
+        const isAuthLog = id.startsWith('AUTH-');
+        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
+
+        const response = await fetch(`/AdminAudit/GetById/${numericId}?isAuth=${isAuthLog}`);
         const result = await response.json();
 
         if (result.success) {
             const audit = result.data;
-            document.getElementById('viewAudId').textContent = audit.audId;
+            document.getElementById('viewAudId').textContent = id; // Show full ID with prefix
             document.getElementById('viewAdminName').textContent = audit.adminName;
             document.getElementById('viewAdminCode').textContent = audit.adminCode;
             document.getElementById('viewAction').textContent = audit.audAction;
@@ -157,6 +175,13 @@ async function viewAudit(id) {
             document.getElementById('viewDateTime').textContent = audit.audActionTime;
 
             showModal('viewModal');
+            
+            // Reinitialize icons in modal
+            setTimeout(() => {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }, 100);
         } else {
             Toast.error(result.message || 'Failed to load audit log');
         }
@@ -168,10 +193,18 @@ async function viewAudit(id) {
 
 /**
  * Show delete confirmation modal
+ * @param {string} id - Audit ID (can be "ADM-123" or "AUTH-456")
  */
-function deleteAudit(id) {
+window.deleteAudit = function(id) {
     document.getElementById('deleteAudId').value = id;
     showModal('deleteAuditModal');
+    
+    // Reinitialize icons in modal
+    setTimeout(() => {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }, 100);
 }
 
 /**
@@ -184,7 +217,12 @@ async function confirmDeleteAudit() {
     setButtonLoading($btn, 'Deleting...');
 
     try {
-        const response = await fetch(`/AdminAudit/Delete?id=${id}`, {
+        // ? Parse the ID to extract the numeric part and type
+        const isAuthLog = id.startsWith('AUTH-');
+        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
+
+        // ? FIX: Use DELETE method with route parameter
+        const response = await fetch(`/AdminAudit/Delete/${numericId}?isAuth=${isAuthLog}`, {
             method: 'DELETE'
         });
 

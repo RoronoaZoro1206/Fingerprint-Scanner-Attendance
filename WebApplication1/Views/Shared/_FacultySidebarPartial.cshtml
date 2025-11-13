@@ -1,13 +1,15 @@
 @{
     var userName = Context.Session.GetString("UserName") ?? "User";
     var userImage = Context.Session.GetString("UserProfileImage") ?? "default_profile.png";
+    // Add timestamp to prevent caching issues
+    var imageUrl = $"/images/profile/{userImage}?v={DateTime.Now.Ticks}";
 }
 
 <!-- Desktop Sidebar -->
 <aside class="sidebar d-none d-lg-flex">
     <div class="sidebar-header">
         <a href="@Url.Action("Profile", "UserProfile")" class="user-profile">
-            <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" onerror="this.src='/images/profile/default_profile.png'" />
+            <img src="@imageUrl" alt="Profile" class="profile-image" onerror="this.onerror=null; this.src='/images/profile/default_profile.png';" />
             <div class="user-details">
                 <span class="user-name">@userName</span>
                 <span class="user-role">Faculty</span>
@@ -56,7 +58,7 @@
     <div class="offcanvas-body p-0">
         <div class="sidebar-header">
             <a href="@Url.Action("Profile", "UserProfile")" class="user-profile" data-bs-dismiss="offcanvas">
-                <img src="~/images/profile/@userImage" alt="Profile" class="profile-image" onerror="this.src='/images/profile/default_profile.png'" />
+                <img src="@imageUrl" alt="Profile" class="profile-image" onerror="this.onerror=null; this.src='/images/profile/default_profile.png';" />
                 <div class="user-details">
                     <span class="user-name">@userName</span>
                     <span class="user-role">Faculty</span>

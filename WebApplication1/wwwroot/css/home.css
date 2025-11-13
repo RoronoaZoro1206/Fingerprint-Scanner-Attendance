@@ -432,6 +432,27 @@
     margin: 0;
 }
 
+/* ? NEW: Animation for scan record updates */
+.scan-record-update {
+    animation: highlightUpdate 1s ease-in-out;
+}
+
+@keyframes highlightUpdate {
+    0%, 100% {
+        background-color: white;
+    }
+    50% {
+        background-color: #d1fae5;
+        transform: scale(1.02);
+    }
+}
+
+/* ? NEW: Time Out badge styling */
+.scan-status-out {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .home-content {

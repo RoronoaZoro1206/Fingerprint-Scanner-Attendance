@@ -38,6 +38,7 @@ public class AdminRoomController : Controller
         try
         {
             var rooms = await _roomRepository.GetAllAsync();
+            _logger.LogInformation("Retrieved {Count} rooms", rooms.Count());
             return Json(new { data = rooms });
         }
         catch (Exception ex)
@@ -53,16 +54,21 @@ public class AdminRoomController : Controller
     {
         try
         {
+            _logger.LogInformation("Fetching room with ID: {RoomId}", id);
             var room = await _roomRepository.GetByIdAsync(id);
+            
             if (room == null)
             {
+                _logger.LogWarning("Room with ID {RoomId} not found", id);
                 return Json(new { success = false, message = "Room not found" });
             }
+            
+            _logger.LogInformation("Found room: {RoomCode}", room.RoomCode);
             return Json(new { success = true, data = room });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching room by ID");
+            _logger.LogError(ex, "Error fetching room by ID: {RoomId}", id);
             return Json(new { success = false, message = "Failed to fetch room" });
         }
     }
@@ -73,8 +79,11 @@ public class AdminRoomController : Controller
     {
         try
         {
+            _logger.LogInformation("Attempting to create room with code: {RoomCode}", room?.RoomCode);
+            
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state for room creation");
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
@@ -82,17 +91,20 @@ public class AdminRoomController : Controller
 
             if (result)
             {
+                _logger.LogInformation("Successfully created room: {RoomCode}", room.RoomCode);
                 await _auditService.LogActionAsync(
                     "Created Room", 
                     $"Created room: {room.RoomCode} - {room.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room created successfully" });
             }
+            
+            _logger.LogWarning("Failed to create room: {RoomCode}", room.RoomCode);
             return Json(new { success = false, message = "Failed to create room" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating room");
-            return Json(new { success = false, message = "An error occurred while creating room" });
+            _logger.LogError(ex, "Error creating room: {RoomCode}", room?.RoomCode);
+            return Json(new { success = false, message = $"An error occurred while creating room: {ex.Message}" });
         }
     }
 
@@ -102,26 +114,45 @@ public class AdminRoomController : Controller
     {
         try
         {
+            _logger.LogInformation("Attempting to update room - ID: {RoomId}, Code: {RoomCode}", room?.RoomId, room?.RoomCode);
+            
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                _logger.LogWarning("Invalid model state for room update: {Errors}", string.Join(", ", errors));
                 return Json(new { success = false, message = "Invalid data provided" });
+            }
+
+            if (room == null)
+            {
+                _logger.LogWarning("Null room object received");
+                return Json(new { success = false, message = "Room data is required" });
+            }
+
+            if (room.RoomId <= 0)
+            {
+                _logger.LogWarning("Invalid room ID: {RoomId}", room.RoomId);
+                return Json(new { success = false, message = "Invalid room ID" });
             }
 
             var result = await _roomRepository.UpdateAsync(room);
 
             if (result)
             {
+                _logger.LogInformation("Successfully updated room: {RoomCode} (ID: {RoomId})", room.RoomCode, room.RoomId);
                 await _auditService.LogActionAsync(
                     "Updated Room", 
                     $"Updated room: {room.RoomCode} - {room.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room updated successfully" });
             }
-            return Json(new { success = false, message = "Failed to update room" });
+            
+            _logger.LogWarning("Failed to update room: {RoomCode} (ID: {RoomId})", room.RoomCode, room.RoomId);
+            return Json(new { success = false, message = "Failed to update room. Room may not exist." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating room");
-            return Json(new { success = false, message = "An error occurred while updating room" });
+            _logger.LogError(ex, "Error updating room - ID: {RoomId}, Code: {RoomCode}", room?.RoomId, room?.RoomCode);
+            return Json(new { success = false, message = $"An error occurred while updating room: {ex.Message}" });
         }
     }
 
@@ -131,21 +162,32 @@ public class AdminRoomController : Controller
     {
         try
         {
+            _logger.LogInformation("Attempting to delete room with ID: {RoomId}", id);
+            
             var room = await _roomRepository.GetByIdAsync(id);
+            if (room == null)
+            {
+                _logger.LogWarning("Room with ID {RoomId} not found for deletion", id);
+                return Json(new { success = false, message = "Room not found" });
+            }
+            
             var result = await _roomRepository.DeleteAsync(id);
 
             if (result)
             {
+                _logger.LogInformation("Successfully deleted room: {RoomCode} (ID: {RoomId})", room.RoomCode, id);
                 await _auditService.LogActionAsync(
                     "Deleted Room", 
-                    $"Deleted room: {room?.RoomCode} - {room?.RoomDescription ?? "No description"}");
+                    $"Deleted room: {room.RoomCode} - {room.RoomDescription ?? "No description"}");
                 return Json(new { success = true, message = "Room deleted successfully" });
             }
+            
+            _logger.LogWarning("Failed to delete room: {RoomCode} (ID: {RoomId})", room.RoomCode, id);
             return Json(new { success = false, message = "Failed to delete room" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting room");
+            _logger.LogError(ex, "Error deleting room with ID: {RoomId}", id);
             return Json(new { success = false, message = "An error occurred while deleting room" });
         }
     }

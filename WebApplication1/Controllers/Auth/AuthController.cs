@@ -186,27 +186,138 @@ public class AuthController : Controller
 
     public async Task<IActionResult> Logout()
     {
-        // ? NEW: Get user info before clearing session
-        var userId = HttpContext.Session.GetInt32("UserId");
-        var userEmail = HttpContext.Session.GetString("UserEmail");
-        var roleId = HttpContext.Session.GetInt32("RoleId");
-        
-        // ? NEW: Log logout for all roles
-        if (userId.HasValue && !string.IsNullOrEmpty(userEmail) && roleId.HasValue)
+        try
         {
-            var roleName = roleId.Value switch
-            {
-                1 => "ADMIN",
-                2 => "FACULTY",
-                3 => "STUDENT",
-                _ => "UNKNOWN"
-            };
+            // Get user info before clearing session
+            var userId = HttpContext.Session.GetInt32("UserId");
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            var roleId = HttpContext.Session.GetInt32("RoleId");
             
-            await _authAuditService.LogLogoutAsync(userId.Value, userEmail, roleName);
+            _logger.LogInformation($"Logout attempt - UserId: {userId}, Email: {userEmail}, RoleId: {roleId}");
+            
+            // Log logout for all authenticated users
+            if (userId.HasValue && !string.IsNullOrEmpty(userEmail))
+            {
+                // Get user from database to get accurate role information
+                var user = await _userRepository.GetByIdAsync(userId.Value);
+                
+                string roleName = "UNKNOWN";
+                if (user != null)
+                {
+                    // Use the USER_ROLES enum for accurate role naming
+                    roleName = user.RoleType.ToString().ToUpper();
+                    _logger.LogInformation($"User {userEmail} role from database: {roleName}");
+                }
+                else if (roleId.HasValue)
+                {
+                    // Fallback to session roleId if user not found
+                    roleName = roleId.Value switch
+                    {
+                        1 => "ADMIN",
+                        2 => "FACULTY",
+                        3 => "STUDENT",
+                        _ => "UNKNOWN"
+                    };
+                    _logger.LogWarning($"User not found in database, using session roleId: {roleId.Value} -> {roleName}");
+                }
+                
+                await _authAuditService.LogLogoutAsync(userId.Value, userEmail, roleName);
+                _logger.LogInformation($"Logout logged for user {userEmail} ({roleName})");
+            }
+            else
+            {
+                _logger.LogWarning("Logout called but no user session data found");
+            }
+            
+            // Clear session
+            HttpContext.Session.Clear();
+            
+            return RedirectToAction("Index", "Auth");
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during logout");
+            
+            // Still clear session even if logging fails
+            HttpContext.Session.Clear();
+            
+            return RedirectToAction("Index", "Auth");
+        }
+    }
+    
+    /// <summary>
+    /// Auto Logout - Called when user closes browser/tab without clicking logout
+    /// Uses Beacon API from JavaScript to reliably log logout even during page unload
+    /// ? ENHANCED: Now includes session duration, last activity, and device info
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> AutoLogout([FromBody] AutoLogoutRequest request)
+    {
+        try
+        {
+            _logger.LogInformation($"Auto logout triggered - UserId: {request.UserId}, Email: {request.UserEmail}, Reason: {request.Reason}");
+            _logger.LogInformation($"Session Info - Duration: {request.SessionDuration}, Last Activity: {request.LastActivityTime}, Browser: {request.BrowserInfo}");
+            
+            if (request.UserId > 0 && !string.IsNullOrEmpty(request.UserEmail))
+            {
+                // Get user from database to get accurate role information
+                var user = await _userRepository.GetByIdAsync(request.UserId);
+                
+                string roleName = "UNKNOWN";
+                if (user != null)
+                {
+                    roleName = user.RoleType.ToString().ToUpper();
+                    _logger.LogInformation($"Auto logout for user {request.UserEmail} role: {roleName}");
+                }
+                
+                // ? ENHANCED: Build detailed logout message with all context
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+                
+                string enhancedDetails = $"User {request.UserEmail} (ID: {request.UserId}, Role: {roleName}) automatically logged out after {request.SessionDuration} session - {request.Reason} (Last activity: {request.LastActivityTime}, IP: {ipAddress}, {request.BrowserInfo})";
+                
+                _logger.LogInformation($"Enhanced details: {enhancedDetails}");
+                
+                // Log as "Auto Logout" instead of "User Logout" to distinguish
+                await _authAuditService.LogAutoLogoutAsync(
+                    request.UserId, 
+                    request.UserEmail, 
+                    roleName, 
+                    enhancedDetails // ? Pass enhanced details instead of just reason
+                );
+                
+                _logger.LogInformation($"Auto logout logged for user {request.UserEmail} ({roleName})");
+                
+                // Return 200 OK (Beacon API doesn't care about response, but for logging)
+                return Ok(new { success = true, message = "Auto logout logged successfully" });
+            }
+            else
+            {
+                _logger.LogWarning("Auto logout called but no valid user data provided");
+                return BadRequest(new { success = false, message = "Invalid user data" });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during auto logout");
+            // Return 200 OK even on error (Beacon API doesn't retry on error responses)
+            return Ok(new { success = false, message = "Error logged" });
+        }
+    }
+    
+    /// <summary>
+    /// DTO for auto logout request
+    /// ? ENHANCED: Now includes session tracking and device info
+    /// </summary>
+    public class AutoLogoutRequest
+    {
+        public int UserId { get; set; }
+        public string UserEmail { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
         
-        HttpContext.Session.Clear();
-        return RedirectToAction("Index", "Auth");
+        // ? NEW: Enhanced tracking fields
+        public string SessionDuration { get; set; } = "Unknown";
+        public string LastActivityTime { get; set; } = "Unknown";
+        public string BrowserInfo { get; set; } = "Unknown";
     }
     
     [HttpGet]

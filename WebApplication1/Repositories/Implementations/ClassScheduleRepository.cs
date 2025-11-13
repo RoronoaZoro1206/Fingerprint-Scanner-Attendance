@@ -148,4 +148,80 @@ public class ClassScheduleRepository : IClassScheduleRepository
             SchedEndTime = row["sched_end_time"]?.ToString() ?? ""
         });
     }
+
+    // ============================================================
+    // NEW METHODS FOR SCHEDULE INTEGRATION - PHASE 4
+    // ============================================================
+
+    /// <summary>
+    /// Get student's class schedule for a specific date
+    /// Includes all class details, faculty info, and time slots
+    /// Used for late detection when student times in
+    /// </summary>
+    public async Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDateAsync(int studId, DateTime date)
+    {
+        // Get day of week (Monday, Tuesday, etc.)
+        string dayOfWeek = date.DayOfWeek.ToString();
+        
+        string query = @"
+            SELECT 
+                c.class_id,
+                co.course_id,
+                co.course_code,
+                co.course_name,
+                co.course_units,
+                cs.sched_day_of_week,
+                cs.sched_start_time,
+                cs.sched_end_time,
+                COALESCE(r.room_code, 'TBA') as room_code,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'TBA') as faculty_name
+            FROM enrollment e
+            INNER JOIN classes c ON e.class_id = c.class_id
+            INNER JOIN courses co ON c.course_id = co.course_id
+            INNER JOIN class_schedules cs ON c.class_id = cs.class_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            WHERE e.stud_id = @studId
+              AND cs.sched_day_of_week = @dayOfWeek
+              AND c.term_id = (SELECT term_id FROM academic_terms WHERE is_active = TRUE LIMIT 1)
+            ORDER BY cs.sched_start_time;";
+        
+        var parameters = new Dictionary<string, object>
+        {
+            { "@studId", studId },
+            { "@dayOfWeek", dayOfWeek }
+        };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new StudentScheduleDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseId = Convert.ToInt32(row["course_id"]),
+            CourseCode = row["course_code"].ToString() ?? "",
+            CourseName = row["course_name"].ToString() ?? "",
+            CourseUnits = Convert.ToInt32(row["course_units"]),
+            DayOfWeek = row["sched_day_of_week"].ToString() ?? "",
+            StartTime = (TimeSpan)row["sched_start_time"],
+            EndTime = (TimeSpan)row["sched_end_time"],
+            RoomCode = row["room_code"]?.ToString() ?? "TBA",
+            FacultyName = row["faculty_name"]?.ToString() ?? "TBA"
+        });
+    }
+
+    /// <summary>
+    /// Get student's schedule for a specific day of week (e.g., "Monday")
+    /// Helper method that calls GetStudentScheduleForDateAsync
+    /// </summary>
+    public async Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDayAsync(int studId, string dayOfWeek)
+    {
+        // Calculate the next occurrence of this day of week
+        var targetDay = (DayOfWeek)Enum.Parse(typeof(DayOfWeek), dayOfWeek);
+        var today = DateTime.Today;
+        var daysUntilTarget = ((int)targetDay - (int)today.DayOfWeek + 7) % 7;
+        var targetDate = today.AddDays(daysUntilTarget);
+        
+        return await GetStudentScheduleForDateAsync(studId, targetDate);
+    }
 }
