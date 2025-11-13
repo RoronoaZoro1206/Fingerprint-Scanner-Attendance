@@ -1,4 +1,4 @@
-
+﻿
 -- ============================================================
 -- EXTENSIONS
 -- ============================================================
@@ -587,6 +587,145 @@ COMMENT ON TABLE attendance IS
 'Class-specific attendance records. Each record links to a daily_attendance_log entry and determines if student was Late/Present/Absent for a specific class based on their daily Time In.';
 
 
+-- FIX 1: Auto-create missing student records for users with role=student
+DO $$
+DECLARE
+    v_user_record RECORD;
+    v_temp_stud_number VARCHAR(50);
+    v_created_count INT := 0;
+BEGIN
+    FOR v_user_record IN 
+        SELECT u.user_id, u.user_email, u.user_first_name, u.user_last_name
+        FROM users u
+        LEFT JOIN students s ON u.user_id = s.user_id
+        WHERE u.role_id = 3  -- Student role
+        AND s.stud_id IS NULL
+    LOOP
+   
+        -- Format: TEMP-{user_id}-{seconds} (max 20 chars)
+        v_temp_stud_number := 'TEMP-' || v_user_record.user_id || '-' || TO_CHAR(NOW(), 'SSSSS');
+        
+        -- Insert student record
+        INSERT INTO students (user_id, stud_number, stud_created_at)
+        VALUES (v_user_record.user_id, v_temp_stud_number, NOW());
+        
+        v_created_count := v_created_count + 1;
+        
+        RAISE NOTICE 'Created student record for: % % (Email: %, Temp ID: %)', 
+            v_user_record.user_first_name, 
+            v_user_record.user_last_name,
+            v_user_record.user_email,
+            v_temp_stud_number;
+    END LOOP;
+    
+    RAISE NOTICE '✅ Created % student record(s)', v_created_count;
+END $$;
+
+-- FIX 2: Enroll all students in the existing class (Class ID 2 - Programming 1)
+DO $$
+DECLARE
+    v_student_record RECORD;
+    v_enrolled_count INT := 0;
+    v_class_id INT := 2;  -- Programming 1 class
+BEGIN
+    FOR v_student_record IN 
+        SELECT s.stud_id, s.stud_number, u.user_first_name, u.user_last_name
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.stud_id NOT IN (
+            SELECT stud_id FROM enrollment WHERE class_id = v_class_id
+        )
+    LOOP
+        INSERT INTO enrollment (stud_id, class_id, enroll_at)
+        VALUES (v_student_record.stud_id, v_class_id, NOW())
+        ON CONFLICT DO NOTHING;
+        
+        v_enrolled_count := v_enrolled_count + 1;
+        
+        RAISE NOTICE 'Enrolled: % % (ID: %) in Class ID %', 
+            v_student_record.user_first_name,
+            v_student_record.user_last_name,
+            v_student_record.stud_number,
+            v_class_id;
+    END LOOP;
+    
+    RAISE NOTICE '✅ Enrolled % student(s) in Class ID %', v_enrolled_count, v_class_id;
+END $$;
+
+-- FIX 3: Create additional sample classes
+-- Get the active term ID
+DO $$
+DECLARE
+    v_term_id INT;
+    v_fac_id INT;
+    v_created_count INT := 0;
+    v_room_count INT;
+BEGIN
+    -- Get active term
+    SELECT term_id INTO v_term_id
+    FROM academic_terms
+    WHERE is_active = TRUE
+    LIMIT 1;
+    
+    -- Get faculty ID
+    SELECT fac_id INTO v_fac_id
+    FROM faculty
+    LIMIT 1;
+    
+    -- Get total room count
+    SELECT COUNT(*) INTO v_room_count FROM rooms;
+    
+    -- Create classes for available courses (simple round-robin room assignment)
+    WITH numbered_courses AS (
+        SELECT 
+            course_id,
+            ROW_NUMBER() OVER() - 1 AS rn
+        FROM courses c
+        WHERE c.course_id NOT IN (SELECT course_id FROM classes WHERE course_id IS NOT NULL)
+    ),
+    room_assignment AS (
+        SELECT 
+            nc.course_id,
+            (SELECT room_id FROM rooms ORDER BY room_id LIMIT 1 OFFSET (nc.rn % v_room_count)) as room_id
+        FROM numbered_courses nc
+    )
+    INSERT INTO classes (course_id, room_id, fac_id, term_id, class_created_at, class_updated_at)
+    SELECT 
+        ra.course_id,
+        ra.room_id,
+        v_fac_id,
+        v_term_id,
+        NOW(),
+        NOW()
+    FROM room_assignment ra
+    ON CONFLICT DO NOTHING;
+    
+    GET DIAGNOSTICS v_created_count = ROW_COUNT;
+    
+    RAISE NOTICE '✅ Created % new class(es)', v_created_count;
+END $$;
+
+
+-- FIX 4: Enroll all students in all classes
+DO $$
+DECLARE
+    v_enrollment_count INT := 0;
+BEGIN
+    INSERT INTO enrollment (stud_id, class_id, enroll_at)
+    SELECT s.stud_id, c.class_id, NOW()
+    FROM students s
+    CROSS JOIN classes c
+    WHERE NOT EXISTS (
+        SELECT 1 FROM enrollment e 
+        WHERE e.stud_id = s.stud_id AND e.class_id = c.class_id
+    )
+    ON CONFLICT DO NOTHING;
+    
+    GET DIAGNOSTICS v_enrollment_count = ROW_COUNT;
+    
+    RAISE NOTICE '✅ Created % new enrollment(s)', v_enrollment_count;
+END $$;
+
 -- Function 1: Get or Create Daily Attendance Record
 CREATE OR REPLACE FUNCTION get_daily_attendance_record(
     p_stud_id INT,
@@ -1059,23 +1198,157 @@ ALTER TABLE faculty_attendance_actions
 ADD CONSTRAINT valid_action_type 
 CHECK (action_type IN ('excuse', 'change_status', 'add_manual', 'approve_request', 'reject_request', 'bulk_excuse'));
 
-SELECT * FROM academic_terms;
-SELECT * FROM administration;
-SELECT * FROM administration_audit;
-SELECT * FROM authentication_audit
-SELECT * FROM attendance;
-SELECT * FROM class_schedules;
-SELECT * FROM classes;
-SELECT * FROM courses;
-SELECT * FROM departments;
-SELECT * FROM enrollment;
-SELECT * FROM faculty;
-SELECT * FROM fingerprint_templates;
-SELECT * FROM programs;
-SELECT * FROM rooms;
-SELECT * FROM scan_logs;
-SELECT * FROM sections;
-SELECT * FROM student_id_pool;
-SELECT * FROM students;
-SELECT * FROM user_roles;
-SELECT * FROM users;
+-- ============================================================
+-- COMPLETE DATABASE TABLE QUERIES
+-- ============================================================
+
+-- CORE USER & ROLE TABLES
+SELECT * FROM user_roles ORDER BY role_id;
+SELECT * FROM users ORDER BY user_id;
+SELECT * FROM authentication_audit ORDER BY auth_action_time DESC;
+
+-- ADMINISTRATION TABLES
+SELECT * FROM administration ORDER BY admin_id;
+SELECT * FROM administration_audit ORDER BY aud_action_time DESC;
+
+-- ACADEMIC STRUCTURE TABLES
+SELECT * FROM departments ORDER BY dept_id;
+SELECT * FROM programs ORDER BY program_id;
+SELECT * FROM courses ORDER BY course_id;
+SELECT * FROM sections ORDER BY section_id;
+SELECT * FROM rooms ORDER BY room_id;
+SELECT * FROM academic_terms ORDER BY term_id;
+
+-- FACULTY TABLES
+SELECT * FROM faculty ORDER BY fac_id;
+
+-- STUDENT TABLES
+SELECT * FROM students ORDER BY stud_id;
+SELECT * FROM student_id_pool ORDER BY pool_id;
+
+-- CLASS & ENROLLMENT TABLES
+SELECT * FROM classes ORDER BY class_id;
+SELECT * FROM class_schedules ORDER BY sched_id;
+SELECT * FROM enrollment ORDER BY enroll_id;
+
+-- ATTENDANCE TABLES
+SELECT * FROM attendance ORDER BY attend_id DESC;
+SELECT * FROM daily_attendance_log ORDER BY attend_date DESC, daily_attend_id DESC;
+SELECT * FROM scan_logs ORDER BY scan_time DESC;
+SELECT * FROM student_excuse_requests ORDER BY submitted_at DESC;
+SELECT * FROM faculty_attendance_actions ORDER BY action_timestamp DESC;
+SELECT * FROM attendance_notifications ORDER BY created_at DESC;
+
+-- BIOMETRIC TABLES
+SELECT * FROM fingerprint_templates ORDER BY ftemp_id;
+
+-- ============================================================
+-- USEFUL DIAGNOSTIC QUERIES
+-- ============================================================
+
+-- Find users WITHOUT student records (THIS IS YOUR PROBLEM!)
+SELECT 
+    u.user_id,
+    u.user_email,
+    u.user_first_name,
+    u.user_last_name,
+    u.role_id,
+    ur.role_name,
+    CASE WHEN s.stud_id IS NULL THEN '❌ NO STUDENT RECORD' ELSE '✅ Has Student Record' END as status
+FROM users u
+JOIN user_roles ur ON u.role_id = ur.role_id
+LEFT JOIN students s ON u.user_id = s.user_id
+WHERE u.role_id = 3  -- Student role
+ORDER BY s.stud_id NULLS FIRST;
+
+-- Count records in each table
+SELECT 
+    'user_roles' as table_name, COUNT(*) as record_count FROM user_roles
+UNION ALL SELECT 'users', COUNT(*) FROM users
+UNION ALL SELECT 'administration', COUNT(*) FROM administration
+UNION ALL SELECT 'departments', COUNT(*) FROM departments
+UNION ALL SELECT 'faculty', COUNT(*) FROM faculty
+UNION ALL SELECT 'programs', COUNT(*) FROM programs
+UNION ALL SELECT 'courses', COUNT(*) FROM courses
+UNION ALL SELECT 'sections', COUNT(*) FROM sections
+UNION ALL SELECT 'students', COUNT(*) FROM students
+UNION ALL SELECT 'student_id_pool', COUNT(*) FROM student_id_pool
+UNION ALL SELECT 'rooms', COUNT(*) FROM rooms
+UNION ALL SELECT 'classes', COUNT(*) FROM classes
+UNION ALL SELECT 'class_schedules', COUNT(*) FROM class_schedules
+UNION ALL SELECT 'enrollment', COUNT(*) FROM enrollment
+UNION ALL SELECT 'academic_terms', COUNT(*) FROM academic_terms
+UNION ALL SELECT 'attendance', COUNT(*) FROM attendance
+UNION ALL SELECT 'daily_attendance_log', COUNT(*) FROM daily_attendance_log
+UNION ALL SELECT 'scan_logs', COUNT(*) FROM scan_logs
+UNION ALL SELECT 'fingerprint_templates', COUNT(*) FROM fingerprint_templates
+UNION ALL SELECT 'student_excuse_requests', COUNT(*) FROM student_excuse_requests
+UNION ALL SELECT 'faculty_attendance_actions', COUNT(*) FROM faculty_attendance_actions
+UNION ALL SELECT 'attendance_notifications', COUNT(*) FROM attendance_notifications
+UNION ALL SELECT 'authentication_audit', COUNT(*) FROM authentication_audit
+UNION ALL SELECT 'administration_audit', COUNT(*) FROM administration_audit
+ORDER BY table_name;
+
+-- View all students with their enrollment status
+SELECT 
+    s.stud_id,
+    s.stud_number,
+    u.user_first_name || ' ' || u.user_last_name as full_name,
+    u.user_email,
+    p.program_name,
+    s.stud_year_level,
+    sec.section_name,
+    s.profile_submitted,
+    s.profile_submitted_at,
+    COUNT(DISTINCT e.class_id) as enrolled_classes
+FROM students s
+JOIN users u ON s.user_id = u.user_id
+LEFT JOIN programs p ON s.program_id = p.program_id
+LEFT JOIN sections sec ON s.section_id = sec.section_id
+LEFT JOIN enrollment e ON s.stud_id = e.stud_id
+GROUP BY s.stud_id, s.stud_number, u.user_first_name, u.user_last_name, 
+         u.user_email, p.program_name, s.stud_year_level, sec.section_name,
+         s.profile_submitted, s.profile_submitted_at
+ORDER BY s.stud_id;
+
+-- View all classes with enrollment counts
+SELECT 
+    c.class_id,
+    co.course_code,
+    co.course_name,
+    r.room_code,
+    u.user_first_name || ' ' || u.user_last_name as faculty_name,
+    at.term_name,
+    COUNT(e.enroll_id) as enrolled_students
+FROM classes c
+JOIN courses co ON c.course_id = co.course_id
+LEFT JOIN rooms r ON c.room_id = r.room_id
+LEFT JOIN faculty f ON c.fac_id = f.fac_id
+LEFT JOIN users u ON f.user_id = u.user_id
+LEFT JOIN academic_terms at ON c.term_id = at.term_id
+LEFT JOIN enrollment e ON c.class_id = e.class_id
+GROUP BY c.class_id, co.course_code, co.course_name, r.room_code,
+         u.user_first_name, u.user_last_name, at.term_name
+ORDER BY c.class_id;
+
+-- Check for orphaned records (users with student role but no student record)
+SELECT 
+    'CRITICAL: Students without records' as issue_type,
+    COUNT(*) as count
+FROM users u
+LEFT JOIN students s ON u.user_id = s.user_id
+WHERE u.role_id = 3 AND s.stud_id IS NULL
+UNION ALL
+SELECT 
+    'Faculty without records' as issue_type,
+    COUNT(*) as count
+FROM users u
+LEFT JOIN faculty f ON u.user_id = f.user_id
+WHERE u.role_id = 2 AND f.fac_id IS NULL
+UNION ALL
+SELECT 
+    'Admins without records' as issue_type,
+    COUNT(*) as count
+FROM users u
+LEFT JOIN administration a ON u.user_id = a.user_id
+WHERE u.role_id = 1 AND a.admin_id IS NULL;
