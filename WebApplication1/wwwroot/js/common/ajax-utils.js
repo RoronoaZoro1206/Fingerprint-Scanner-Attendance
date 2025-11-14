@@ -1,13 +1,19 @@
+// @ts-check
 /**
  * Common AJAX Utilities
  * Shared AJAX request handling functions
+ * 
+ * @typedef {Object} AjaxResponse
+ * @property {boolean} success - Whether the request was successful
+ * @property {string} [message] - Optional message
+ * @property {*} [data] - Optional data payload
  */
 
 /**
  * Make a GET request
  * @param {string} url - API endpoint URL
- * @param {Function} successCallback - Success callback function
- * @param {Function} errorCallback - Error callback function (optional)
+ * @param {function(AjaxResponse): void} successCallback - Success callback function
+ * @param {function(*): void} [errorCallback] - Error callback function (optional)
  */
 function ajaxGet(url, successCallback, errorCallback) {
     $.ajax({
@@ -33,8 +39,8 @@ function ajaxGet(url, successCallback, errorCallback) {
  * Make a POST request
  * @param {string} url - API endpoint URL
  * @param {Object} data - Data to send
- * @param {Function} successCallback - Success callback function
- * @param {Function} errorCallback - Error callback function (optional)
+ * @param {function(AjaxResponse): void} successCallback - Success callback function
+ * @param {function(*): void} [errorCallback] - Error callback function (optional)
  */
 function ajaxPost(url, data, successCallback, errorCallback) {
     $.ajax({
@@ -66,8 +72,8 @@ function ajaxPost(url, data, successCallback, errorCallback) {
  * Make a PUT request
  * @param {string} url - API endpoint URL
  * @param {Object} data - Data to send
- * @param {Function} successCallback - Success callback function
- * @param {Function} errorCallback - Error callback function (optional)
+ * @param {function(AjaxResponse): void} successCallback - Success callback function
+ * @param {function(*): void} [errorCallback] - Error callback function (optional)
  */
 function ajaxPut(url, data, successCallback, errorCallback) {
     $.ajax({
@@ -98,8 +104,8 @@ function ajaxPut(url, data, successCallback, errorCallback) {
 /**
  * Make a DELETE request
  * @param {string} url - API endpoint URL
- * @param {Function} successCallback - Success callback function
- * @param {Function} errorCallback - Error callback function (optional)
+ * @param {function(AjaxResponse): void} successCallback - Success callback function
+ * @param {function(*): void} [errorCallback] - Error callback function (optional)
  */
 function ajaxDelete(url, successCallback, errorCallback) {
     $.ajax({
@@ -127,8 +133,8 @@ function ajaxDelete(url, successCallback, errorCallback) {
 
 /**
  * Handle AJAX error with appropriate message
- * @param {Object} xhr - XMLHttpRequest object
- * @param {string} defaultMessage - Default error message
+ * @param {JQuery.jqXHR} xhr - XMLHttpRequest object
+ * @param {string} [defaultMessage='An error occurred'] - Default error message
  */
 function handleAjaxError(xhr, defaultMessage = 'An error occurred') {
     console.error('AJAX Error:', xhr);

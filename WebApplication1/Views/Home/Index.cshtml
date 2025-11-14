@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Home Page";
 }
 
@@ -28,43 +28,19 @@
                     <p>Recent attendance records</p>
                 </div>
                 <div class="results-time">
-                    <span class="time" id="current-time">10:22:15 AM</span>
-                    <span class="date" id="current-date">10/07/2025</span>
-                </div>
-            </div>
-
-            <!-- Recent Scan Record -->
-            <div class="scan-record">
-                <div class="scan-status-row">
-                    <span class="scan-status">TIME IN</span>
-                    <span class="scan-time">09:58:00 AM</span>
-                </div>
-                
-                <div class="scan-user">
-                    <i data-lucide="user" style="color: #ea580c;"></i>
-                    <div class="scan-class-info">
-                        <h3>Kevin Harris</h3>
-                        <p>Student</p>
-                    </div>
-                </div>
-                
-                <div class="scan-class">
-                    <i data-lucide="calendar" style="color: #ea580c;"></i>
-                    <div class="scan-class-info">
-                        <h4>ENG101 - Engineering Mathematics</h4>
-                        <p>Class</p>
-                    </div>
+                    <span class="time" id="current-time">--:--:-- --</span>
+                    <span class="date" id="current-date">--/--/----</span>
                 </div>
             </div>
 
             <!-- Stats Cards -->
             <div class="scan-stats">
                 <div class="scan-stat-card success">
-                    <h3>98.5%</h3>
+                    <h3>0%</h3>
                     <p>Success Rate</p>
                 </div>
                 <div class="scan-stat-card total">
-                    <h3>1,247</h3>
+                    <h3>0</h3>
                     <p>Today's Scans</p>
                 </div>
             </div>
@@ -72,68 +48,142 @@
     </div>
 </div>
 
+<!-- Audio for scan feedback -->
+<audio id="successBeep" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSKA0fPWijgID2u98Om" type="audio/wav">
+</audio>
+<audio id="errorBeep" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSKA0fPWijgID2u98Om" type="audio/wav">
+</audio>
+
+@section Scripts {
+    <script src="~/js/home-attendance-scanner.js" asp-append-version="true"></script>
+}
+
 <style>
     /* Modern home page scanner - White background with colored border */
     .fingerprint-container {
-    background: #ffffff !important; /* Pure white background */
-   border: 3px solid #e5e7eb !important; /* Gray border */
-   cursor: pointer;
+        background: #ffffff !important; /* Pure white background */
+        border: 3px solid #e5e7eb !important; /* Gray border */
+        cursor: pointer;
         transition: all 0.3s ease;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .fingerprint-container:hover {
-   background: #ffffff !important; /* Keep white */
+        background: #ffffff !important; /* Keep white */
         border-color: #3b82f6 !important; /* Blue border */
- }
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
+    }
 
     .fingerprint-container.scanning {
-background: #ffffff !important; /* Keep white */
+        background: #ffffff !important; /* Keep white */
         border-color: #3b82f6 !important; /* Blue border */
-   border-width: 4px !important;
-   animation: pulse 1.5s infinite;
+        border-width: 4px !important;
+        animation: pulse 1.5s infinite;
     }
 
     .fingerprint-container.success {
-    background: #ffffff !important; /* Keep white */
-   border-color: #10b981 !important; /* Green border */
+        background: #ffffff !important; /* Keep white */
+        border-color: #10b981 !important; /* Green border */
         border-width: 4px !important;
+        animation: successPulse 0.6s ease-out;
     }
 
     .fingerprint-container.error {
-  background: #ffffff !important; /* Keep white */
+        background: #ffffff !important; /* Keep white */
         border-color: #ef4444 !important; /* Red border */
-border-width: 4px !important;
+        border-width: 4px !important;
+        animation: errorShake 0.5s ease-out;
     }
 
     .scanner-instruction-text {
         font-size: 1.2rem;
         color: rgba(107, 114, 128, 0.6);
-      font-weight: 500;
-    text-align: center;
+        font-weight: 500;
+        text-align: center;
     }
 
     .fingerprint-container.scanning .scanner-instruction-text {
         color: rgba(59, 130, 246, 0.9);
     }
 
- /* Fingerprint image - black on white */
-    .fingerprint-container img {
- max-width: 90%;
-        max-height: 90%;
-  object-fit: contain;
-        border-radius: 50%;
-    filter: contrast(1.2) brightness(1.1);
+    .fingerprint-container.success .scanner-instruction-text {
+        color: rgba(16, 185, 129, 0.9);
     }
 
+    .fingerprint-container.error .scanner-instruction-text {
+        color: rgba(239, 68, 68, 0.9);
+    }
+
+    /* Status message */
+    .scan-status-message {
+        display: none;
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .scan-status-message.success {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #10b981;
+    }
+
+    .scan-status-message.error {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #ef4444;
+    }
+
+    .scan-status-message.warning {
+        background-color: #fef3c7;
+        color: #92400e;
+        border: 1px solid #f59e0b;
+    }
+
+    /* CSS Animations */
+    @@-webkit-keyframes pulse {
+        0%, 100% { transform: scale(1); border-color: #3b82f6; }
+        50% { transform: scale(1.02); border-color: #2563eb; }
+    }
+    
     @@keyframes pulse {
-        0%, 100% {
-            transform: scale(1);
-       border-color: #3b82f6;
-        }
- 50% {
-    transform: scale(1.02);
-   border-color: #2563eb;
-        }
+        0%, 100% { transform: scale(1); border-color: #3b82f6; }
+        50% { transform: scale(1.02); border-color: #2563eb; }
+    }
+
+    @@-webkit-keyframes successPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @@keyframes successPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    @@-webkit-keyframes errorShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+    
+    @@keyframes errorShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
     }
 </style>
 

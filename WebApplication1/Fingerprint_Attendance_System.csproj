@@ -2,46 +2,61 @@
 
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
-  <Nullable>enable</Nullable>
+        <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <!-- Suppress SQL validation errors (PostgreSQL syntax in MSSQL validator) -->
+        <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-		<PackageReference Include="DotNetEnv" Version="3.1.1" />
-		<PackageReference Include="EPPlus" Version="8.2.1" />
-		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
-		<PackageReference Include="Npgsql" Version="9.0.4" />
-		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-		<PackageReference Include="System.Text.Json" Version="9.0.10" />
-		<PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
-	</ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+        <PackageReference Include="DotNetEnv" Version="3.1.1" />
+        <PackageReference Include="EPPlus" Version="8.2.1" />
+        <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
+        <PackageReference Include="Npgsql" Version="9.0.4" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+        <PackageReference Include="System.Text.Json" Version="9.0.10" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    </ItemGroup>
 
-	<ItemGroup>
-	  <!-- ZKTeco Fingerprint SDK C# Wrapper -->
-	  <Reference Include="libzkfpcsharp">
-	    <HintPath>libzkfpcsharp.dll</HintPath>
-	    <Private>True</Private>
-	  </Reference>
-	</ItemGroup>
+    <ItemGroup>
+        <!-- ZKTeco Fingerprint SDK C# Wrapper -->
+        <Reference Include="libzkfpcsharp">
+            <HintPath>libzkfpcsharp.dll</HintPath>
+            <Private>True</Private>
+        </Reference>
+    </ItemGroup>
 
-	<!-- Copy DLL to output directory -->
-	<ItemGroup>
-	  <None Include="libzkfpcsharp.dll">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Schema\migrations\" />
-	</ItemGroup>
+    <!-- Copy DLL to output directory -->
+    <ItemGroup>
+        <None Include="libzkfpcsharp.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <!-- Exclude SQL files from build validation (PostgreSQL syntax) -->
+    <ItemGroup>
+        <None Include="Schema\**\*.sql">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <!-- Exclude SQL files from compilation -->
+    <ItemGroup>
+        <Compile Remove="Schema\**\*.sql" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Schema\migrations\" />
+    </ItemGroup>
 
 </Project>

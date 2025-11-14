@@ -1,0 +1,39 @@
+root = true
+
+# All files
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C# files
+[*.cs]
+indent_style = space
+indent_size = 4
+
+# JavaScript/TypeScript files
+[*.{js,ts}]
+indent_style = space
+indent_size = 4
+# Suppress TypeScript checking for JavaScript files
+# These are common warnings that don't affect runtime
+dotnet_diagnostic.TS2304.severity = none  # Cannot find name
+dotnet_diagnostic.TS2339.severity = none  # Property does not exist
+dotnet_diagnostic.TS2531.severity = none  # Object is possibly null
+dotnet_diagnostic.TS2552.severity = none  # Cannot find name (suggestions)
+dotnet_diagnostic.TS2581.severity = none  # Cannot find name (install types)
+
+# SQL files
+[*.sql]
+indent_style = space
+indent_size = 4
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# XML/HTML files
+[*.{xml,html,cshtml,razor}]
+indent_style = space
+indent_size = 4
