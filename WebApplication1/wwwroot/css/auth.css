@@ -122,7 +122,7 @@
     transform: translateY(-50%);
     background: none;
     border: none;
-  cursor: pointer;
+    cursor: pointer;
     padding: 0.5rem; /* Larger click area */
  color: #6b7280;
     transition: color 0.2s ease;
@@ -216,6 +216,42 @@
     height: 20px;
 }
 
+/* ✅ NEW: Auth footer actions (Back to Home button) */
+.auth-footer-actions {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.back-to-home-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background-color: transparent;
+    color: #6b7280;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.back-to-home-btn:hover {
+    background-color: #f9fafb;
+    color: #000000;
+    border-color: #d1d5db;
+    transform: translateX(-2px);
+}
+
+.back-to-home-btn i {
+    width: 18px;
+    height: 18px;
+}
+
 .register-link {
     margin-top: 1.5rem;
     text-align: center;
@@ -254,6 +290,11 @@
 
     .form-title {
         font-size: 1.125rem;
+    }
+    
+    .back-to-home-btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
     }
 }
 

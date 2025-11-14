@@ -15,10 +15,12 @@
     let isScanning = false;
     let scannerOnline = false;
     let autoScanInterval = null;
+    let lastScanAttempt = 0;
+    const SCAN_COOLDOWN_MS = 1500; // Minimum 1.5 seconds between scan attempts
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function () {
-        console.log('? Public Attendance Scanner Initialized');
+        console.log('✅ Public Attendance Scanner Initialized');
 
         // Initialize Lucide icons
         if (typeof lucide !== 'undefined') {
@@ -41,7 +43,7 @@
             fingerprintScanner.addEventListener('click', handleScanClick);
         }
 
-        // Auto-scan every 1 second
+        // Auto-scan every 2 seconds (reduced frequency to prevent excessive polling)
         startAutoScan();
     });
 
@@ -56,9 +58,12 @@
             if (result.success && result.isAvailable) {
                 updateScannerState('ready');
                 scannerOnline = true;
+                console.log('✅ Scanner is online and ready');
             } else {
                 updateScannerState('offline');
                 scannerOnline = false;
+                console.warn('⚠️ Scanner is offline');
+                showStatusMessage('Scanner not available. Please connect the fingerprint device.', 'error');
             }
         } catch (error) {
             console.error('Error checking scanner status:', error);
@@ -76,25 +81,43 @@
     }
 
     /**
-     * Start automatic scanning (checks every second)
+     * Start automatic scanning (checks every 2 seconds)
      */
     function startAutoScan() {
         autoScanInterval = setInterval(async () => {
-            if (!isScanning && scannerOnline) {
+            // Only attempt scan if:
+            // 1. Not currently scanning
+            // 2. Scanner is online
+            // 3. Enough time has passed since last attempt (cooldown)
+            const now = Date.now();
+            if (!isScanning && scannerOnline && (now - lastScanAttempt) >= SCAN_COOLDOWN_MS) {
                 await performScan();
             }
-        }, 1000);
+        }, 2000); // Reduced from 1000ms to 2000ms
     }
 
     /**
      * Perform fingerprint scan
      */
     async function performScan() {
-        if (isScanning) return;
+        // Prevent concurrent scans
+        if (isScanning) {
+            console.log('⏸️ Scan already in progress, skipping...');
+            return;
+        }
+
+        // Enforce cooldown period
+        const now = Date.now();
+        if ((now - lastScanAttempt) < SCAN_COOLDOWN_MS) {
+            console.log('⏸️ Cooldown period active, skipping scan...');
+            return;
+        }
 
         try {
             isScanning = true;
+            lastScanAttempt = now;
             updateScannerState('scanning');
+            console.log('🔍 Starting fingerprint scan...');
 
             const response = await fetch('/Home/ScanFingerprint', {
                 method: 'POST',
@@ -103,26 +126,42 @@
                 }
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const result = await response.json();
+            console.log('📥 Scan result:', result);
 
             if (result.success) {
                 handleScanSuccess(result);
             } else {
-                // Silent fail for "no finger detected"
-                if (!result.message.includes('No fingerprint detected')) {
-                    handleScanError(result.message);
+                // Check if it's a "no finger detected" error (should not show error state)
+                const message = result.message || '';
+                
+                if (message.includes('No fingerprint detected') || 
+                    message.includes('no finger detected') ||
+                    message.includes('Place your finger')) {
+                    // Silent fail - just reset to ready state without showing error
+                    console.log('ℹ️ No finger detected - waiting for finger placement');
+                    updateScannerState('ready');
+                } else {
+                    // Actual error - show error state
+                    handleScanError(message);
                 }
             }
         } catch (error) {
-            // Silent fail for network errors (scanner waiting for finger)
-            console.error('Scan error:', error);
+            // Network or unexpected error
+            console.error('❌ Scan error:', error);
+            handleScanError('Connection error. Please try again.');
         } finally {
-            isScanning = false;
+            // Always reset scanning state after a delay
             setTimeout(() => {
-                if (scannerOnline) {
+                isScanning = false;
+                if (scannerOnline && fingerprintScanner && !fingerprintScanner.classList.contains('success')) {
                     updateScannerState('ready');
                 }
-            }, 2000);
+            }, 800);
         }
     }
 
@@ -130,7 +169,13 @@
      * Handle successful scan
      */
     function handleScanSuccess(data) {
-        console.log('? Scan successful:', data);
+        console.log('✅ Scan successful:', data);
+
+        // Stop auto-scanning temporarily
+        if (autoScanInterval) {
+            clearInterval(autoScanInterval);
+            autoScanInterval = null;
+        }
 
         // Play success beep
         playBeep('success');
@@ -140,31 +185,34 @@
 
         // Show success message
         const actionText = data.action === 'time_in' ? 'TIME IN' : 'TIME OUT';
-        const message = `? ${actionText} recorded for ${data.student.fullName}`;
+        const studentName = data.student?.fullName || 'Student';
+        const message = `✅ ${actionText} recorded for ${studentName}`;
         
         showStatusMessage(message, 'success');
 
         // Show incomplete warning if present
         if (data.incompleteRecordsWarning) {
             setTimeout(() => {
-                showStatusMessage(`?? ${data.incompleteRecordsWarning}`, 'warning');
+                showStatusMessage(`⚠️ ${data.incompleteRecordsWarning}`, 'warning');
             }, 3000);
         }
 
         // Reload statistics
         loadStatistics();
 
-        // Reset to ready state after 4 seconds
+        // Reset to ready state and restart auto-scan after 5 seconds
         setTimeout(() => {
             updateScannerState('ready');
-        }, 4000);
+            // Restart auto-scanning
+            startAutoScan();
+        }, 5000);
     }
 
     /**
      * Handle scan error
      */
     function handleScanError(errorMessage) {
-        console.error('? Scan error:', errorMessage);
+        console.error('❌ Scan error:', errorMessage);
 
         // Play error beep
         playBeep('error');
@@ -177,7 +225,9 @@
 
         // Reset to ready state after 3 seconds
         setTimeout(() => {
-            updateScannerState('ready');
+            if (scannerOnline) {
+                updateScannerState('ready');
+            }
         }, 3000);
     }
 
@@ -185,29 +235,33 @@
      * Update scanner visual state
      */
     function updateScannerState(state) {
+        if (!fingerprintScanner) return;
+
         // Remove all state classes
         fingerprintScanner.classList.remove('scanning', 'success', 'error');
 
         // Update instruction text
-        switch (state) {
-            case 'ready':
-                scannerInstructionText.textContent = 'Place finger here';
-                break;
-            case 'scanning':
-                fingerprintScanner.classList.add('scanning');
-                scannerInstructionText.textContent = 'Scanning...';
-                break;
-            case 'success':
-                fingerprintScanner.classList.add('success');
-                scannerInstructionText.textContent = 'Success!';
-                break;
-            case 'error':
-                fingerprintScanner.classList.add('error');
-                scannerInstructionText.textContent = 'Try again';
-                break;
-            case 'offline':
-                scannerInstructionText.textContent = 'Scanner offline';
-                break;
+        if (scannerInstructionText) {
+            switch (state) {
+                case 'ready':
+                    scannerInstructionText.textContent = 'Place finger here';
+                    break;
+                case 'scanning':
+                    fingerprintScanner.classList.add('scanning');
+                    scannerInstructionText.textContent = 'Scanning...';
+                    break;
+                case 'success':
+                    fingerprintScanner.classList.add('success');
+                    scannerInstructionText.textContent = 'Success!';
+                    break;
+                case 'error':
+                    fingerprintScanner.classList.add('error');
+                    scannerInstructionText.textContent = 'Try again';
+                    break;
+                case 'offline':
+                    scannerInstructionText.textContent = 'Scanner offline';
+                    break;
+            }
         }
     }
 
@@ -291,7 +345,7 @@
         const audio = document.getElementById(type === 'success' ? 'successBeep' : 'errorBeep');
         if (audio) {
             audio.currentTime = 0;
-            audio.play();
+            audio.play().catch(err => console.warn('Audio play failed:', err));
         }
     }
 
