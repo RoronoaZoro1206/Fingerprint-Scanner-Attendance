@@ -1,3 +1,5 @@
+/// <reference path="../global.d.ts" />
+
 /**
  * Room Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
@@ -65,12 +67,12 @@ function initializeDataTable() {
         columns: [
             {
                 data: 'RoomCode',
-                width: '20%',  // ? Fixed width for Room Code
-                className: 'text-nowrap'  // ? Prevent wrapping
+                width: '20%',  // ✅ Fixed width for Room Code
+                className: 'text-nowrap'  // ✅ Prevent wrapping
             },
             {
                 data: 'RoomDescription',
-                width: '65%',  // ? Fixed width for Description (allows truncation)
+                width: '65%',  // ✅ Fixed width for Description (allows truncation)
                 render: function (data, type, row) {
                     // For display, show truncated with full text in title attribute (tooltip)
                     if (type === 'display') {
@@ -86,10 +88,10 @@ function initializeDataTable() {
             },
             {
                 data: null,
-                width: '15%',  // ? Fixed width for Actions
+                width: '15%',  // ✅ Fixed width for Actions
                 orderable: false,
                 searchable: false,
-                className: 'text-center',  // ? Center align actions
+                className: 'text-center',  // ✅ Center align actions
                 render: function (data, type, row) {
                     return `
                         <div class="action-buttons">
@@ -108,7 +110,7 @@ function initializeDataTable() {
         columnDefs: [
             {
                 targets: [0, 2],  // Room Code and Actions columns
-                className: 'dt-nowrap'  // ? Prevent wrapping in these columns
+                className: 'dt-nowrap'  // ✅ Prevent wrapping in these columns
             }
         ],
         ...commonDataTableConfig,

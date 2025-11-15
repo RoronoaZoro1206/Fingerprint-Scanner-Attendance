@@ -1,4 +1,6 @@
-﻿// Fingerprint Registration JavaScript
+/// <reference path="global.d.ts" />
+
+// Fingerprint Registration JavaScript
 document.addEventListener('DOMContentLoaded', function () {
     const btnScan = document.getElementById('btnScan');
     const btnRegister = document.getElementById('btnRegister');

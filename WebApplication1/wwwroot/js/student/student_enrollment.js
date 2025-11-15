@@ -1,3 +1,5 @@
+/// <reference path="../../global.d.ts" />
+
 /**
  * Student Enrollment Management - Refactored to use common utilities
  * Manage class enrollments and unenrollments
@@ -90,7 +92,7 @@ function loadCurrentEnrollments() {
 
 /**
  * Display current enrollments
- * ? FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
+ * ✅ FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
  */
 function displayCurrentEnrollments(enrollments) {
     const container = $('#currentEnrollments');
@@ -110,7 +112,7 @@ function displayCurrentEnrollments(enrollments) {
 
     let html = '';
     enrollments.forEach(enrollment => {
-        // ? FIX: Handle both camelCase and PascalCase with null/undefined checks
+        // ✅ FIX: Handle both camelCase and PascalCase with null/undefined checks
         const enrollId = enrollment.enrollId || enrollment.EnrollId;
         const courseCode = enrollment.courseCode || enrollment.CourseCode || 'UNKNOWN';
         const courseName = enrollment.courseName || enrollment.CourseName || 'Unknown Course';
@@ -177,7 +179,7 @@ function loadAvailableClasses() {
 
 /**
  * Display available classes
- * ? FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
+ * ✅ FIXED: Added null/undefined checks with fallback to both camelCase and PascalCase
  */
 function displayAvailableClasses(classes) {
     const container = $('#availableClasses');
@@ -197,7 +199,7 @@ function displayAvailableClasses(classes) {
 
     let html = '';
     classes.forEach(classItem => {
-        // ? FIX: Handle both camelCase and PascalCase with null/undefined checks
+        // ✅ FIX: Handle both camelCase and PascalCase with null/undefined checks
         const courseCode = classItem.courseCode || classItem.CourseCode || 'UNKNOWN';
         const courseName = classItem.courseName || classItem.CourseName || 'Unknown Course';
         const facultyName = classItem.facultyName || classItem.FacultyName || 'No Faculty Assigned';
@@ -243,10 +245,10 @@ function displayAvailableClasses(classes) {
 
 /**
  * Enroll in a class
- * ? FIXED: Added classId validation and better error handling
+ * ✅ FIXED: Added classId validation and better error handling
  */
 function enrollInClass(classId) {
-    // ? FIX: Validate classId
+    // ✅ FIX: Validate classId
     if (!classId || classId === 'undefined' || classId === undefined) {
         Toast.error('Invalid class ID. Please refresh the page and try again.');
         console.error('Invalid classId:', classId);

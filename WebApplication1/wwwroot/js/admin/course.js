@@ -1,8 +1,10 @@
+/// <reference path="../global.d.ts" />
+
 /**
  * Course Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
  * 
- * ? FIXED: Case sensitivity - changed to snake_case to match backend
+ * ✅ FIXED: Case sensitivity - changed to snake_case to match backend
  */
 
 let coursesTable;
@@ -84,7 +86,7 @@ function populateProgramDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     programsData.forEach(program => {
-        // ? FIX: Changed to snake_case
+        // ✅ FIX: Changed to snake_case
         const option = `<option value="${program.program_id}">${program.program_name}</option>`;
         addSelect.append(option);
         editSelect.append(option);
@@ -105,23 +107,23 @@ function initializeDataTable() {
         },
         columns: [
             { 
-                // ? FIX: Changed from 'courseCode' to 'course_code' (snake_case)
+                // ✅ FIX: Changed from 'courseCode' to 'course_code' (snake_case)
                 data: 'course_code',
                 width: '12%'
             },
             { 
-                // ? FIX: Changed from 'courseName' to 'course_name' (snake_case)
+                // ✅ FIX: Changed from 'courseName' to 'course_name' (snake_case)
                 data: 'course_name',
                 width: '30%'
             },
             { 
-                // ? FIX: Changed from 'courseUnits' to 'course_units' (snake_case)
+                // ✅ FIX: Changed from 'courseUnits' to 'course_units' (snake_case)
                 data: 'course_units',
                 width: '8%',
                 className: 'text-center'
             },
             { 
-                // ? FIX: Changed from 'programName' to 'program_name' (snake_case)
+                // ✅ FIX: Changed from 'programName' to 'program_name' (snake_case)
                 data: 'program_name',
                 width: '30%'
             },
@@ -131,7 +133,7 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data) {
-                    // ? FIX: Changed from data.courseId to data.course_id (snake_case)
+                    // ✅ FIX: Changed from data.courseId to data.course_id (snake_case)
                     return `
                         <div class="action-buttons">
                             <button class="btn-action btn-edit" onclick="showEditModal(${data.course_id})" title="Edit">
@@ -166,7 +168,7 @@ function showEditModal(courseId) {
     ajaxGet(`/AdminCourse/GetById/${courseId}`,
         function (response) {
             const course = response.data;
-            // ? FIX: Changed to snake_case
+            // ✅ FIX: Changed to snake_case
             $('#editCourseId').val(course.course_id);
             $('#editCourseCode').val(course.course_code);
             $('#editCourseName').val(course.course_name);
@@ -323,7 +325,7 @@ function getCoursesData() {
     const data = [];
     coursesTable.rows({ search: 'applied' }).every(function () {
         const rowData = this.data();
-        // ? FIX: Changed to snake_case
+        // ✅ FIX: Changed to snake_case
         data.push({
             'Code': rowData.course_code,
             'Name': rowData.course_name,

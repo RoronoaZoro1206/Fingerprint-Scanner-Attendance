@@ -83,7 +83,7 @@
     background: #ffffff !important; /* Keep white */
     border-color: #3b82f6 !important; /* Blue border */
     border-width: 4px !important;
-    animation: pulse 1.5s ease-in-out;
+    animation: scanPulse 1.5s ease-in-out infinite;
 }
 
 .fingerprint-container.scanning::before {
@@ -94,7 +94,7 @@
  width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
-    animation: scan 2s ease-in-out;
+    animation: scan 2s ease-in-out infinite;
 }
 
 .fingerprint-container.success {
@@ -109,6 +109,13 @@
     border-color: #ef4444 !important; /* Red border */
     border-width: 4px !important;
     animation: shake 0.5s ease-in-out;
+}
+
+.fingerprint-container.offline {
+    background: #ffffff !important;
+    border-color: #9ca3af !important; /* Gray border for offline */
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 /* Fingerprint image display - black on white */
@@ -142,8 +149,18 @@
     color: #dc2626;
 }
 
-/* Animations */
+/* ✅ NEW: Ready pulse animation (from fingerprint-scan.js) */
 @keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+}
+
+/* Scanning pulse animation */
+@keyframes scanPulse {
     0%, 100% {
         transform: scale(1);
     }
@@ -229,6 +246,31 @@
     margin-bottom: 0.75rem;
 }
 
+/* ✅ FIXED: Scanner instruction text styling */
+.scanner-instruction-text {
+    font-size: 1.2rem;
+    color: rgba(107, 114, 128, 0.6);
+    font-weight: 500;
+    text-align: center;
+    transition: color 0.3s ease;
+}
+
+.fingerprint-container.scanning .scanner-instruction-text {
+    color: rgba(59, 130, 246, 0.9);
+}
+
+.fingerprint-container.success .scanner-instruction-text {
+    color: rgba(16, 185, 129, 0.9);
+}
+
+.fingerprint-container.error .scanner-instruction-text {
+    color: rgba(239, 68, 68, 0.9);
+}
+
+.fingerprint-container.offline .scanner-instruction-text {
+    color: rgba(156, 163, 175, 0.6);
+}
+
 /* Scanning Status Message */
 .scan-status-message {
     margin-top: 1rem;
@@ -238,25 +280,42 @@
     text-align: center;
     opacity: 0;
     transition: opacity 0.3s ease;
+    display: none;
 }
 
 .scan-status-message.show {
     opacity: 1;
+    display: block;
 }
 
 .scan-status-message.scanning {
     background-color: #dbeafe;
     color: #1e40af;
+    border: 1px solid #3b82f6;
 }
 
 .scan-status-message.success {
     background-color: #d1fae5;
     color: #065f46;
+    border: 1px solid #10b981;
 }
 
 .scan-status-message.error {
     background-color: #fee2e2;
     color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+.scan-status-message.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.scan-status-message.info {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border: 1px solid #6366f1;
 }
 
 /* Live Scan Results Section */
@@ -432,7 +491,7 @@
     margin: 0;
 }
 
-/* ? NEW: Animation for scan record updates */
+/* 💡 NEW: Animation for scan record updates */
 .scan-record-update {
     animation: highlightUpdate 1s ease-in-out;
 }
@@ -447,7 +506,7 @@
     }
 }
 
-/* ? NEW: Time Out badge styling */
+/* 💡 NEW: Time Out badge styling */
 .scan-status-out {
     background-color: #fee2e2 !important;
     color: #991b1b !important;

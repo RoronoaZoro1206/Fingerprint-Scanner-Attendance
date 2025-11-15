@@ -1,3 +1,5 @@
+/// <reference path="../global.d.ts" />
+
 /**
  * Program Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
@@ -298,7 +300,7 @@ function confirmDeleteProgram() {
 
     ajaxDelete(`/AdminProgram/Delete/${programId}`,
         function () {
-            Toast.deleted('Program');
+            Toast deleted('Program');
             hideModal('deleteProgramModal');
             programsTable.ajax.reload(null, false);
             resetButton($btn);

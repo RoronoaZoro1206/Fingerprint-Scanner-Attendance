@@ -1,10 +1,12 @@
+/// <reference path="global.d.ts" />
+
 /**
  * Auto Logout Detection - Logs user logout when browser/tab is closed
  * Uses Beacon API to reliably send logout signal even during page unload
  * 
- * ? FIXED: Only triggers on REAL logout (browser close/exit)
- * ? DOES NOT trigger on internal navigation (sidebar clicks, page changes)
- * ? ENHANCED: Tracks session duration, last activity, and device info
+ * ✅ FIXED: Only triggers on REAL logout (browser close/exit)
+ * ❌ DOES NOT trigger on internal navigation (sidebar clicks, page changes)
+ * ✅ ENHANCED: Tracks session duration, last activity, and device info
  */
 
 (function() {
@@ -19,14 +21,14 @@
         return;
     }
 
-    console.log('? Auto logout detection enabled for user:', userEmail);
+    console.log('✅ Auto logout detection enabled for user:', userEmail);
 
-    // ? NEW: Track session start time and last activity
+    // ✅ NEW: Track session start time and last activity
     const sessionStartTime = new Date();
     let lastActivityTime = new Date();
 
     /**
-     * ? NEW: Get browser and OS information
+     * ✅ NEW: Get browser and OS information
      */
     function getBrowserInfo() {
         const userAgent = navigator.userAgent;
@@ -63,7 +65,7 @@
     }
 
     /**
-     * ? NEW: Calculate session duration
+     * ✅ NEW: Calculate session duration
      */
     function getSessionDuration() {
         const duration = new Date() - sessionStartTime;
@@ -73,7 +75,7 @@
     }
 
     /**
-     * ? NEW: Format last activity time
+     * ✅ NEW: Format last activity time
      */
     function getLastActivityTime() {
         return lastActivityTime.toLocaleTimeString('en-US', { 
@@ -85,7 +87,7 @@
     }
 
     /**
-     * ? NEW: Get client IP address (best effort - requires server support)
+     * ✅ NEW: Get client IP address (best effort - requires server support)
      * Note: This will be resolved server-side from request headers
      */
     function getClientIP() {
@@ -101,7 +103,7 @@
         try {
             const logoutUrl = '/Auth/AutoLogout';
             
-            // ? ENHANCED: Include session duration, last activity, and device info
+            // ✅ ENHANCED: Include session duration, last activity, and device info
             const data = JSON.stringify({
                 userId: parseInt(userId),
                 userEmail: userEmail,
@@ -116,7 +118,7 @@
             if (navigator.sendBeacon) {
                 const blob = new Blob([data], { type: 'application/json' });
                 const sent = navigator.sendBeacon(logoutUrl, blob);
-                console.log('?? Enhanced logout beacon sent:', sent);
+                console.log('🔵 Enhanced logout beacon sent:', sent);
                 return sent;
             } else {
                 // Fallback to synchronous XHR (not recommended but works)
@@ -124,11 +126,11 @@
                 xhr.open('POST', logoutUrl, false); // false = synchronous
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.send(data);
-                console.log('?? Fallback XHR logout sent');
+                console.log('🔵 Fallback XHR logout sent');
                 return true;
             }
         } catch (error) {
-            console.error('? Error sending logout beacon:', error);
+            console.error('❌ Error sending logout beacon:', error);
             return false;
         }
     }
@@ -163,7 +165,7 @@
     let isInternalClick = false; // Track internal clicks
 
     /**
-     * ? NEW: Update last activity time on user interaction
+     * ✅ NEW: Update last activity time on user interaction
      */
     function updateLastActivity() {
         lastActivityTime = new Date();
@@ -185,14 +187,14 @@
             
             // Check if it's manual logout
             if (href && (href.includes('/Auth/Logout') || href.includes('/Logout'))) {
-                console.log('?? Manual logout detected - disabling auto logout');
+                console.log('🚪 Manual logout detected - disabling auto logout');
                 hasLoggedOut = true; // Prevent auto logout from firing
                 return;
             }
             
             // Check if it's internal navigation (sidebar, menu, etc.)
             if (href && isInternalNavigation(href)) {
-                console.log('?? Internal navigation detected:', href, '- auto logout will NOT trigger');
+                console.log('🏠 Internal navigation detected:', href, '- auto logout will NOT trigger');
                 isInternalClick = true;
                 // Reset flag after a short delay
                 setTimeout(() => {
@@ -203,7 +205,7 @@
             
             // Check if it's an external link
             if (href && !isInternalNavigation(href)) {
-                console.log('?? External link clicked - preparing auto logout');
+                console.log('🔗 External link clicked - preparing auto logout');
                 isLeavingSite = true;
             }
         }
@@ -213,7 +215,7 @@
      * Detect when user is leaving the page
      * This fires BEFORE the page unloads
      * 
-     * ? FIX: Only send logout if NOT internal navigation
+     * ✅ FIX: Only send logout if NOT internal navigation
      */
     window.addEventListener('beforeunload', function(e) {
         // DON'T log if:
@@ -223,29 +225,29 @@
         // 4. Just clicked an internal link (sidebar, menu, etc.)
         
         if (hasLoggedOut) {
-            console.log('?? Already logged out - skipping auto logout');
+            console.log('⏭️ Already logged out - skipping auto logout');
             return;
         }
         
         if (window.location.pathname.includes('/Auth/Logout') || window.location.pathname.includes('/Logout')) {
-            console.log('?? Navigating to logout page - skipping auto logout');
+            console.log('⏭️ Navigating to logout page - skipping auto logout');
             return;
         }
         
         if (isInternalClick) {
-            console.log('?? Internal navigation - skipping auto logout');
+            console.log('⏭️ Internal navigation - skipping auto logout');
             return;
         }
         
         // Only send logout if it's a REAL exit (browser close, external link, etc.)
-        console.log('?? beforeunload detected - checking if real exit...');
-        console.log(`?? Session Info: Duration: ${getSessionDuration()}, Last Activity: ${getLastActivityTime()}`);
+        console.log('⚠️ beforeunload detected - checking if real exit...');
+        console.log(`📊 Session Info: Duration: ${getSessionDuration()}, Last Activity: ${getLastActivityTime()}`);
         
         // Small delay to check if it's internal navigation
         // If page unloads immediately, it's probably browser close
         setTimeout(() => {
             if (!hasLoggedOut && !isInternalClick) {
-                console.log('? Confirmed: User is exiting - sending enhanced logout beacon');
+                console.log('✅ Confirmed: User is exiting - sending enhanced logout beacon');
                 sendLogoutBeacon();
                 hasLoggedOut = true;
             }
@@ -255,7 +257,7 @@
     /**
      * Detect when page visibility changes (tab switch, minimize, etc.)
      * 
-     * ? FIX: More conservative - only log if REALLY closing
+     * ✅ FIX: More conservative - only log if REALLY closing
      */
     document.addEventListener('visibilitychange', function() {
         // Only trigger if:
@@ -268,7 +270,7 @@
             // Wait 2 seconds - if page is still hidden, it's probably closing
             setTimeout(function() {
                 if (document.visibilityState === 'hidden' && !hasLoggedOut && !isInternalClick) {
-                    console.log('??? Page hidden for 2 seconds - likely closing, sending enhanced logout beacon');
+                    console.log('👁️ Page hidden for 2 seconds - likely closing, sending enhanced logout beacon');
                     sendLogoutBeacon();
                     hasLoggedOut = true;
                 }
@@ -279,18 +281,18 @@
     /**
      * Page unload event (last resort fallback)
      * 
-     * ? FIX: Only if NOT internal navigation
+     * ✅ FIX: Only if NOT internal navigation
      */
     window.addEventListener('unload', function() {
         if (!hasLoggedOut && !isInternalClick) {
-            console.log('?? unload event - final attempt to send enhanced logout');
+            console.log('🔴 unload event - final attempt to send enhanced logout');
             sendLogoutBeacon();
             hasLoggedOut = true;
         }
     });
 
-    console.log('? Enhanced auto logout detection initialized successfully');
-    console.log('?? Tracking: Session duration, last activity, device info');
-    console.log('?? Will ONLY log on: browser close, external navigation, or manual logout');
-    console.log('?? Will NOT log on: sidebar clicks, internal page navigation');
+    console.log('✅ Enhanced auto logout detection initialized successfully');
+    console.log('📊 Tracking: Session duration, last activity, device info');
+    console.log('ℹ️ Will ONLY log on: browser close, external navigation, or manual logout');
+    console.log('ℹ️ Will NOT log on: sidebar clicks, internal page navigation');
 })();

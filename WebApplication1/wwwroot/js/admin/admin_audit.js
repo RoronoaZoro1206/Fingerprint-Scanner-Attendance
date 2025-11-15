@@ -1,3 +1,5 @@
+/// <reference path="../global.d.ts" />
+
 /**
  * Admin Audit - Refactored to use common utilities
  * Uses common AJAX, modal, and DataTable utilities
@@ -78,8 +80,9 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    // ? FIX: Properly escape the ID string and wrap in quotes for onclick
+                    // ✅ FIX: Properly escape the ID string and wrap in quotes for onclick
                     const escapedId = String(row.audId).replace(/'/g, "\\'");
+
                     return `
                         <div class="action-buttons">
                             <button class="btn-action btn-view" onclick="viewAudit('${escapedId}')" title="View Details">
@@ -158,9 +161,9 @@ async function loadStatistics() {
  */
 window.viewAudit = async function(id) {
     try {
-        // ? Parse the ID to extract the numeric part and type
+        // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
+        const numericId = id.replace(/^(ADM-|AUTH-)/, ''}
 
         const response = await fetch(`/AdminAudit/GetById/${numericId}?isAuth=${isAuthLog}`);
         const result = await response.json();
@@ -217,11 +220,11 @@ async function confirmDeleteAudit() {
     setButtonLoading($btn, 'Deleting...');
 
     try {
-        // ? Parse the ID to extract the numeric part and type
+        // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
+        const numericId = id.replace(/^(ADM-|AUTH-)/, ''};
 
-        // ? FIX: Use DELETE method with route parameter
+        // ✅ FIX: Use DELETE method with route parameter
         const response = await fetch(`/AdminAudit/Delete/${numericId}?isAuth=${isAuthLog}`, {
             method: 'DELETE'
         });

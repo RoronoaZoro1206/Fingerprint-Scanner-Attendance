@@ -1,4 +1,6 @@
-﻿/**
+/// <reference path="../global.d.ts" />
+
+/**
  * Class Management - Refactored to use common utilities
  * Uses common AJAX, modal, export, and DataTable utilities
  * 

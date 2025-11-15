@@ -1,3 +1,6 @@
+
+/// <reference path="../global.d.ts" />
+
 let schedulesTable;
 let classesData = [];
 let schedulesData = [];
@@ -76,7 +79,7 @@ function populateClassDropdowns() {
     addSelect.find('option:not(:first)').remove();
     editSelect.find('option:not(:first)').remove();
     classesData.forEach(cls => {
-        // ? FIX: Changed from cls.courseName to cls.CourseName (PascalCase)
+        // ✅ FIX: Changed from cls.courseName to cls.CourseName (PascalCase)
         const option = `<option value="${cls.ClassId}">${cls.CourseName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
@@ -95,7 +98,7 @@ function initializeDataTable() {
                 data: null,
                 defaultContent: '<i data-lucide="chevron-right" class="expand-icon"></i>'
             },
-            // ? FIX: Changed from 'courseName' to 'CourseName' (PascalCase)
+            // ✅ FIX: Changed from 'courseName' to 'CourseName' (PascalCase)
             { data: 'CourseName' },
             { 
                 data: 'scheduleCount',
@@ -151,10 +154,10 @@ function initializeDataTable() {
 function groupSchedulesByClass() {
     const grouped = {};
     schedulesData.forEach(s => {
-        // ? FIX: Changed from s.classId to s.ClassId (PascalCase)
+        // ✅ FIX: Changed from s.classId to s.ClassId (PascalCase)
         if (!grouped[s.ClassId]) {
             grouped[s.ClassId] = {
-                // ? FIX: All properties using PascalCase
+                // ✅ FIX: All properties using PascalCase
                 ClassId: s.ClassId,
                 CourseName: s.CourseName,
                 schedules: [],
@@ -170,7 +173,7 @@ function groupSchedulesByClass() {
 function formatChildRow(d) {
     let html = '<table class="child-table"><thead><tr><th>Day</th><th>Start</th><th>End</th><th>Actions</th></tr></thead><tbody>';
     d.schedules.forEach(s => {
-        // ? FIX: Changed to PascalCase properties (SchedId, SchedDayOfWeek, SchedStartTime, SchedEndTime)
+        // ✅ FIX: Changed to PascalCase properties (SchedId, SchedDayOfWeek, SchedStartTime, SchedEndTime)
         html += `<tr>
             <td>${s.SchedDayOfWeek}</td>
             <td>${s.SchedStartTime}</td>
@@ -248,7 +251,7 @@ function showEditModalForClass(classId) {
 }
 
 function showEditModal(schedId) {
-    // ? FIX: Changed to PascalCase properties to match ClassScheduleDetailDto
+    // ✅ FIX: Changed to PascalCase properties to match ClassScheduleDetailDto
     const sched = schedulesData.find(s => s.SchedId === schedId);
     if (sched) {
         $('#editSchedId').val(sched.SchedId);
@@ -413,7 +416,7 @@ function confirmDelete() {
 function getFlatScheduleData() {
     const flatData = [];
     schedulesData.forEach(s => {
-        // ? FIX: Changed to PascalCase properties
+        // ✅ FIX: Changed to PascalCase properties
         flatData.push({
             'Course': s.CourseName,
             'Day': s.SchedDayOfWeek,
