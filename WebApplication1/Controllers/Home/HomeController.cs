@@ -665,34 +665,102 @@ public class HomeController : Controller
     /// <summary>
     /// ✅ NEW: Get active class for student at current time with all details
     /// Returns class information if student has a scheduled class right now
+    /// HANDLES MIDNIGHT-CROSSING SCHEDULES (e.g., 4:00 PM - 12:00 AM)
     /// </summary>
     private async Task<ActiveClassInfo?> GetActiveClassForStudentAsync(int studId, string dayOfWeek, TimeSpan currentTime)
     {
         try
         {
+            // ✅ ENHANCED: Use InvariantCulture to ensure consistent day-of-week comparison
+            var currentDayFormatted = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(dayOfWeek.ToLower());
+            
+            _logger.LogInformation($"[SCHEDULE DEBUG] ===== START SCHEDULE CHECK =====");
+            _logger.LogInformation($"[SCHEDULE DEBUG] Student ID: {studId}");
+            _logger.LogInformation($"[SCHEDULE DEBUG] Current Day: '{currentDayFormatted}' (original: '{dayOfWeek}')");
+            _logger.LogInformation($"[SCHEDULE DEBUG] Current Time: {currentTime:hh\\:mm\\:ss} ({currentTime.TotalSeconds} seconds)");
+            
             var enrollments = await _enrollmentRepo.GetByStudentIdAsync(studId);
             var classIds = enrollments.Select(e => e.ClassId).ToList();
 
             if (!classIds.Any())
             {
-                _logger.LogWarning($"Student {studId} has no enrollments");
+                _logger.LogWarning($"[SCHEDULE DEBUG] Student {studId} has no enrollments");
                 return null;
             }
+
+            _logger.LogInformation($"[SCHEDULE DEBUG] Found {classIds.Count} enrolled class(es)");
 
             foreach (var classId in classIds)
             {
                 var schedules = await _classScheduleRepo.GetByClassIdAsync(classId);
                 
+                _logger.LogInformation($"[SCHEDULE DEBUG] Class ID {classId}: {schedules.Count()} schedule(s) found");
+                
                 foreach (var schedule in schedules)
                 {
-                    bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(dayOfWeek.Trim(), StringComparison.OrdinalIgnoreCase);
-                    bool timeMatch = currentTime >= schedule.SchedStartTime && currentTime <= schedule.SchedEndTime;
+                    _logger.LogInformation($"[SCHEDULE DEBUG] ----- Schedule Entry -----");
+                    _logger.LogInformation($"[SCHEDULE DEBUG]   Day: '{schedule.SchedDayOfWeek}' (trimmed: '{schedule.SchedDayOfWeek.Trim()}')");
+                    _logger.LogInformation($"[SCHEDULE DEBUG]   Start: {schedule.SchedStartTime:hh\\:mm\\:ss} ({schedule.SchedStartTime.TotalSeconds}s)");
+                    _logger.LogInformation($"[SCHEDULE DEBUG]   End: {schedule.SchedEndTime:hh\\:mm\\:ss} ({schedule.SchedEndTime.TotalSeconds}s)");
+                    
+                    // ✅ ENHANCED: Case-insensitive, culture-invariant day comparison
+                    bool dayMatch = string.Equals(
+                        schedule.SchedDayOfWeek.Trim(), 
+                        currentDayFormatted, 
+                        StringComparison.OrdinalIgnoreCase
+                    );
+                    
+                    _logger.LogInformation($"[SCHEDULE DEBUG]   Day Match: {dayMatch} ('{schedule.SchedDayOfWeek.Trim()}' vs '{currentDayFormatted}')");
+                    
+                    if (!dayMatch)
+                    {
+                        _logger.LogDebug($"[SCHEDULE DEBUG]   SKIPPED: Day mismatch");
+                        continue;
+                    }
+                    
+                    bool timeMatch = false;
+                    
+                    // ✅ ENHANCED: Handle midnight-crossing schedules AND 23:00 (11 PM) schedules
+                    // 23:00:00 is LESS than 24:00:00 (midnight), so it's a normal schedule
+                    if (schedule.SchedEndTime < schedule.SchedStartTime || schedule.SchedEndTime == TimeSpan.Zero)
+                    {
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Schedule Type: MIDNIGHT-CROSSING");
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Checking: {currentTime:hh\\:mm\\:ss} >= {schedule.SchedStartTime:hh\\:mm\\:ss} OR <= {schedule.SchedEndTime:hh\\:mm\\:ss}");
+                        
+                        timeMatch = currentTime >= schedule.SchedStartTime || currentTime <= schedule.SchedEndTime;
+                        
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Part A ({currentTime:hh\\:mm\\:ss} >= {schedule.SchedStartTime:hh\\:mm\\:ss}): {currentTime >= schedule.SchedStartTime}");
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Part B ({currentTime:hh\\:mm\\:ss} <= {schedule.SchedEndTime:hh\\:mm\\:ss}): {currentTime <= schedule.SchedEndTime}");
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Combined (A OR B): {timeMatch}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Schedule Type: NORMAL");
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Checking: {currentTime:hh\\:mm\\:ss} >= {schedule.SchedStartTime:hh\\:mm\\:ss} AND <= {schedule.SchedEndTime:hh\\:mm\\:ss}");
+                        
+                        // ✅ CRITICAL FIX: For 22:00 - 23:00, current time 22:09 should match
+                        bool afterStart = currentTime >= schedule.SchedStartTime;
+                        bool beforeEnd = currentTime <= schedule.SchedEndTime;
+                        
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   After Start: {afterStart} ({currentTime.TotalSeconds} >= {schedule.SchedStartTime.TotalSeconds})");
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Before End: {beforeEnd} ({currentTime.TotalSeconds} <= {schedule.SchedEndTime.TotalSeconds})");
+                        
+                        timeMatch = afterStart && beforeEnd;
+                        
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   Combined (After AND Before): {timeMatch}");
+                    }
                     
                     if (dayMatch && timeMatch)
                     {
+                        _logger.LogInformation($"[SCHEDULE DEBUG] ✅✅✅ MATCH FOUND! Class {classId} ✅✅✅");
+                        
                         // Get full class details
                         var classDetail = await _classRepo.GetByIdAsync(classId);
-                        if (classDetail == null) continue;
+                        if (classDetail == null)
+                        {
+                            _logger.LogWarning($"[SCHEDULE DEBUG] Class details not found for Class ID {classId}");
+                            continue;
+                        }
                         
                         var course = classDetail.CourseId.HasValue 
                             ? await _courseRepo.GetByIdAsync(classDetail.CourseId.Value) 
@@ -716,7 +784,7 @@ public class HomeController : Controller
                             ? await _roomRepo.GetByIdAsync(classDetail.RoomId.Value) 
                             : null;
                         
-                        return new ActiveClassInfo
+                        var activeClass = new ActiveClassInfo
                         {
                             ClassId = classId,
                             CourseCode = course?.CourseCode ?? "N/A",
@@ -725,15 +793,25 @@ public class HomeController : Controller
                             RoomCode = room?.RoomCode ?? "TBA",
                             Schedule = $"{schedule.SchedDayOfWeek} {schedule.SchedStartTime:hh\\:mm tt}-{schedule.SchedEndTime:hh\\:mm tt}"
                         };
+                        
+                        _logger.LogInformation($"[SCHEDULE DEBUG] Returning: {activeClass.CourseCode} - {activeClass.CourseName} ({activeClass.FacultyName})");
+                        _logger.LogInformation($"[SCHEDULE DEBUG] ===== END SCHEDULE CHECK (SUCCESS) =====");
+                        return activeClass;
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"[SCHEDULE DEBUG]   NO MATCH: dayMatch={dayMatch}, timeMatch={timeMatch}");
                     }
                 }
             }
             
+            _logger.LogWarning($"[SCHEDULE DEBUG] ❌ NO MATCHING CLASS FOUND for {currentDayFormatted} at {currentTime:hh\\:mm\\:ss}");
+            _logger.LogInformation($"[SCHEDULE DEBUG] ===== END SCHEDULE CHECK (NO MATCH) =====");
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error getting active class for student {studId}");
+            _logger.LogError(ex, $"[SCHEDULE DEBUG] EXCEPTION in GetActiveClassForStudentAsync");
             return null;
         }
     }
