@@ -1,4 +1,4 @@
-﻿
+
 -- ============================================================
 -- EXTENSIONS
 -- ============================================================
@@ -189,8 +189,7 @@ CREATE TABLE class_schedules (
                                  class_id           INT REFERENCES classes(class_id) ON DELETE CASCADE,
                                  sched_day_of_week  VARCHAR(10) NOT NULL,
                                  sched_start_time   TIME NOT NULL,
-                                 sched_end_time     TIME NOT NULL,
-                                 UNIQUE (class_id, sched_day_of_week, sched_start_time, sched_end_time)
+                                 sched_end_time     TIME NOT NULL
 );
 
 -- ============================================================
@@ -1230,6 +1229,7 @@ SELECT * FROM student_id_pool ORDER BY pool_id;
 SELECT * FROM classes ORDER BY class_id;
 SELECT * FROM class_schedules ORDER BY sched_id;
 SELECT * FROM enrollment ORDER BY enroll_id;
+
 
 -- ATTENDANCE TABLES
 SELECT * FROM attendance ORDER BY attend_id DESC;

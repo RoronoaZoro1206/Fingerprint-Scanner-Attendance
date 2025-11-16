@@ -134,6 +134,7 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
+                    messageType = "scanner_unavailable",
                     message = "⚠️ Scanner not available. Please check device connection."
                 });
             }
@@ -148,17 +149,19 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
+                    messageType = "capture_failed",
                     message = string.IsNullOrEmpty(errorMessage) 
                         ? "⚠️ Failed to capture fingerprint. Please try again." 
                         : $"⚠️ {errorMessage}"
                 });
             }
 
-            // STEP 3: Match fingerprint against database
+            // STEP 3: Match fingerprint against database and check user role
             _logger.LogInformation("Matching fingerprint against database...");
-            var student = await MatchFingerprintAsync(template);
+            var matchResult = await MatchFingerprintWithRoleCheckAsync(template);
 
-            if (student == null)
+            // STEP 3A: Fingerprint not found in system
+            if (matchResult.Student == null && matchResult.User == null)
             {
                 _logger.LogWarning("Fingerprint not recognized");
                 
@@ -174,10 +177,49 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
-                    message = "🔍 Fingerprint not recognized. This fingerprint is not registered in the system."
+                    messageType = "unregistered",
+                    message = "🔍 Fingerprint not recognized.\n\n" +
+                             "This fingerprint is not registered in the system.\n" +
+                             "Please contact the administration office to register your fingerprint."
                 });
             }
 
+            // STEP 3B: Fingerprint recognized but wrong role (Admin or Faculty)
+            if (matchResult.Student == null && matchResult.User != null)
+            {
+                _logger.LogWarning($"Non-student user detected: {matchResult.User.UserEmail} (Role: {matchResult.UserRoleName})");
+                
+                // Error feedback: red light + beep
+                _fingerprintService.SetLedLight("red", true);
+                _fingerprintService.Beep(true);
+                _ = Task.Delay(500).ContinueWith(_ =>
+                {
+                    _fingerprintService.SetLedLight("red", false);
+                    _fingerprintService.Beep(false);
+                });
+
+                var fullName = $"{matchResult.User.UserFirstName} {matchResult.User.UserLastName}";
+                var roleEmoji = matchResult.UserRoleName == "Admin" ? "🛡️" : "👨‍🏫";
+                var dashboardText = matchResult.UserRoleName == "Admin" 
+                    ? "Please use the Admin Dashboard to manage the system." 
+                    : "Please use the Faculty Dashboard to manage your classes.";
+                
+                return Json(new
+                {
+                    success = false,
+                    messageType = "role_restriction",
+                    userRole = matchResult.UserRoleName,
+                    userName = fullName,
+                    message = $"{roleEmoji} {matchResult.UserRoleName} Fingerprint Detected\n\n" +
+                             $"Hello, {fullName}\n\n" +
+                             $"This is a {matchResult.UserRoleName} fingerprint.\n" +
+                             $"⛔ Only students are allowed to time in and time out.\n\n" +
+                             dashboardText
+                });
+            }
+
+            // STEP 3C: Valid student found
+            var student = matchResult.Student!;
             _logger.LogInformation($"Student identified: {student.StudNumber}");
 
             // STEP 4: Check current schedule - INTELLIGENT VALIDATION
@@ -205,14 +247,17 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
-                    message = $"📅 No class scheduled at this time.<br>" +
+                    messageType = "no_schedule",
+                    message = $"📅 No class scheduled at this time.\n\n" +
                               $"You have no subject/course assigned for {currentDay} at {currentTime:h:mm tt}."
                 });
             }
 
             // STEP 5: Process attendance (Time In/Out) - Schedule validated!
             _logger.LogInformation("Schedule validated. Processing attendance...");
-            var processingResult = await _attendanceService.ProcessAttendanceAsync();
+            
+            // ✅ FIX: Pass the already-matched student to the service
+            var processingResult = await _attendanceService.ProcessAttendanceAsync(student);
 
             if (!processingResult.Success)
             {
@@ -230,6 +275,7 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
+                    messageType = "processing_error",
                     message = GetUserFriendlyErrorMessage(processingResult.ErrorType, processingResult.Error)
                 });
             }
@@ -241,6 +287,7 @@ public class HomeController : Controller
                 return Json(new
                 {
                     success = false,
+                    messageType = "unknown_error",
                     message = "Unable to process attendance. Please try again."
                 });
             }
@@ -280,15 +327,17 @@ public class HomeController : Controller
             return Json(new
             {
                 success = false,
+                messageType = "exception",
                 message = "An error occurred during scanning. Please try again."
             });
         }
     }
 
     /// <summary>
-    /// Match captured fingerprint against database
+    /// Match captured fingerprint against database with role checking
+    /// Returns student if role is student, otherwise returns user info for error message
     /// </summary>
-    private async Task<StudentModel?> MatchFingerprintAsync(byte[] capturedTemplate) // ✅ FIX: Use alias
+    private async Task<FingerprintMatchResult> MatchFingerprintWithRoleCheckAsync(byte[] capturedTemplate)
     {
         const int MATCH_THRESHOLD = 50;
 
@@ -306,14 +355,44 @@ public class HomeController : Controller
                     _logger.LogInformation($"Match found - User ID: {template.UserId}, Score: {score}");
 
                     var user = await _fingerprintRepo.GetUserByTemplateAsync(template.UserId);
-                    if (user?.RoleId == 3) // Student role
+                    
+                    if (user == null)
+                    {
+                        _logger.LogWarning($"User not found for template UserId: {template.UserId}");
+                        continue;
+                    }
+
+                    // Get role name
+                    string roleName = user.RoleId switch
+                    {
+                        1 => "Admin",
+                        2 => "Faculty",
+                        3 => "Student",
+                        _ => "Unknown"
+                    };
+
+                    // If student role, get student record
+                    if (user.RoleId == 3)
                     {
                         var student = await _studentRepo.GetByUserIdAsync(user.UserId);
                         if (student != null)
                         {
-                            return student;
+                            return new FingerprintMatchResult 
+                            { 
+                                Student = student, 
+                                User = user,
+                                UserRoleName = "Student"
+                            };
                         }
                     }
+                    
+                    // Non-student role or student record not found
+                    return new FingerprintMatchResult 
+                    { 
+                        Student = null, 
+                        User = user,
+                        UserRoleName = roleName
+                    };
                 }
             }
             catch (Exception ex)
@@ -323,12 +402,36 @@ public class HomeController : Controller
             }
         }
 
-        return null;
+        // No match found
+        return new FingerprintMatchResult 
+        { 
+            Student = null, 
+            User = null,
+            UserRoleName = null
+        };
+    }
+
+    /// <summary>
+    /// Legacy method maintained for backward compatibility
+    /// </summary>
+    private async Task<StudentModel?> MatchFingerprintAsync(byte[] capturedTemplate)
+    {
+        var result = await MatchFingerprintWithRoleCheckAsync(capturedTemplate);
+        return result.Student;
+    }
+
+    /// <summary>
+    /// Result of fingerprint matching with role information
+    /// </summary>
+    private class FingerprintMatchResult
+    {
+        public StudentModel? Student { get; set; }
+        public User? User { get; set; }
+        public string? UserRoleName { get; set; }
     }
 
     /// <summary>
     /// Check if student has a scheduled class at the current time
-    /// INTELLIGENT SCHEDULE VALIDATION
     /// </summary>
     private async Task<bool> HasScheduledClassNowAsync(int studId, string dayOfWeek, TimeSpan currentTime)
     {
@@ -381,14 +484,12 @@ public class HomeController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error checking schedule for student {studId}");
-            // STRICT MODE: On error, deny attendance (fail-safe approach changed)
             return false;
         }
     }
 
     /// <summary>
     /// Get today's attendance statistics
-    /// GET: /Home/GetStatistics
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetStatistics()

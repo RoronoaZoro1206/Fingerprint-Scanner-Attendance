@@ -145,8 +145,41 @@ public class AdminClassScheduleController : Controller
             if (scheduleDtos == null || !scheduleDtos.Any())
                 return Json(new { success = false, message = "No schedules provided" });
 
-            _logger.LogInformation($"Received {scheduleDtos.Count} schedules to create");
+            _logger.LogInformation($"Received {scheduleDtos.Count} schedules to create for ClassId={scheduleDtos[0].ClassId}");
 
+            // ✅ STEP 1: Check for duplicates WITHIN the submitted batch
+            var duplicatesInBatch = scheduleDtos
+                .GroupBy(s => new { s.SchedDayOfWeek, s.SchedStartTime, s.SchedEndTime })
+                .Where(g => g.Count() > 1)
+                .Select(g => $"{g.Key.SchedDayOfWeek} at {g.Key.SchedStartTime} - {g.Key.SchedEndTime}")
+                .ToList();
+
+            if (duplicatesInBatch.Any())
+            {
+                _logger.LogWarning($"Duplicate schedules detected in submission: {string.Join(", ", duplicatesInBatch)}");
+                return Json(new { 
+                    success = false, 
+                    message = $"❌ Duplicate schedules detected in your submission:\n\n" +
+                             string.Join("\n", duplicatesInBatch) + "\n\n" +
+                             "Each day/time combination can only appear once per class."
+                });
+            }
+
+            // ✅ STEP 2: DELETE all existing schedules for this class (if editing)
+            // This prevents conflicts with existing records
+            var classId = scheduleDtos[0].ClassId;
+            var existingSchedules = await _classScheduleRepository.GetByClassIdAsync(classId);
+            
+            if (existingSchedules.Any())
+            {
+                _logger.LogInformation($"Deleting {existingSchedules.Count()} existing schedules for ClassId={classId}");
+                foreach (var existingSched in existingSchedules)
+                {
+                    await _classScheduleRepository.DeleteAsync(existingSched.SchedId);
+                }
+            }
+
+            // ✅ STEP 3: INSERT new schedules
             int successCount = 0;
             int failCount = 0;
 
@@ -180,29 +213,37 @@ public class AdminClassScheduleController : Controller
                 if (result)
                 {
                     successCount++;
-                    _logger.LogInformation($"Successfully created schedule for ClassId={dto.ClassId}");
+                    _logger.LogInformation($"✅ Successfully created schedule for ClassId={dto.ClassId}");
                 }
                 else
                 {
                     failCount++;
-                    _logger.LogWarning($"Failed to create schedule for ClassId={dto.ClassId}");
+                    _logger.LogWarning($"❌ Failed to create schedule for ClassId={dto.ClassId}");
                 }
             }
 
             if (successCount > 0)
             {
+                var cls = await _classRepository.GetByIdAsync(classId);
+                var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                
                 await _auditService.LogActionAsync(
                     "Created Multiple Class Schedules", 
-                    $"Created {successCount} class schedule(s) successfully");
-                return Json(new { success = true, message = $"Created {successCount} schedule(s) successfully" });
+                    $"Created {successCount} class schedule(s) for {course?.CourseName ?? "Unknown"}");
+                    
+                return Json(new { 
+                    success = true, 
+                    message = $"✅ Successfully saved {successCount} schedule(s)" + 
+                             (failCount > 0 ? $". {failCount} failed." : "")
+                });
             }
             
-            return Json(new { success = false, message = "Failed to create schedules" });
+            return Json(new { success = false, message = "❌ Failed to create schedules" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating multiple schedules: {Message}", ex.Message);
-            return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            return Json(new { success = false, message = $"❌ An error occurred: {ex.Message}" });
         }
     }
 

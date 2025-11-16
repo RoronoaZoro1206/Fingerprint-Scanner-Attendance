@@ -61,10 +61,10 @@
 }
 
 <style>
-    /* Modern home page scanner - White background with colored border */
+    /* Modern home page scanner - White background with colored borders */
     .fingerprint-container {
-        background: #ffffff !important; /* Pure white background */
-        border: 3px solid #e5e7eb !important; /* Gray border */
+        background: #ffffff !important;
+        border: 3px solid #e5e7eb !important;
         cursor: pointer;
         transition: all 0.3s ease;
         width: 300px;
@@ -78,28 +78,28 @@
     }
 
     .fingerprint-container:hover {
-        background: #ffffff !important; /* Keep white */
-        border-color: #3b82f6 !important; /* Blue border */
+        background: #ffffff !important;
+        border-color: #3b82f6 !important;
         box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
     }
 
     .fingerprint-container.scanning {
-        background: #ffffff !important; /* Keep white */
-        border-color: #3b82f6 !important; /* Blue border */
+        background: #ffffff !important;
+        border-color: #3b82f6 !important;
         border-width: 4px !important;
         animation: pulse 1.5s infinite;
     }
 
     .fingerprint-container.success {
-        background: #ffffff !important; /* Keep white */
-        border-color: #10b981 !important; /* Green border */
+        background: #ffffff !important;
+        border-color: #10b981 !important;
         border-width: 4px !important;
         animation: successPulse 0.6s ease-out;
     }
 
     .fingerprint-container.error {
-        background: #ffffff !important; /* Keep white */
-        border-color: #ef4444 !important; /* Red border */
+        background: #ffffff !important;
+        border-color: #ef4444 !important;
         border-width: 4px !important;
         animation: errorShake 0.5s ease-out;
     }
@@ -123,63 +123,75 @@
         color: rgba(239, 68, 68, 0.9);
     }
 
-    /* Status message */
+    /* ✅ ENHANCED: Status message with proper visibility and timing */
     .scan-status-message {
         display: none;
         margin-top: 1rem;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1.5rem 2rem; /* ✅ INCREASED padding for better readability */
+        border-radius: 12px; /* ✅ LARGER border radius */
         font-weight: 500;
+        font-size: 1.05rem; /* ✅ SLIGHTLY LARGER font size */
+        line-height: 1.8; /* ✅ INCREASED line height for multi-line messages */
         text-align: center;
+        min-height: 100px; /* ✅ ENSURE minimum height */
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* ✅ SMOOTH transitions */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* ✅ ADD shadow for depth */
+    }
+
+    .scan-status-message.show {
+        display: block; /* ✅ ENSURE VISIBLE */
+        opacity: 1 !important; /* ✅ FORCE FULL OPACITY */
+        animation: none !important; /* ✅ PREVENT AUTO-FADE */
     }
 
     .scan-status-message.success {
         background-color: #d1fae5;
         color: #065f46;
-        border: 1px solid #10b981;
+        border: 2px solid #10b981;
     }
 
     .scan-status-message.error {
         background-color: #fee2e2;
         color: #991b1b;
-        border: 1px solid #ef4444;
+        border: 2px solid #ef4444;
     }
 
     .scan-status-message.warning {
         background-color: #fef3c7;
         color: #92400e;
-        border: 1px solid #f59e0b;
+        border: 2px solid #f59e0b;
+    }
+
+    .scan-status-message.scanning {
+        background-color: #dbeafe;
+        color: #1e40af;
+        border: 2px solid #3b82f6;
+    }
+
+    .scan-status-message.validating {
+        background-color: #fef3c7;
+        color: #92400e;
+        border: 2px solid #f59e0b;
+    }
+
+    .scan-status-message.info {
+        background-color: #f3f4f6;
+        color: #374151;
+        border: 2px solid #9ca3af;
     }
 
     /* CSS Animations */
-    @@-webkit-keyframes pulse {
-        0%, 100% { transform: scale(1); border-color: #3b82f6; }
-        50% { transform: scale(1.02); border-color: #2563eb; }
-    }
-    
     @@keyframes pulse {
         0%, 100% { transform: scale(1); border-color: #3b82f6; }
         50% { transform: scale(1.02); border-color: #2563eb; }
     }
 
-    @@-webkit-keyframes successPulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
     @@keyframes successPulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.05); }
         100% { transform: scale(1); }
     }
 
-    @@-webkit-keyframes errorShake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-10px); }
-        75% { transform: translateX(10px); }
-    }
-    
     @@keyframes errorShake {
         0%, 100% { transform: translateX(0); }
         25% { transform: translateX(-10px); }

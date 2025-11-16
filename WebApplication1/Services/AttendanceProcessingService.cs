@@ -134,6 +134,76 @@ namespace Fingerprint_Attendance_System.Services
         }
 
         /// <summary>
+        /// MAIN ORCHESTRATION METHOD
+        /// Complete attendance recording pipeline with all validations
+        /// ✅ OVERLOAD: Accepts pre-matched student (used by HomeController)
+        /// </summary>
+        public async Task<AttendanceProcessingResult> ProcessAttendanceAsync(Student student)
+        {
+            var result = new AttendanceProcessingResult
+            {
+                StartTime = DateTime.Now
+            };
+
+            try
+            {
+                _logger.LogInformation($"=== Attendance Processing Pipeline Started for Student {student.StudId} ===");
+
+                // SKIP STEPS 1-3: Scanner, Capture, and Match (already done by HomeController)
+                result.Student = student;
+                _logger.LogInformation($"Using pre-matched student: {student.StudNumber}");
+
+                // STEP 4: Validate Enrollment
+                result.EnrollmentStatus = await ValidateEnrollmentAsync(student.StudId);
+                if (!result.EnrollmentStatus.IsEnrolled)
+                {
+                    throw new NoScheduleException(student.StudId);
+                }
+
+                // ✅ STEP 5: Validate Schedule (Already done by HomeController, but kept for internal consistency)
+                result.ScheduleStatus = await ValidateScheduleAsync(student.StudId);
+                if (!result.ScheduleStatus.HasScheduledClass)
+                {
+                    throw new NoScheduleException(student.StudId, result.ScheduleStatus.Message);
+                }
+
+                // STEP 6: Check Incomplete Records
+                result.IncompleteCheck = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
+                    student.StudId,
+                    DateTime.Today);
+
+                // STEP 7: Process Attendance (Time In/Out)
+                result.AttendanceResponse = await _dailyAttendanceService.ProcessAttendanceScanAsync(student);
+
+                // STEP 8: Add incomplete warning if needed
+                if (result.IncompleteCheck.HasIncompleteRecords)
+                {
+                    result.AttendanceResponse.IncompleteRecordsWarning = result.IncompleteCheck.WarningMessage;
+                }
+
+                result.Success = true;
+                result.EndTime = DateTime.Now;
+                result.ProcessingTimeMs = (result.EndTime - result.StartTime).TotalMilliseconds;
+
+                _logger.LogInformation($"✅ Attendance processing completed in {result.ProcessingTimeMs}ms");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Error = ex.Message;
+                result.ErrorType = ex.GetType().Name;
+                result.EndTime = DateTime.Now;
+                result.ProcessingTimeMs = (result.EndTime - result.StartTime).TotalMilliseconds;
+
+                _logger.LogError(ex, $"❌ Attendance processing failed: {ex.Message}");
+
+                return result;
+            }
+        }
+
+        /// <summary>
         /// Validate scanner availability and connectivity
         /// </summary>
         private async Task<ScannerStatusDto> ValidateScannerAsync()
