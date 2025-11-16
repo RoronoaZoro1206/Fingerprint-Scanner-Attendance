@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * ✅ NEW: Show SweetAlert2 notification
+     * ✅ NEW: Show SweetAlert2 notification with dynamic background color control
      */
     function showSweetAlertNotification(result) {
         if (!window.Swal) {
@@ -279,10 +279,29 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        // ✅ NEW: Change status message background to white when modal opens
+        const statusMessageElement = document.getElementById('scanStatusMessage');
+        
+        const swalOptions = {
+            willOpen: () => {
+                // Change background to white when modal opens
+                if (statusMessageElement && statusMessageElement.classList.contains('show')) {
+                    statusMessageElement.classList.add('swal-active');
+                }
+            },
+            didClose: () => {
+                // Restore original background color when modal closes
+                if (statusMessageElement && statusMessageElement.classList.contains('show')) {
+                    statusMessageElement.classList.remove('swal-active');
+                }
+            }
+        };
+
         if (!result.success) {
             // Error notifications
             if (result.messageType === 'already_completed') {
                 Swal.fire({
+                    ...swalOptions,
                     icon: 'warning',
                     title: '⚠️ Attendance Already Completed',
                     html: `
@@ -314,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 // Generic error
                 Swal.fire({
+                    ...swalOptions,
                     icon: 'error',
                     title: '❌ Cannot Record Attendance',
                     html: result.message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'),
@@ -412,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function () {
             html += `</div>`;
             
             Swal.fire({
+                ...swalOptions,
                 icon: 'success',
                 title: title,
                 html: html,
