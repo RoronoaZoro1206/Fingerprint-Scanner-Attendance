@@ -290,9 +290,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             },
             didClose: () => {
-                // Restore original background color when modal closes
+                // ✅ FIX ISSUE #2: Restore green background when modal closes
                 if (statusMessageElement && statusMessageElement.classList.contains('show')) {
                     statusMessageElement.classList.remove('swal-active');
+                    
+                    // ✅ CRITICAL FIX: Force restore "ready" state with green background
+                    setTimeout(() => {
+                        statusMessageElement.classList.remove('success', 'error', 'warning', 'scanning', 'validating');
+                        statusMessageElement.classList.add('info');
+                        statusMessageElement.innerHTML = 'Scanner ready. Place finger to scan.';
+                    }, 100); // Small delay to ensure smooth transition
                 }
             }
         };
@@ -329,6 +336,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     timer: 10000,
                     timerProgressBar: true,
                     allowOutsideClick: false
+                });
+            } else if (result.messageType === 'no_schedule') {
+                // ✅ FIX ISSUE #1: Display student name in "no class scheduled" alert
+                const studentGreeting = result.studentName ? `Hello, ${result.studentName}` : 'Hello';
+                
+                Swal.fire({
+                    ...swalOptions,
+                    icon: 'error',
+                    title: '❌ Cannot Record Attendance',
+                    html: `
+                        <div style="text-align: left; line-height: 1.8;">
+                            <p style="font-size: 16px; color: #6b7280; margin-bottom: 5px;">📅 No class scheduled at this time.</p>
+                            <p style="font-weight: 600; font-size: 18px; margin-bottom: 15px;">${studentGreeting}</p>
+                            <p>${result.message.split('\n\n').slice(2).join('\n\n')}</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#ef4444',
+                    timer: 6000,
+                    timerProgressBar: true,
+                    allowOutsideClick: true
                 });
             } else {
                 // Generic error

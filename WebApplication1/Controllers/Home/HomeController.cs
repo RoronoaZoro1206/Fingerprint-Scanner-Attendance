@@ -262,11 +262,16 @@ public class HomeController : Controller
                     _fingerprintService.Beep(false);
                 });
                 
+                // ✅ FIX: Include student's full name in "no class scheduled" error message
+                var studentFullName = $"{student.User?.UserFirstName} {student.User?.UserLastName}".Trim();
+                
                 return Json(new
                 {
                     success = false,
                     messageType = "no_schedule",
+                    studentName = studentFullName, // ✅ NEW: Add student name for frontend display
                     message = $"📅 No class scheduled at this time.\n\n" +
+                              $"Hello, {studentFullName}\n\n" +
                               $"You have no subject/course assigned for {currentDay} at {currentTime:h:mm tt}."
                 });
             }

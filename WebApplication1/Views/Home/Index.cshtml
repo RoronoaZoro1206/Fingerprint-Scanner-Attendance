@@ -250,9 +250,9 @@
     }
 
     .scan-status-message.info {
-        background-color: #f3f4f6;
-        color: #374151;
-        border: 2px solid #9ca3af;
+        background-color: #d1fae5 !important; /* ✅ FIX: Changed from gray to GREEN (matches success color) */
+        color: #065f46 !important;
+        border: 2px solid #10b981 !important;
     }
     
     /* ✅ CRITICAL FIX: White background when SweetAlert2 modal is active */
@@ -263,7 +263,7 @@
         transition: all 0.3s ease !important;
     }
     
-    /* ✅ Ensure smooth transition back to original color when modal closes */
+    /* ✅ Ensure smooth transition back to GREEN when modal closes */
     .scan-status-message.success:not(.swal-active) {
         background-color: #d1fae5 !important;
         color: #065f46 !important;
@@ -272,9 +272,9 @@
     }
     
     .scan-status-message.info:not(.swal-active) {
-        background-color: #f3f4f6 !important;
-        color: #374151 !important;
-        border: 2px solid #9ca3af !important;
+        background-color: #d1fae5 !important; /* ✅ FIX: GREEN for ready state */
+        color: #065f46 !important;
+        border: 2px solid #10b981 !important;
         transition: all 0.3s ease !important;
     }
     

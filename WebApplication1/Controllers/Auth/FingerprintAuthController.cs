@@ -75,6 +75,15 @@ namespace Fingerprint_Attendance_System.Controllers.Auth
       });
         }
 
+        // ✅ CRITICAL FIX: Turn OFF the scanner's default green LED immediately after capture
+        // This prevents the hardware from showing green before verification is complete
+        _fingerprintService.TurnOffAllLeds();
+        
+        // ✅ ENHANCED: Add small delay to ensure LED off command is processed by hardware
+        await Task.Delay(100);
+        
+        _logger.LogInformation("✅ Scanner LEDs disabled - starting verification phase...");
+
         _logger.LogInformation("Fingerprint captured successfully, matching against database templates...");
 
     // Get all registered fingerprint templates from database
@@ -137,7 +146,7 @@ int score = _fingerprintService.GetMatchScore(capturedTemplate, template.FtempDa
 
      if (matchedTemplate != null)
       {
-     _logger.LogInformation($"? Fingerprint matched! User ID: {matchedTemplate.UserId}, Score: {bestScore}");
+     _logger.LogInformation($"✅ Fingerprint matched! User ID: {matchedTemplate.UserId}, Score: {bestScore}");
          
        // Get user details from database
           var user = await _userRepo.GetByIdAsync(matchedTemplate.UserId);
@@ -235,7 +244,7 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
    }
             }
 
-    _logger.LogInformation($"? Successful login for user: {user.UserEmail}");
+    _logger.LogInformation($"✅ Successful login for user: {user.UserEmail}");
 
        // Create user session
         HttpContext.Session.SetInt32("UserId", user.UserId);
@@ -245,7 +254,14 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
          HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
      HttpContext.Session.SetString("justLoggedIn", "true");
 
-      // Success feedback: green light + beep
+      // ✅ CRITICAL FIX: Wait 1.5 seconds to match frontend's "Validating identity..." delay
+     // This ensures the physical green LED only activates when the UI shows success message
+      _logger.LogInformation("⏳ Waiting 1.5 seconds to synchronize LED with frontend validation display...");
+      await Task.Delay(1500);
+
+      // ✅ SUCCESS: ONLY NOW activate the physical scanner's green LED
+     // This is triggered AFTER the frontend validation delay, synchronizing hardware and UI
+      _logger.LogInformation("✅ Validation delay complete - activating green LED on physical scanner hardware");
      _fingerprintService.SetLedLight("green", true);
   _fingerprintService.Beep(true);
             await Task.Delay(300);
@@ -271,7 +287,7 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
     }
             else
            {
- _logger.LogWarning($"? No matching fingerprint found. Best score: {bestScore} (Threshold: {matchThreshold})");
+ _logger.LogWarning($"❌ No matching fingerprint found. Best score: {bestScore} (Threshold: {matchThreshold})");
     
    // Log failed authentication
           await _scanLogRepo.AddAsync(new ScanLog

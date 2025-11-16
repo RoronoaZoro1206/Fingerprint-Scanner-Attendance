@@ -1,4 +1,4 @@
-﻿using libzkfpcsharp;
+using libzkfpcsharp;
 
 namespace Fingerprint_Attendance_System.Services
 {
@@ -738,7 +738,7 @@ return score;
    }
 
         // ============================
- //  DEVICE LIGHT & BUZZER CONTROL
+        //  DEVICE LIGHT & BUZZER CONTROL
 // ============================
         public bool SetLedLight(string color, bool on)
      {
@@ -763,6 +763,35 @@ return score;
      _logger.LogError(ex, $"Exception while setting LED light: {color}");
     return false;
     }
+        }
+
+        /// <summary>
+        /// ✅ NEW: Turn OFF all LED lights on the physical scanner hardware
+        /// This prevents the default green LED behavior after fingerprint capture
+        /// </summary>
+        public void TurnOffAllLeds()
+        {
+            try
+            {
+                if (!_isDeviceOpen)
+                {
+                    _logger.LogWarning("Cannot turn off LEDs: Device is not open");
+                    return;
+                }
+
+                _logger.LogInformation("Turning off all scanner LEDs...");
+                
+                // Turn off all three LEDs (white, green, red)
+                SetLedLight("white", false);
+                SetLedLight("green", false);
+                SetLedLight("red", false);
+                
+                _logger.LogInformation("All scanner LEDs turned off successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception while turning off LEDs");
+            }
         }
 
  public bool Beep(bool on)
