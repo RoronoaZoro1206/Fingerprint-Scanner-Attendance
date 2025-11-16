@@ -34,6 +34,12 @@ namespace Fingerprint_Attendance_System.Exceptions
         {
             StudentId = studentId;
         }
+
+        public NoScheduleException(int studentId, string message) 
+            : base(message)
+        {
+            StudentId = studentId;
+        }
     }
 
     /// <summary>

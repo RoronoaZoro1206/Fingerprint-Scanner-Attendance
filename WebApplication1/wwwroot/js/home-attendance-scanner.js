@@ -1,8 +1,10 @@
 /// <reference path="global.d.ts" />
 
 /**
- * Home Page Attendance Scanner with Intelligent Course Validation
- * Standardized fingerprint workflow + schedule checking
+ * Home Page Attendance Scanner with AUTOMATIC Fingerprint Detection
+ * ✅ ENHANCED: Now automatically detects fingerprints like the login page
+ * ✅ NEW: Continuous polling for finger presence - NO CLICKING REQUIRED
+ * ✅ NEW: Displays comprehensive student info and class details after scan
  * Prevents infinite loops with proper state management
  */
 
@@ -17,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let deviceInitialized = false;
     let scanTimeout = null;
     let statsUpdateInterval = null;
+    let autoScanInterval = null; // ✅ NEW: Auto-detection interval
 
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
@@ -27,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeScanner();
     startStatsUpdates();
 
-    // Manual scan trigger (click on circle)
+    // Manual scan trigger (click on circle) - KEPT AS BACKUP
     if (fingerprintScanner) {
         fingerprintScanner.addEventListener('click', async function () {
             if (isScanning || isCooldown) {
@@ -39,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Initialize scanner device
+     * ✅ NEW: Initialize scanner device and start auto-detection
      */
     async function initializeScanner() {
         try {
@@ -57,6 +60,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 fingerprintScanner.classList.remove('scanning');
                 fingerprintScanner.classList.add('ready');
                 showMessage('Scanner ready. Place finger to scan.', 'success');
+                
+                // ✅ NEW: Add pulse animation to indicate readiness
+                fingerprintScanner.style.animation = 'pulse 2s infinite';
+                
+                // ✅ NEW: Start automatic fingerprint detection
+                startAutoDetection();
             } else {
                 deviceInitialized = false;
                 fingerprintScanner.classList.remove('scanning');
@@ -73,14 +82,43 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Main fingerprint scan function with standardized workflow
+     * ✅ NEW: Automatic fingerprint detection (500ms polling)
+     * Just like the FingerprintLogin page!
      */
-    async function scanFingerprint() {
+    function startAutoDetection() {
+        console.log('✅ Starting automatic fingerprint detection...');
+        
+        // Poll every 500ms to check if finger is on scanner
+        autoScanInterval = setInterval(async () => {
+            if (!isScanning && !isCooldown && deviceInitialized) {
+                // Check if finger is present and auto-scan
+                await tryAutoScan();
+            }
+        }, 500);
+    }
+
+    /**
+     * ✅ NEW: Try to scan automatically when finger detected
+     */
+    async function tryAutoScan() {
+        if (isScanning || isCooldown) return;
+        
+        // Attempt scan (will succeed if finger is on scanner)
+        await scanFingerprint(true); // Pass true for auto-scan
+    }
+
+    /**
+     * Main fingerprint scan function with auto-detection support
+     * ✅ ENHANCED: Now supports automatic scanning
+     */
+    async function scanFingerprint(isAutoScan = false) {
         if (isScanning || isCooldown) return;
 
         if (!deviceInitialized) {
-            showMessage('Scanner not ready. Please wait...', 'error');
-            await initializeScanner();
+            if (!isAutoScan) {
+                showMessage('Scanner not ready. Please wait...', 'error');
+                await initializeScanner();
+            }
             return;
         }
 
@@ -90,7 +128,12 @@ document.addEventListener('DOMContentLoaded', function () {
             // STEP 1: Show scanning state
             fingerprintScanner.classList.remove('ready', 'success', 'error');
             fingerprintScanner.classList.add('scanning');
-            showMessage('Scanning fingerprint...', 'scanning');
+            fingerprintScanner.style.animation = 'none';
+            
+            // Show scanning message (only if not auto-scan)
+            if (!isAutoScan) {
+                showMessage('Scanning fingerprint...', 'scanning');
+            }
 
             // STEP 2: Set timeout for scan (10 seconds)
             scanTimeout = setTimeout(() => {
@@ -99,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }, 10000);
 
-            // STEP 3: Call backend endpoint
+            // ✅ CHANGED: Call /Home/ScanFingerprint instead of /Attendance/RecordAttendance
             const response = await fetch('/Home/ScanFingerprint', {
                 method: 'POST',
                 headers: {
@@ -109,38 +152,67 @@ document.addEventListener('DOMContentLoaded', function () {
 
             clearTimeout(scanTimeout);
 
-            // STEP 4: Add verification delay (2 seconds) for better UX
-            fingerprintScanner.classList.remove('scanning');
-            fingerprintScanner.classList.add('validating');
-            showMessage('Verifying fingerprint...', 'validating');
-            
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // STEP 4: Add verification delay (1 second) for better UX
+            if (!isAutoScan) {
+                fingerprintScanner.classList.remove('scanning');
+                fingerprintScanner.classList.add('validating');
+                showMessage('Verifying fingerprint...', 'validating');
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
 
             // STEP 5: Process result
             const result = await response.json();
 
             if (result.success) {
+                // ✅ NEW: Stop auto-detection on success
+                if (autoScanInterval) {
+                    clearInterval(autoScanInterval);
+                    autoScanInterval = null;
+                }
+                
                 handleSuccess(result);
             } else {
-                handleError(result);
+                // ✅ NEW: Handle "no finger detected" silently for auto-scan
+                if (isAutoScan && result.message && 
+                    (result.message.includes('No fingerprint detected') || 
+                     result.message.includes('Failed to capture'))) {
+                    // Silent fail - finger not on scanner yet
+                    fingerprintScanner.classList.remove('scanning', 'validating');
+                    fingerprintScanner.classList.add('ready');
+                    fingerprintScanner.style.animation = 'pulse 2s infinite';
+                } else {
+                    handleError(result);
+                }
             }
 
         } catch (error) {
             clearTimeout(scanTimeout);
-            console.error('Scan error:', error);
-            handleError({ message: 'Connection error. Please try again.' });
+            
+            // ✅ NEW: Silent fail for auto-scan connection errors
+            if (isAutoScan) {
+                fingerprintScanner.classList.remove('scanning', 'validating');
+                fingerprintScanner.classList.add('ready');
+                fingerprintScanner.style.animation = 'pulse 2s infinite';
+            } else {
+                console.error('Scan error:', error);
+                handleError({ message: 'Connection error. Please try again.' });
+            }
         } finally {
             isScanning = false;
-            // Set cooldown to prevent rapid re-scanning
-            isCooldown = true;
-            setTimeout(() => {
-                isCooldown = false;
-            }, 3000);
+            
+            // Set cooldown to prevent rapid re-scanning (only on actual scan attempts)
+            if (!isAutoScan) {
+                isCooldown = true;
+                setTimeout(() => {
+                    isCooldown = false;
+                }, 3000);
+            }
         }
     }
 
     /**
-     * Handle successful scan
+     * ✅ ENHANCED: Handle successful scan with comprehensive student information
      */
     function handleSuccess(result) {
         fingerprintScanner.classList.remove('validating', 'scanning', 'error');
@@ -148,17 +220,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const student = result.student || {};
         const action = result.action || 'recorded';
-        const timestamp = result.timestamp || new Date().toLocaleTimeString();
+        const timestamp = result.timestamp ? new Date(result.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
 
+        // ✅ Build comprehensive student information display
+        let studentInfo = `
+            <strong>${student.fullName || 'Student'}</strong><br>
+            <strong>ID:</strong> ${student.studNumber || 'N/A'}<br>
+            <strong>Program:</strong> ${student.programName || 'N/A'}${student.sectionName ? ' - ' + student.sectionName : ''}
+        `;
+
+        // ✅ Build message based on action (Time In vs Time Out)
         let message = '';
-        if (action === 'Time In') {
-            message = `✅ Time In Recorded<br>
-                      Student: ${student.fullName || 'Student'}<br>
-                      Time: ${timestamp}`;
-        } else if (action === 'Time Out') {
-            message = `✅ Time Out Recorded<br>
-                      Student: ${student.fullName || 'Student'}<br>
-                      Time: ${timestamp}`;
+        let emoji = '';
+        
+        if (action === 'time_in') {
+            emoji = '✅';
+            message = `
+                ${emoji} <strong>Good morning! Time In Recorded</strong><br><br>
+                ${studentInfo}<br>
+                <strong>Time In:</strong> ${timestamp}
+            `;
+        } else if (action === 'time_out') {
+            emoji = '👋';
+            message = `
+                ${emoji} <strong>Goodbye! Time Out Recorded</strong><br><br>
+                ${studentInfo}<br>
+                <strong>Time Out:</strong> ${timestamp}
+            `;
         } else {
             message = `✅ ${result.message || 'Attendance recorded successfully'}`;
         }
@@ -171,26 +259,34 @@ document.addEventListener('DOMContentLoaded', function () {
         showMessage(message, 'success');
         updateStats();
 
-        // Reset to ready state after 5 seconds
+        // ✅ Reset to ready state after 8 seconds (longer to allow reading)
         setTimeout(() => {
             resetScanner();
-        }, 5000);
+            // ✅ Restart auto-detection after successful scan
+            if (!autoScanInterval) {
+                startAutoDetection();
+            }
+        }, 8000);
     }
 
     /**
-     * Handle scan error (including schedule validation failures)
+     * ✅ ENHANCED: Handle scan error with better messages
      */
     function handleError(result) {
         fingerprintScanner.classList.remove('validating', 'scanning', 'success');
         fingerprintScanner.classList.add('error');
 
         const message = result.message || 'Scan failed. Please try again.';
-        showMessage(`❌ ${message}`, 'error');
+        
+        // Format the error message
+        const formattedMessage = `❌ ${message}`;
 
-        // Reset to ready state after 4 seconds
+        showMessage(formattedMessage, 'error');
+
+        // Reset to ready state after 5 seconds
         setTimeout(() => {
             resetScanner();
-        }, 4000);
+        }, 5000);
     }
 
     /**
@@ -208,11 +304,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Reset scanner to ready state
+     * ✅ ENHANCED: Reset scanner to ready state
      */
     function resetScanner() {
         fingerprintScanner.classList.remove('scanning', 'validating', 'success', 'error');
         fingerprintScanner.classList.add('ready');
+        fingerprintScanner.style.animation = 'pulse 2s infinite';
         showMessage('Scanner ready. Place finger to scan.', 'info');
     }
 
@@ -254,13 +351,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const response = await fetch('/Home/GetStatistics');
             const result = await response.json();
 
-            if (result.success) {
-                if (successRateElement) {
-                    successRateElement.textContent = result.successRate + '%';
-                }
-                if (todayScansElement) {
-                    todayScansElement.textContent = result.todayScans;
-                }
+            if (successRateElement) {
+                successRateElement.textContent = result.successRate || '0%';
+            }
+            if (todayScansElement) {
+                todayScansElement.textContent = result.todayScans || 0;
             }
         } catch (error) {
             console.error('Error updating stats:', error);
@@ -284,6 +379,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (statsUpdateInterval) {
             clearInterval(statsUpdateInterval);
+        }
+        if (autoScanInterval) {
+            clearInterval(autoScanInterval);
         }
     });
 });

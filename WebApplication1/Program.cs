@@ -1,4 +1,4 @@
-﻿using DotNetEnv;
+using DotNetEnv;
 using Fingerprint_Attendance_System.Data;
 using Fingerprint_Attendance_System.Repositories.Implementations;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -62,6 +62,7 @@ builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
 builder.Services.AddScoped<IAdminOverviewRepository, AdminOverviewRepository>();
 builder.Services.AddScoped<IAuthenticationAuditRepository, AuthenticationAuditRepository>();
 builder.Services.AddScoped<IDailyAttendanceLogRepository, DailyAttendanceLogRepository>();
+builder.Services.AddScoped<IAttendanceNotificationRepository, AttendanceNotificationRepository>(); // ✅ NEW: Attendance notifications
 
 // ? TODO: Faculty Attendance Management Repositories (Phase 1)
 // Uncomment after creating repository implementations:

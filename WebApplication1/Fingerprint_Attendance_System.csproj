@@ -6,6 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <!-- Suppress SQL validation errors (PostgreSQL syntax in MSSQL validator) -->
         <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+        <!-- ✅ ADDED: Disable SQL validation -->
+        <NoWarn>$(NoWarn);SQL71502;SQL71501;SQL70001;SQL80001</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -43,16 +45,15 @@
         </None>
     </ItemGroup>
 
-    <!-- Exclude SQL files from build validation (PostgreSQL syntax) -->
+    <!-- ✅ ENHANCED: Exclude SQL files from ALL processing -->
     <ItemGroup>
         <None Include="Schema\**\*.sql">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+            <BuildAction>None</BuildAction>
         </None>
-    </ItemGroup>
-
-    <!-- Exclude SQL files from compilation -->
-    <ItemGroup>
         <Compile Remove="Schema\**\*.sql" />
+        <Content Remove="Schema\**\*.sql" />
+        <EmbeddedResource Remove="Schema\**\*.sql" />
     </ItemGroup>
 
     <ItemGroup>

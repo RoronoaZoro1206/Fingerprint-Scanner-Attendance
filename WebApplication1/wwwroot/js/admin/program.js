@@ -300,7 +300,7 @@ function confirmDeleteProgram() {
 
     ajaxDelete(`/AdminProgram/Delete/${programId}`,
         function () {
-            Toast deleted('Program');
+            Toast.deleted('Program'); // ✅ FIX: Added dot before deleted
             hideModal('deleteProgramModal');
             programsTable.ajax.reload(null, false);
             resetButton($btn);

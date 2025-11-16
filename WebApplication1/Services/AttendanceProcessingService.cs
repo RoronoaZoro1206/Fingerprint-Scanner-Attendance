@@ -16,6 +16,7 @@ namespace Fingerprint_Attendance_System.Services
         private readonly IFingerprintTemplateRepository _fingerprintRepo;
         private readonly IStudentRepository _studentRepo;
         private readonly IEnrollmentRepository _enrollmentRepo;
+        private readonly IClassScheduleRepository _scheduleRepo; // ✅ NEW: Schedule validation
         private readonly DailyAttendanceService _dailyAttendanceService;
         private readonly MissedTimeOutService _missedTimeOutService;
         private readonly LateDetectionService _lateDetectionService;
@@ -27,6 +28,7 @@ namespace Fingerprint_Attendance_System.Services
             IFingerprintTemplateRepository fingerprintRepo,
             IStudentRepository studentRepo,
             IEnrollmentRepository enrollmentRepo,
+            IClassScheduleRepository scheduleRepo, // ✅ NEW: Inject schedule repository
             DailyAttendanceService dailyAttendanceService,
             MissedTimeOutService missedTimeOutService,
             LateDetectionService lateDetectionService,
@@ -37,6 +39,7 @@ namespace Fingerprint_Attendance_System.Services
             _fingerprintRepo = fingerprintRepo;
             _studentRepo = studentRepo;
             _enrollmentRepo = enrollmentRepo;
+            _scheduleRepo = scheduleRepo; // ✅ NEW: Store schedule repository
             _dailyAttendanceService = dailyAttendanceService;
             _missedTimeOutService = missedTimeOutService;
             _lateDetectionService = lateDetectionService;
@@ -87,15 +90,22 @@ namespace Fingerprint_Attendance_System.Services
                     throw new NoScheduleException(result.Student.StudId);
                 }
 
-                // STEP 5: Check Incomplete Records
+                // ✅ NEW STEP 5: Validate Schedule (Only for Time In)
+                result.ScheduleStatus = await ValidateScheduleAsync(result.Student.StudId);
+                if (!result.ScheduleStatus.HasScheduledClass)
+                {
+                    throw new NoScheduleException(result.Student.StudId, result.ScheduleStatus.Message);
+                }
+
+                // STEP 6: Check Incomplete Records
                 result.IncompleteCheck = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
                     result.Student.StudId,
                     DateTime.Today);
 
-                // STEP 6: Process Attendance (Time In/Out)
+                // STEP 7: Process Attendance (Time In/Out)
                 result.AttendanceResponse = await _dailyAttendanceService.ProcessAttendanceScanAsync(result.Student);
 
-                // STEP 7: Add incomplete warning if needed
+                // STEP 8: Add incomplete warning if needed
                 if (result.IncompleteCheck.HasIncompleteRecords)
                 {
                     result.AttendanceResponse.IncompleteRecordsWarning = result.IncompleteCheck.WarningMessage;
@@ -105,7 +115,7 @@ namespace Fingerprint_Attendance_System.Services
                 result.EndTime = DateTime.Now;
                 result.ProcessingTimeMs = (result.EndTime - result.StartTime).TotalMilliseconds;
 
-                _logger.LogInformation($"? Attendance processing completed in {result.ProcessingTimeMs}ms");
+                _logger.LogInformation($"✅ Attendance processing completed in {result.ProcessingTimeMs}ms");
 
                 return result;
             }
@@ -117,7 +127,7 @@ namespace Fingerprint_Attendance_System.Services
                 result.EndTime = DateTime.Now;
                 result.ProcessingTimeMs = (result.EndTime - result.StartTime).TotalMilliseconds;
 
-                _logger.LogError(ex, $"? Attendance processing failed: {ex.Message}");
+                _logger.LogError(ex, $"❌ Attendance processing failed: {ex.Message}");
 
                 return result;
             }
@@ -264,6 +274,81 @@ namespace Fingerprint_Attendance_System.Services
         }
 
         /// <summary>
+        /// ✅ NEW: Validate student has a scheduled class at current time
+        /// This ensures students can only time in when they have an actual class
+        /// </summary>
+        private async Task<ScheduleStatusDto> ValidateScheduleAsync(int studId)
+        {
+            try
+            {
+                var currentTime = DateTime.Now;
+                var currentDay = currentTime.ToString("dddd"); // e.g., "Monday"
+                var currentTimeOnly = currentTime.TimeOfDay;
+
+                _logger.LogInformation($"Schedule validation: Student={studId}, Day={currentDay}, Time={currentTimeOnly:hh\\:mm}");
+
+                // Get all student's enrolled classes
+                var enrollments = await _enrollmentRepo.GetByStudentIdAsync(studId);
+                var classIds = enrollments.Select(e => e.ClassId).ToList();
+
+                if (!classIds.Any())
+                {
+                    return new ScheduleStatusDto
+                    {
+                        HasScheduledClass = false,
+                        Message = "You have no enrolled classes. Please enroll in classes before timing in."
+                    };
+                }
+
+                // Check if any class is scheduled for this day/time
+                foreach (var classId in classIds)
+                {
+                    var schedules = await _scheduleRepo.GetByClassIdAsync(classId);
+                    
+                    foreach (var schedule in schedules)
+                    {
+                        // Match day of week (case-insensitive, trimmed)
+                        bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(currentDay.Trim(), StringComparison.OrdinalIgnoreCase);
+                        
+                        if (dayMatch)
+                        {
+                            // Check if current time is within class time
+                            if (currentTimeOnly >= schedule.SchedStartTime && currentTimeOnly <= schedule.SchedEndTime)
+                            {
+                                _logger.LogInformation($"✅ Schedule validated: ClassId={classId}, {currentDay} {schedule.SchedStartTime}-{schedule.SchedEndTime}");
+                                return new ScheduleStatusDto
+                                {
+                                    HasScheduledClass = true,
+                                    ClassId = classId,
+                                    DayOfWeek = schedule.SchedDayOfWeek,
+                                    StartTime = schedule.SchedStartTime,
+                                    EndTime = schedule.SchedEndTime
+                                };
+                            }
+                        }
+                    }
+                }
+
+                _logger.LogWarning($"❌ No scheduled class: Student={studId}, {currentDay} at {currentTimeOnly:hh\\:mm}");
+                
+                return new ScheduleStatusDto
+                {
+                    HasScheduledClass = false,
+                    Message = $"No class scheduled at this time. You have no subject/course assigned for {currentDay} at {currentTime:h:mm tt}."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error validating schedule for student {studId}");
+                return new ScheduleStatusDto
+                {
+                    HasScheduledClass = false,
+                    Message = "Unable to validate schedule. Please try again or contact support."
+                };
+            }
+        }
+
+        /// <summary>
         /// Get scanner device status
         /// </summary>
         public ScannerStatusDto GetScannerStatus()
@@ -311,6 +396,7 @@ namespace Fingerprint_Attendance_System.Services
         public FingerprintCaptureResult CaptureResult { get; set; } = new();
         public Student? Student { get; set; }
         public EnrollmentStatusDto EnrollmentStatus { get; set; } = new();
+        public ScheduleStatusDto ScheduleStatus { get; set; } = new(); // ✅ NEW: Schedule validation result
         public IncompleteRecordResult IncompleteCheck { get; set; } = new();
         public AttendanceScanResponseDto? AttendanceResponse { get; set; }
     }
@@ -337,6 +423,19 @@ namespace Fingerprint_Attendance_System.Services
     {
         public bool IsEnrolled { get; set; }
         public int EnrollmentCount { get; set; }
+    }
+
+    /// <summary>
+    /// ✅ NEW: Schedule validation result
+    /// </summary>
+    public class ScheduleStatusDto
+    {
+        public bool HasScheduledClass { get; set; }
+        public int? ClassId { get; set; }
+        public string DayOfWeek { get; set; } = string.Empty;
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 
     #endregion

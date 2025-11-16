@@ -3,6 +3,7 @@ using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Services;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using StudentModel = Fingerprint_Attendance_System.Models.Student; // ✅ FIX: Add alias to avoid namespace conflict
 
 namespace Fingerprint_Attendance_System.Controllers.Home;
 
@@ -287,7 +288,7 @@ public class HomeController : Controller
     /// <summary>
     /// Match captured fingerprint against database
     /// </summary>
-    private async Task<Student?> MatchFingerprintAsync(byte[] capturedTemplate)
+    private async Task<StudentModel?> MatchFingerprintAsync(byte[] capturedTemplate) // ✅ FIX: Use alias
     {
         const int MATCH_THRESHOLD = 50;
 
@@ -343,6 +344,8 @@ public class HomeController : Controller
                 return false;
             }
 
+            _logger.LogInformation($"Checking {classIds.Count} enrolled classes for schedule match");
+
             // Check if any class is scheduled for this day/time
             foreach (var classId in classIds)
             {
@@ -350,8 +353,12 @@ public class HomeController : Controller
                 
                 foreach (var schedule in schedules)
                 {
-                    // Match day of week
-                    if (schedule.SchedDayOfWeek.Trim().Equals(dayOfWeek.Trim(), StringComparison.OrdinalIgnoreCase))
+                    _logger.LogDebug($"Checking schedule: Day={schedule.SchedDayOfWeek}, Start={schedule.SchedStartTime}, End={schedule.SchedEndTime}");
+                    
+                    // Match day of week (case-insensitive, trimmed)
+                    bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(dayOfWeek.Trim(), StringComparison.OrdinalIgnoreCase);
+                    
+                    if (dayMatch)
                     {
                         // Check if current time is within class time
                         if (currentTime >= schedule.SchedStartTime && currentTime <= schedule.SchedEndTime)
@@ -360,18 +367,22 @@ public class HomeController : Controller
                                                  $"Time={schedule.SchedStartTime}-{schedule.SchedEndTime}");
                             return true;
                         }
+                        else
+                        {
+                            _logger.LogDebug($"Time mismatch: Current={currentTime} not in range {schedule.SchedStartTime}-{schedule.SchedEndTime}");
+                        }
                     }
                 }
             }
 
-            _logger.LogInformation($"No scheduled class found for student {studId} on {dayOfWeek} at {currentTime}");
+            _logger.LogWarning($"❌ No scheduled class found for student {studId} on {dayOfWeek} at {currentTime:hh\\:mm}");
             return false;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error checking schedule for student {studId}");
-            // On error, allow attendance (fail-safe approach)
-            return true;
+            // STRICT MODE: On error, deny attendance (fail-safe approach changed)
+            return false;
         }
     }
 

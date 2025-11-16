@@ -1,27 +1,39 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "lib": ["ES2020", "DOM"],
+    "target": "ES2015",
+    "module": "ES2015",
+    "lib": ["ES2015", "DOM"],
     "allowJs": true,
     "checkJs": false,
-    "noEmit": true,
-    "strict": false,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "noImplicitAny": false,
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "./wwwroot/js",
+    "rootDir": "./wwwroot/js",
     "types": ["jquery"],
-    "typeRoots": ["./node_modules/@types", "./wwwroot/js"]
+    "noEmit": true,
+    "isolatedModules": false,
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "include": [
-    "wwwroot/js/**/*"
+    "wwwroot/js/**/*.ts",
+    "wwwroot/js/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
-    "wwwroot/lib",
+    "wwwroot/js/**/*.js",
     "bin",
-    "obj"
+    "obj",
+    "**/*.spec.ts"
   ]
 }
