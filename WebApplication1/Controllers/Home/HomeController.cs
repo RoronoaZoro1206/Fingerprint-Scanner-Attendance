@@ -14,6 +14,12 @@ public class HomeController : Controller
     private readonly IStudentRepository _studentRepo;
     private readonly IClassScheduleRepository _classScheduleRepo;
     private readonly IEnrollmentRepository _enrollmentRepo;
+    private readonly IDailyAttendanceLogRepository _dailyAttendanceRepo; // ✅ NEW
+    private readonly IClassRepository _classRepo; // ✅ NEW
+    private readonly ICourseRepository _courseRepo; // ✅ NEW
+    private readonly IFacultyRepository _facultyRepo; // ✅ NEW
+    private readonly IRoomRepository _roomRepo; // ✅ NEW
+    private readonly IUserRepository _userRepo; // ✅ NEW
     private readonly AttendanceProcessingService _attendanceService;
     private readonly ILogger<HomeController> _logger;
 
@@ -23,6 +29,12 @@ public class HomeController : Controller
         IStudentRepository studentRepo,
         IClassScheduleRepository classScheduleRepo,
         IEnrollmentRepository enrollmentRepo,
+        IDailyAttendanceLogRepository dailyAttendanceRepo, // ✅ NEW
+        IClassRepository classRepo, // ✅ NEW
+        ICourseRepository courseRepo, // ✅ NEW
+        IFacultyRepository facultyRepo, // ✅ NEW
+        IRoomRepository roomRepo, // ✅ NEW
+        IUserRepository userRepo, // ✅ NEW
         AttendanceProcessingService attendanceService,
         ILogger<HomeController> logger)
     {
@@ -31,6 +43,12 @@ public class HomeController : Controller
         _studentRepo = studentRepo;
         _classScheduleRepo = classScheduleRepo;
         _enrollmentRepo = enrollmentRepo;
+        _dailyAttendanceRepo = dailyAttendanceRepo; // ✅ NEW
+        _classRepo = classRepo; // ✅ NEW
+        _courseRepo = courseRepo; // ✅ NEW
+        _facultyRepo = facultyRepo; // ✅ NEW
+        _roomRepo = roomRepo; // ✅ NEW
+        _userRepo = userRepo; // ✅ NEW
         _attendanceService = attendanceService;
         _logger = logger;
     }
@@ -118,6 +136,7 @@ public class HomeController : Controller
 
     /// <summary>
     /// Process public fingerprint scan for attendance with intelligent schedule validation
+    /// ✅ ENHANCED: Prevents duplicate time-in after completing attendance for same class
     /// POST: /Home/ScanFingerprint
     /// </summary>
     [HttpPost]
@@ -160,7 +179,7 @@ public class HomeController : Controller
             _logger.LogInformation("Matching fingerprint against database...");
             var matchResult = await MatchFingerprintWithRoleCheckAsync(template);
 
-            // STEP 3A: Fingerprint not found in system
+            // Handle fingerprint not found or wrong role
             if (matchResult.Student == null && matchResult.User == null)
             {
                 _logger.LogWarning("Fingerprint not recognized");
@@ -184,7 +203,6 @@ public class HomeController : Controller
                 });
             }
 
-            // STEP 3B: Fingerprint recognized but wrong role (Admin or Faculty)
             if (matchResult.Student == null && matchResult.User != null)
             {
                 _logger.LogWarning($"Non-student user detected: {matchResult.User.UserEmail} (Role: {matchResult.UserRoleName})");
@@ -222,16 +240,16 @@ public class HomeController : Controller
             var student = matchResult.Student!;
             _logger.LogInformation($"Student identified: {student.StudNumber}");
 
-            // STEP 4: Check current schedule - INTELLIGENT VALIDATION
+            // STEP 4: Check current schedule - Find active class
             var currentTime = DateTime.Now;
-            var currentDay = currentTime.ToString("dddd"); // e.g., "Monday"
+            var currentDay = currentTime.ToString("dddd");
             var currentTimeOnly = currentTime.TimeOfDay;
 
             _logger.LogInformation($"Checking schedule for {currentDay} at {currentTimeOnly}...");
 
-            var hasScheduledClass = await HasScheduledClassNowAsync(student.StudId, currentDay, currentTimeOnly);
+            var activeClassInfo = await GetActiveClassForStudentAsync(student.StudId, currentDay, currentTimeOnly);
 
-            if (!hasScheduledClass)
+            if (activeClassInfo == null)
             {
                 _logger.LogWarning($"No class scheduled for student {student.StudNumber} on {currentDay} at {currentTimeOnly}");
                 
@@ -253,17 +271,116 @@ public class HomeController : Controller
                 });
             }
 
-            // STEP 5: Process attendance (Time In/Out) - Schedule validated!
-            _logger.LogInformation("Schedule validated. Processing attendance...");
+            _logger.LogInformation($"✅ Active class found: {activeClassInfo.CourseCode} - {activeClassInfo.CourseName} (Class ID: {activeClassInfo.ClassId})");
+
+            // ✅ STEP 5: CHECK FOR EXISTING ATTENDANCE FOR THIS CLASS TODAY
+            var existingAttendance = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(
+                student.StudId, 
+                activeClassInfo.ClassId, 
+                currentTime.Date
+            );
+
+            if (existingAttendance != null)
+            {
+                // ✅ CASE 1: Already completed (both time in and time out recorded)
+                if (existingAttendance.Status == "completed" && existingAttendance.TimeOut != null)
+                {
+                    _logger.LogWarning($"⚠️ BLOCKED: Student {student.StudNumber} already completed attendance for {activeClassInfo.CourseCode}");
+                    
+                    // Error feedback: red light + beep
+                    _fingerprintService.SetLedLight("red", true);
+                    _fingerprintService.Beep(true);
+                    _ = Task.Delay(1000).ContinueWith(_ =>
+                    {
+                        _fingerprintService.SetLedLight("red", false);
+                        _fingerprintService.Beep(false);
+                    });
+
+                    return Json(new
+                    {
+                        success = false,
+                        messageType = "already_completed",
+                        studentName = $"{student.User?.UserFirstName} {student.User?.UserLastName}",
+                        studentNumber = student.StudNumber,
+                        courseName = $"{activeClassInfo.CourseCode} - {activeClassInfo.CourseName}",
+                        facultyName = activeClassInfo.FacultyName,
+                        timeIn = existingAttendance.TimeIn?.ToString("hh:mm tt"),
+                        timeOut = existingAttendance.TimeOut?.ToString("hh:mm tt"),
+                        message = $"⚠️ Attendance Already Completed\n\n" +
+                                 $"Hello, {student.User?.UserFirstName} {student.User?.UserLastName}\n\n" +
+                                 $"You have already completed your attendance for:\n" +
+                                 $"📚 {activeClassInfo.CourseCode} - {activeClassInfo.CourseName}\n" +
+                                 $"👨‍🏫 Prof. {activeClassInfo.FacultyName}\n\n" +
+                                 $"✅ Time In: {existingAttendance.TimeIn:hh:mm tt}\n" +
+                                 $"✅ Time Out: {existingAttendance.TimeOut:hh:mm tt}\n\n" +
+                                 $"You cannot time in again for this class today."
+                    });
+                }
+                
+                // ✅ CASE 2: Active time in exists (needs time out)
+                if (existingAttendance.Status == "active" && existingAttendance.TimeOut == null)
+                {
+                    _logger.LogInformation($"Processing TIME OUT for {activeClassInfo.CourseCode}");
+                    
+                    existingAttendance.TimeOut = currentTime;
+                    existingAttendance.Status = "completed";
+                    existingAttendance.UpdatedAt = DateTime.Now;
+                    
+                    var duration = currentTime - existingAttendance.TimeIn.Value;
+                    var durationText = duration.TotalHours >= 1 
+                        ? $"{(int)duration.TotalHours} hours and {duration.Minutes} minutes"
+                        : $"{duration.Minutes} minutes and {duration.Seconds} seconds";
+                    
+                    existingAttendance.Remarks = $"Class duration: {durationText}";
+                    
+                    await _dailyAttendanceRepo.UpdateAsync(existingAttendance);
+                    
+                    // Success feedback: green light + beep
+                    _fingerprintService.SetLedLight("green", true);
+                    _fingerprintService.Beep(true);
+                    _ = Task.Delay(300).ContinueWith(_ =>
+                    {
+                        _fingerprintService.SetLedLight("green", false);
+                        _fingerprintService.Beep(false);
+                    });
+
+                    return Json(new
+                    {
+                        success = true,
+                        action = "time_out",
+                        timestamp = currentTime,
+                        message = $"Goodbye, {student.User?.UserFirstName}! Time Out recorded. You attended {activeClassInfo.CourseCode} for {durationText}.",
+                        student = new
+                        {
+                            studId = student.StudId,
+                            studNumber = student.StudNumber,
+                            fullName = $"{student.User?.UserFirstName} {student.User?.UserLastName}".Trim(),
+                            programName = student.Program?.ProgramName,
+                            sectionName = student.Section?.SectionName,
+                            yearLevel = student.StudYearLevel
+                        },
+                        currentClass = new
+                        {
+                            courseCode = activeClassInfo.CourseCode,
+                            courseName = activeClassInfo.CourseName,
+                            facultyName = activeClassInfo.FacultyName,
+                            roomCode = activeClassInfo.RoomCode,
+                            schedule = activeClassInfo.Schedule
+                        }
+                    });
+                }
+            }
+
+            // ✅ STEP 6: No existing record - Process TIME IN
+            _logger.LogInformation($"Processing TIME IN for {activeClassInfo.CourseCode}");
             
-            // ✅ FIX: Pass the already-matched student to the service
-            var processingResult = await _attendanceService.ProcessAttendanceAsync(student);
+            var processingResult = await _attendanceService.ProcessAttendanceAsync(student, activeClassInfo.ClassId);
 
             if (!processingResult.Success)
             {
                 _logger.LogWarning($"Attendance processing failed: {processingResult.Error}");
                 
-                // Error feedback
+                // Error feedback: red light + beep
                 _fingerprintService.SetLedLight("red", true);
                 _fingerprintService.Beep(true);
                 _ = Task.Delay(500).ContinueWith(_ =>
@@ -303,7 +420,6 @@ public class HomeController : Controller
                 _fingerprintService.Beep(false);
             });
 
-            // STEP 6: Return success response
             return Json(new
             {
                 success = true,
@@ -316,7 +432,16 @@ public class HomeController : Controller
                     studNumber = student.StudNumber,
                     fullName = attendanceResponse.Student?.FullName ?? "Student",
                     programName = attendanceResponse.Student?.ProgramName,
-                    sectionName = attendanceResponse.Student?.SectionName
+                    sectionName = attendanceResponse.Student?.SectionName,
+                    yearLevel = attendanceResponse.Student?.YearLevel
+                },
+                currentClass = new
+                {
+                    courseCode = activeClassInfo.CourseCode,
+                    courseName = activeClassInfo.CourseName,
+                    facultyName = activeClassInfo.FacultyName,
+                    roomCode = activeClassInfo.RoomCode,
+                    schedule = activeClassInfo.Schedule
                 },
                 incompleteRecordsWarning = attendanceResponse.IncompleteRecordsWarning
             });
@@ -535,6 +660,95 @@ public class HomeController : Controller
             "TimeoutException" => "⏱️ Scan timeout. Please place your finger on the scanner and try again.",
             _ => error ?? "❌ An error occurred. Please try again."
         };
+    }
+
+    /// <summary>
+    /// ✅ NEW: Get active class for student at current time with all details
+    /// Returns class information if student has a scheduled class right now
+    /// </summary>
+    private async Task<ActiveClassInfo?> GetActiveClassForStudentAsync(int studId, string dayOfWeek, TimeSpan currentTime)
+    {
+        try
+        {
+            var enrollments = await _enrollmentRepo.GetByStudentIdAsync(studId);
+            var classIds = enrollments.Select(e => e.ClassId).ToList();
+
+            if (!classIds.Any())
+            {
+                _logger.LogWarning($"Student {studId} has no enrollments");
+                return null;
+            }
+
+            foreach (var classId in classIds)
+            {
+                var schedules = await _classScheduleRepo.GetByClassIdAsync(classId);
+                
+                foreach (var schedule in schedules)
+                {
+                    bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(dayOfWeek.Trim(), StringComparison.OrdinalIgnoreCase);
+                    bool timeMatch = currentTime >= schedule.SchedStartTime && currentTime <= schedule.SchedEndTime;
+                    
+                    if (dayMatch && timeMatch)
+                    {
+                        // Get full class details
+                        var classDetail = await _classRepo.GetByIdAsync(classId);
+                        if (classDetail == null) continue;
+                        
+                        var course = classDetail.CourseId.HasValue 
+                            ? await _courseRepo.GetByIdAsync(classDetail.CourseId.Value) 
+                            : null;
+                        
+                        string facultyName = "TBA";
+                        if (classDetail.FacId.HasValue)
+                        {
+                            var faculty = await _facultyRepo.GetByIdAsync(classDetail.FacId.Value);
+                            if (faculty != null)
+                            {
+                                var facultyUser = await _userRepo.GetByIdAsync(faculty.UserId);
+                                if (facultyUser != null)
+                                {
+                                    facultyName = $"{facultyUser.UserFirstName} {facultyUser.UserLastName}";
+                                }
+                            }
+                        }
+                        
+                        var room = classDetail.RoomId.HasValue 
+                            ? await _roomRepo.GetByIdAsync(classDetail.RoomId.Value) 
+                            : null;
+                        
+                        return new ActiveClassInfo
+                        {
+                            ClassId = classId,
+                            CourseCode = course?.CourseCode ?? "N/A",
+                            CourseName = course?.CourseName ?? "N/A",
+                            FacultyName = facultyName,
+                            RoomCode = room?.RoomCode ?? "TBA",
+                            Schedule = $"{schedule.SchedDayOfWeek} {schedule.SchedStartTime:hh\\:mm tt}-{schedule.SchedEndTime:hh\\:mm tt}"
+                        };
+                    }
+                }
+            }
+            
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting active class for student {studId}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// ✅ NEW: Helper class for active class information
+    /// </summary>
+    private class ActiveClassInfo
+    {
+        public int ClassId { get; set; }
+        public string CourseCode { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string FacultyName { get; set; } = string.Empty;
+        public string RoomCode { get; set; } = string.Empty;
+        public string Schedule { get; set; } = string.Empty;
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

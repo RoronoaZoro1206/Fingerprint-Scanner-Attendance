@@ -10,6 +10,12 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         Task<DailyAttendanceLog?> GetByStudentAndDateAsync(int studId, DateTime date);
 
         /// <summary>
+        /// ✅ NEW: Get attendance record by student, class, and date
+        /// Used to check if attendance already completed for specific class
+        /// </summary>
+        Task<DailyAttendanceLog?> GetByStudentClassAndDateAsync(int studId, int classId, DateTime date);
+
+        /// <summary>
         /// Get daily attendance record by ID
         /// </summary>
         Task<DailyAttendanceLog?> GetByIdAsync(int dailyAttendId);

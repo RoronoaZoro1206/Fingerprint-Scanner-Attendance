@@ -18,6 +18,33 @@
             </ul>
             
             <div class="scan-status-message" id="scanStatusMessage"></div>
+            
+            <!-- ✅ NEW: Live Student Info Cards -->
+            <div class="student-info-cards" id="studentInfoCards" style="display: none;">
+                <div class="info-card">
+                    <div class="info-label">Student</div>
+                    <div class="info-value" id="currentStudentName">-</div>
+                    <div class="info-subtitle" id="currentStudentNumber">-</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-label">Program</div>
+                    <div class="info-value" id="currentProgram">-</div>
+                    <div class="info-subtitle" id="currentYearSection">-</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-label">Current Class</div>
+                    <div class="info-value" id="currentCourse">-</div>
+                    <div class="info-subtitle" id="currentRoom">-</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-label">Faculty</div>
+                    <div class="info-value" id="currentFaculty">-</div>
+                    <div class="info-subtitle" id="currentSchedule">-</div>
+                </div>
+            </div>
         </div>
 
         <!-- Right Side: Live Scan Results -->
@@ -57,6 +84,8 @@
 </audio>
 
 @section Scripts {
+    <!-- ✅ Add SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="~/js/home-attendance-scanner.js" asp-append-version="true"></script>
 }
 
@@ -127,21 +156,21 @@
     .scan-status-message {
         display: none;
         margin-top: 1rem;
-        padding: 1.5rem 2rem; /* ✅ INCREASED padding for better readability */
-        border-radius: 12px; /* ✅ LARGER border radius */
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
         font-weight: 500;
-        font-size: 1.05rem; /* ✅ SLIGHTLY LARGER font size */
-        line-height: 1.8; /* ✅ INCREASED line height for multi-line messages */
+        font-size: 1.05rem;
+        line-height: 1.8;
         text-align: center;
-        min-height: 100px; /* ✅ ENSURE minimum height */
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* ✅ SMOOTH transitions */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* ✅ ADD shadow for depth */
+        min-height: 100px;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .scan-status-message.show {
-        display: block; /* ✅ ENSURE VISIBLE */
-        opacity: 1 !important; /* ✅ FORCE FULL OPACITY */
-        animation: none !important; /* ✅ PREVENT AUTO-FADE */
+        display: block;
+        opacity: 1 !important;
+        animation: none !important;
     }
 
     .scan-status-message.success {
@@ -180,6 +209,50 @@
         border: 2px solid #9ca3af;
     }
 
+    /* ✅ NEW: Student Info Cards */
+    .student-info-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+        animation: fadeIn 0.5s ease-in;
+    }
+
+    .info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        color: white;
+        transition: transform 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        line-height: 1.3;
+    }
+
+    .info-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.85;
+        font-weight: 400;
+    }
+
     /* CSS Animations */
     @@keyframes pulse {
         0%, 100% { transform: scale(1); border-color: #3b82f6; }
@@ -196,6 +269,30 @@
         0%, 100% { transform: translateX(0); }
         25% { transform: translateX(-10px); }
         75% { transform: translateX(10px); }
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .student-info-cards {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .student-info-cards {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 

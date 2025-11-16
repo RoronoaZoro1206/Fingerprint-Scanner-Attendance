@@ -31,6 +31,7 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// STEP 10: Check student's Time In against class schedules and mark late/present
         /// Called immediately after Time In is recorded
+        /// ✅ FIXED: Now only processes classes that are currently active (within schedule time window)
         /// </summary>
         public async Task ProcessLateDetectionAsync(int dailyAttendId)
         {
@@ -48,6 +49,7 @@ namespace Fingerprint_Attendance_System.Services
 
                 var studId = dailyRecord.StudId;
                 var timeIn = dailyRecord.TimeIn.Value;
+                var timeInTime = timeIn.TimeOfDay; // ✅ NEW: Extract time only for comparison
                 var date = dailyRecord.AttendDate;
 
                 _logger.LogInformation($"Student ID: {studId}, Time In: {timeIn:HH:mm:ss}, Date: {date:yyyy-MM-dd}");
@@ -62,10 +64,35 @@ namespace Fingerprint_Attendance_System.Services
                     return;
                 }
 
-                _logger.LogInformation($"Found {scheduleList.Count} class(es) for Student {studId} today");
+                _logger.LogInformation($"Found {scheduleList.Count} class(es) scheduled for Student {studId} today");
 
-                // Process each class
-                foreach (var classSchedule in scheduleList)
+                // ✅ CRITICAL FIX: Filter to only ACTIVE classes (where current time is within schedule window)
+                var activeSchedules = scheduleList.Where(s => 
+                    timeInTime >= s.StartTime && 
+                    timeInTime <= s.EndTime
+                ).ToList();
+
+                _logger.LogInformation($"? SCHEDULE VALIDATION: {scheduleList.Count} total classes, {activeSchedules.Count} are currently ACTIVE at {timeInTime:hh\\:mm}");
+
+                if (!activeSchedules.Any())
+                {
+                    _logger.LogWarning($"❌ No active classes at time {timeInTime:hh\\:mm}. Student timed in outside all class schedules.");
+                    _logger.LogInformation("Available class schedules:");
+                    foreach (var sched in scheduleList)
+                    {
+                        _logger.LogInformation($"  - {sched.CourseCode}: {sched.StartTime:hh\\:mm} - {sched.EndTime:hh\\:mm} (INACTIVE - outside time window)");
+                    }
+                    return;
+                }
+
+                _logger.LogInformation("Active classes at this time:");
+                foreach (var sched in activeSchedules)
+                {
+                    _logger.LogInformation($"  ? {sched.CourseCode} ({sched.StartTime:hh\\:mm} - {sched.EndTime:hh\\:mm}) - ACTIVE");
+                }
+
+                // Process ONLY active classes
+                foreach (var classSchedule in activeSchedules)
                 {
                     await ProcessClassAttendanceAsync(
                         dailyRecord, 
@@ -73,7 +100,7 @@ namespace Fingerprint_Attendance_System.Services
                         timeIn);
                 }
 
-                _logger.LogInformation($"? Late detection processing complete for Daily Attend ID: {dailyAttendId}");
+                _logger.LogInformation($"? Late detection processing complete for Daily Attend ID: {dailyAttendId}. Processed {activeSchedules.Count} active class(es).");
             }
             catch (Exception ex)
             {

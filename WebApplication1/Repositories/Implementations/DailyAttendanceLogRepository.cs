@@ -21,7 +21,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<DailyAttendanceLog?> GetByStudentAndDateAsync(int studId, DateTime date)
         {
             var query = @"
-                SELECT daily_attend_id, stud_id, attend_date, time_in, time_out, 
+                SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
                        status, forgot_timeout, remarks, created_at, updated_at
                 FROM daily_attendance_log
                 WHERE stud_id = @stud_id 
@@ -30,6 +30,36 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             var parameters = new Dictionary<string, object>
             {
                 { "@stud_id", studId },
+                { "@attend_date", date.Date }
+            };
+
+            var result = await _db.ExecuteQueryAsync(query, parameters);
+
+            if (result.Rows.Count == 0)
+                return null;
+
+            var row = result.Rows[0];
+            return MapFromDataRow(row);
+        }
+
+        /// <summary>
+        /// ✅ NEW: Get attendance record by student, class, and date
+        /// Used to check if attendance already completed for specific class
+        /// </summary>
+        public async Task<DailyAttendanceLog?> GetByStudentClassAndDateAsync(int studId, int classId, DateTime date)
+        {
+            var query = @"
+                SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
+                       status, forgot_timeout, remarks, created_at, updated_at
+                FROM daily_attendance_log
+                WHERE stud_id = @stud_id 
+                  AND class_id = @class_id
+                  AND attend_date = @attend_date";
+
+            var parameters = new Dictionary<string, object>
+            {
+                { "@stud_id", studId },
+                { "@class_id", classId },
                 { "@attend_date", date.Date }
             };
 
@@ -115,14 +145,15 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         {
             var query = @"
                 INSERT INTO daily_attendance_log 
-                    (stud_id, attend_date, time_in, time_out, status, forgot_timeout, remarks, created_at, updated_at)
+                    (stud_id, class_id, attend_date, time_in, time_out, status, forgot_timeout, remarks, created_at, updated_at)
                 VALUES 
-                    (@stud_id, @attend_date, @time_in, @time_out, @status, @forgot_timeout, @remarks, @created_at, @updated_at)
+                    (@stud_id, @class_id, @attend_date, @time_in, @time_out, @status, @forgot_timeout, @remarks, @created_at, @updated_at)
                 RETURNING daily_attend_id";
 
             var parameters = new Dictionary<string, object>
             {
                 { "@stud_id", record.StudId },
+                { "@class_id", record.ClassId ?? (object)DBNull.Value },
                 { "@attend_date", record.AttendDate.Date },
                 { "@time_in", record.TimeIn ?? (object)DBNull.Value },
                 { "@time_out", record.TimeOut ?? (object)DBNull.Value },
@@ -182,6 +213,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             {
                 DailyAttendId = Convert.ToInt32(row["daily_attend_id"]),
                 StudId = Convert.ToInt32(row["stud_id"]),
+                ClassId = row["class_id"] == DBNull.Value ? null : Convert.ToInt32(row["class_id"]),
                 AttendDate = Convert.ToDateTime(row["attend_date"]),
                 TimeIn = row["time_in"] == DBNull.Value ? null : Convert.ToDateTime(row["time_in"]),
                 TimeOut = row["time_out"] == DBNull.Value ? null : Convert.ToDateTime(row["time_out"]),

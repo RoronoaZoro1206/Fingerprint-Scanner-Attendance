@@ -20,6 +20,13 @@ namespace Fingerprint_Attendance_System.Models
         public int StudId { get; set; }
 
         /// <summary>
+        /// ✅ NEW: Foreign key to classes table
+        /// Database column: class_id
+        /// Links attendance to specific class - prevents duplicate time-ins for same class
+        /// </summary>
+        public int? ClassId { get; set; }
+
+        /// <summary>
         /// Date of attendance (without time component)
         /// Database column: attend_date
         /// </summary>
@@ -89,6 +96,11 @@ namespace Fingerprint_Attendance_System.Models
         /// Populated via manual JOIN queries
         /// </summary>
         public ICollection<Attendance>? ClassAttendances { get; set; }
+
+        /// <summary>
+        /// ✅ NEW: Navigation property to class
+        /// </summary>
+        public Class? Class { get; set; }
 
         // ============================================================
         // COMPUTED PROPERTIES

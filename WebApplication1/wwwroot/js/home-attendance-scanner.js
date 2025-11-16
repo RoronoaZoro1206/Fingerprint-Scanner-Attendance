@@ -203,65 +203,198 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * ✅ ENHANCED: Handle successful scan with 7-second display time
+     * ✅ ENHANCED: Handle successful scan with SweetAlert2 + Info Card Updates
      */
     function handleSuccess(result) {
         fingerprintScanner.classList.remove('validating', 'scanning', 'error');
         fingerprintScanner.classList.add('success');
 
         const student = result.student || {};
+        const currentClass = result.currentClass || {};
         const action = result.action || 'recorded';
         const timestamp = result.timestamp ? new Date(result.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
 
-        // Build comprehensive student information display
-        let studentInfo = `
-            <strong>${student.fullName || 'Student'}</strong><br>
-            <strong>ID:</strong> ${student.studNumber || 'N/A'}<br>
-            <strong>Program:</strong> ${student.programName || 'N/A'}${student.sectionName ? ' - ' + student.sectionName : ''}
+        // ✅ NEW: Update Info Cards (live display without page refresh)
+        updateInfoCards(student, currentClass, result);
+
+        // Build comprehensive message for SweetAlert2
+        const studentName = student.fullName || 'Student';
+        const programInfo = buildProgramInfo(student);
+        const classInfo = buildClassInfo(currentClass);
+        
+        let icon = action === 'time_in' ? 'success' : 'info';
+        let title = action === 'time_in' 
+            ? `✅ Welcome, ${studentName}!` 
+            : `👋 Goodbye, ${studentName}!`;
+        
+        let htmlContent = `
+            <div style="text-align: left; line-height: 1.8; padding: 10px;">
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong>Student ID:</strong> ${student.studNumber || 'N/A'}<br>
+                    ${programInfo}
+                </div>
+                
+                ${classInfo}
+                
+                <div style="margin-top: 15px; padding: 12px; background: ${action === 'time_in' ? '#d1fae5' : '#dbeafe'}; border-radius: 8px;">
+                    <strong>${action === 'time_in' ? '⏰ Time In:' : '🚪 Time Out:'}</strong> 
+                    <span style="font-size: 18px; font-weight: bold;">${timestamp}</span>
+                </div>
         `;
 
-        // Build message based on action (Time In vs Time Out)
-        let message = '';
-        let emoji = '';
-        
-        if (action === 'time_in') {
-            emoji = '✅';
-            message = `
-                ${emoji} <strong>Good morning! Time In Recorded</strong><br><br>
-                ${studentInfo}<br>
-                <strong>Time In:</strong> ${timestamp}
-            `;
-        } else if (action === 'time_out') {
-            emoji = '👋';
-            message = `
-                ${emoji} <strong>Goodbye! Time Out Recorded</strong><br><br>
-                ${studentInfo}<br>
-                <strong>Time Out:</strong> ${timestamp}
-            `;
-        } else {
-            message = `✅ ${result.message || 'Attendance recorded successfully'}`;
+        // Add duration for Time Out
+        if (action === 'time_out') {
+            const durationMatch = result.message.match(/(\d+ hours? and \d+ minutes?)|(\d+ minutes? and \d+ seconds?)/i);
+            if (durationMatch) {
+                htmlContent += `
+                    <div style="margin-top: 10px; padding: 12px; background: #fef3c7; border-radius: 8px;">
+                        <strong>⏱️ Duration:</strong> ${durationMatch[0]}
+                    </div>
+                `;
+            }
         }
 
-        // Show incomplete records warning if present
+        // Add incomplete records warning
         if (result.incompleteRecordsWarning) {
-            message += `<br><br>⚠️ ${result.incompleteRecordsWarning}`;
+            htmlContent += `
+                <div style="margin-top: 15px; padding: 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                    <strong>⚠️ Warning:</strong><br>
+                    ${result.incompleteRecordsWarning}
+                </div>
+            `;
         }
 
-        showMessage(message, 'success');
+        htmlContent += `</div>`;
+
+        // Show SweetAlert2 with comprehensive info
+        Swal.fire({
+            icon: icon,
+            title: title,
+            html: htmlContent,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#3b82f6',
+            timer: 8000,
+            timerProgressBar: true,
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp'
+            },
+            allowOutsideClick: true,
+            backdrop: 'rgba(0,0,0,0.4)'
+        });
+
         updateStats();
 
-        // ✅ ENHANCED: Reset after 7 seconds (adequate time to read full details)
+        // Reset after 8 seconds (after SweetAlert closes)
         setTimeout(() => {
             resetScanner();
-            // Restart auto-detection after successful scan
             if (!autoScanInterval) {
                 startAutoDetection();
             }
-        }, 7000); // ✅ INCREASED: 7 seconds for success messages
+        }, 8000);
     }
 
     /**
-     * ✅ ENHANCED: Handle scan error with role-based messaging
+     * ✅ NEW: Update Info Cards with Student/Class Data
+     */
+    function updateInfoCards(student, currentClass, result) {
+        const infoCardsContainer = document.getElementById('studentInfoCards');
+        
+        if (infoCardsContainer) {
+            // Show info cards
+            infoCardsContainer.style.display = 'grid';
+            
+            // Update student name
+            const studentNameElement = document.getElementById('currentStudentName');
+            const studentNumberElement = document.getElementById('currentStudentNumber');
+            if (studentNameElement) {
+                studentNameElement.textContent = student.fullName || '-';
+            }
+            if (studentNumberElement) {
+                studentNumberElement.textContent = student.studNumber || '-';
+            }
+            
+            // Update program
+            const programElement = document.getElementById('currentProgram');
+            const yearSectionElement = document.getElementById('currentYearSection');
+            if (programElement) {
+                programElement.textContent = student.programName || '-';
+            }
+            if (yearSectionElement) {
+                let yearSection = '';
+                if (student.yearLevel) {
+                    yearSection = `${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
+                }
+                if (student.sectionName) {
+                    yearSection += yearSection ? `, ${student.sectionName}` : student.sectionName;
+                }
+                yearSectionElement.textContent = yearSection || '-';
+            }
+            
+            // Update course
+            const courseElement = document.getElementById('currentCourse');
+            const roomElement = document.getElementById('currentRoom');
+            if (courseElement && currentClass) {
+                courseElement.textContent = currentClass.courseCode 
+                    ? `${currentClass.courseCode} - ${currentClass.courseName}` 
+                    : '-';
+            }
+            if (roomElement && currentClass) {
+                roomElement.textContent = currentClass.roomCode || '-';
+            }
+            
+            // Update faculty
+            const facultyElement = document.getElementById('currentFaculty');
+            const scheduleElement = document.getElementById('currentSchedule');
+            if (facultyElement && currentClass) {
+                facultyElement.textContent = currentClass.facultyName || '-';
+            }
+            if (scheduleElement && currentClass) {
+                scheduleElement.textContent = currentClass.schedule || '-';
+            }
+        }
+    }
+
+    /**
+     * ✅ NEW: Build Program Info HTML
+     */
+    function buildProgramInfo(student) {
+        if (!student.programName) return '';
+        
+        let programDisplay = student.programName;
+        if (student.yearLevel) {
+            programDisplay += ` - ${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
+        }
+        if (student.sectionName) {
+            programDisplay += `, ${student.sectionName}`;
+        }
+        
+        return `<strong>Program:</strong> ${programDisplay}`;
+    }
+
+    /**
+     * ✅ NEW: Build Class Info HTML
+     */
+    function buildClassInfo(currentClass) {
+        if (!currentClass || !currentClass.courseCode) return '';
+        
+        return `
+            <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <strong style="font-size: 16px; color: #1f2937;">📚 Current Class</strong><br>
+                <div style="margin-top: 8px; line-height: 1.8;">
+                    <strong>Course:</strong> ${currentClass.courseCode} - ${currentClass.courseName}<br>
+                    <strong>Faculty:</strong> ${currentClass.facultyName}<br>
+                    <strong>Room:</strong> ${currentClass.roomCode}<br>
+                    <strong>Schedule:</strong> ${currentClass.schedule}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * ✅ ENHANCED: Handle scan error with SweetAlert2 for critical errors
      */
     function handleError(result) {
         fingerprintScanner.classList.remove('validating', 'scanning', 'success');
@@ -270,92 +403,111 @@ document.addEventListener('DOMContentLoaded', function () {
         let displayTime = 4000; // Default 4 seconds
         let message = result.message || '❌ Scan failed. Please try again.';
         
-        // ✅ ENHANCED: Handle different message types with appropriate display times
-        if (result.messageType === 'role_restriction') {
-            // Role restriction messages need more time to read
-            displayTime = 7000; // 7 seconds for role restriction messages
+        // ✅ CRITICAL ERRORS: Use SweetAlert2 for blocking/important messages
+        if (result.messageType === 'already_completed') {
+            // Show "Already Completed" as SweetAlert2 modal
+            Swal.fire({
+                icon: 'warning',
+                title: '⚠️ Attendance Already Completed',
+                html: `
+                    <div style="text-align: left; line-height: 1.8;">
+                        <p>Hello, <strong>${result.studentName}</strong></p>
+                        
+                        <p style="margin-top: 15px;">You have already completed your attendance for:</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                            <strong>📚 ${result.courseName}</strong><br>
+                            👨‍🏫 Prof. ${result.facultyName}
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>✅ Time In:</strong> ${result.timeIn}<br>
+                            <strong>✅ Time Out:</strong> ${result.timeOut}
+                        </div>
+                        
+                        <p style="margin-top: 15px; color: #dc2626;">
+                            <strong>You cannot time in again for this class today.</strong>
+                        </p>
+                    </div>
+                `,
+                confirmButtonText: 'Understood',
+                confirmButtonColor: '#3b82f6',
+                timer: 10000,
+                timerProgressBar: true,
+                allowOutsideClick: false
+            });
             
+            setTimeout(() => resetScanner(), 10000);
+            return;
+        }
+        
+        // ✅ OTHER ERRORS: Show in message box with appropriate icons
+        if (result.messageType === 'role_restriction') {
+            displayTime = 7000;
             const roleIcon = result.userRole === 'Admin' 
-                ? '<i data-lucide="shield-alert" style="width:32px;height:32px;color:#ef4444;"></i>' 
-                : '<i data-lucide="user-cog" style="width:32px;height:32px;color:#f59e0b;"></i>';
+                ? '🛡️' : '👨‍🏫';
             
             message = `
-                <div class="role-restriction-alert" style="text-align: left; padding: 10px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        ${roleIcon}
-                        <strong style="font-size: 18px; color: #1f2937;">
-                            ${result.userRole} Fingerprint Detected
-                        </strong>
-                    </div>
+                <div style="text-align: left; padding: 10px; line-height: 1.8;">
+                    <p style="font-size: 18px; margin-bottom: 10px;">
+                        ${roleIcon} <strong>${result.userRole} Fingerprint Detected</strong>
+                    </p>
                     
-                    <div style="margin-left: 0; line-height: 1.8;">
-                        <p style="margin: 8px 0; font-size: 15px;">
-                            Hello, <strong style="color: #3b82f6;">${result.userName}</strong>
-                        </p>
-                        
-                        <p style="margin: 8px 0;">
-                            This is a <strong>${result.userRole}</strong> fingerprint.
-                        </p>
-                        
-                        <p style="margin: 12px 0; padding: 8px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px;">
-                            <strong style="color: #991b1b;">⛔ Only students are allowed to time in and time out.</strong>
-                        </p>
-                        
-                        <p style="margin: 8px 0; font-size: 14px; color: #6b7280;">
-                            ${result.userRole === 'Admin' 
-                                ? 'Please use the Admin Dashboard to manage the system.' 
-                                : 'Please use the Faculty Dashboard to manage your classes.'}
-                        </p>
-                    </div>
+                    <p>Hello, <strong style="color: #3b82f6;">${result.userName}</strong></p>
+                    
+                    <p>This is a <strong>${result.userRole}</strong> fingerprint.</p>
+                    
+                    <p style="margin: 12px 0; padding: 8px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                        <strong style="color: #991b1b;">⛔ Only students are allowed to time in and time out.</strong>
+                    </p>
+                    
+                    <p style="font-size: 14px; color: #6b7280;">
+                        ${result.userRole === 'Admin' 
+                            ? 'Please use the Admin Dashboard to manage the system.' 
+                            : 'Please use the Faculty Dashboard to manage your classes.'}
+                    </p>
                 </div>
             `;
         } else if (result.messageType === 'unregistered') {
-            // Unregistered fingerprint messages
-            displayTime = 6000; // 6 seconds
+            displayTime = 6000;
             message = `
                 <div style="text-align: center; padding: 10px;">
-                    <i data-lucide="alert-circle" style="width:32px;height:32px;color:#ef4444;"></i>
-                    <div style="margin-top: 12px; line-height: 1.8;">
+                    🔍<br><br>
+                    <div style="line-height: 1.8;">
                         ${result.message.replace(/\n/g, '<br>')}
                     </div>
                 </div>
             `;
         } else if (result.messageType === 'no_schedule') {
-            // No schedule messages
-            displayTime = 6000; // 6 seconds
+            displayTime = 6000;
             message = `
                 <div style="text-align: center; padding: 10px;">
-                    <i data-lucide="calendar-x" style="width:32px;height:32px;color:#f59e0b;"></i>
-                    <div style="margin-top: 12px; line-height: 1.8;">
+                    📅<br><br>
+                    <div style="line-height: 1.8;">
                         ${result.message.replace(/\n/g, '<br>')}
                     </div>
                 </div>
             `;
         } else if (result.messageType === 'capture_failed') {
-            // Capture failure messages
-            displayTime = 5000; // 5 seconds
+            displayTime = 5000;
             message = `
                 <div style="text-align: center; padding: 10px;">
-                    <i data-lucide="fingerprint" style="width:32px;height:32px;color:#ef4444;"></i>
-                    <div style="margin-top: 12px; line-height: 1.8;">
+                    ⚠️<br><br>
+                    <div style="line-height: 1.8;">
                         ${result.message.replace(/\n/g, '<br>')}
                     </div>
                 </div>
             `;
         } else {
-            // Generic error messages
-            displayTime = 5000; // 5 seconds
-            const formattedMessage = `❌ ${message}`;
+            displayTime = 5000;
             message = `
                 <div style="text-align: center; padding: 10px;">
-                    ${formattedMessage.replace(/\n/g, '<br>')}
+                    ❌ ${message.replace(/\n/g, '<br>')}
                 </div>
             `;
         }
 
         showMessage(message, 'error');
 
-        // ✅ Reset scanner after appropriate display time
         setTimeout(() => {
             resetScanner();
         }, displayTime);

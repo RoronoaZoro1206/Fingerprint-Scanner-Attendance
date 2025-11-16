@@ -1,4 +1,3 @@
-
 -- ============================================================
 -- EXTENSIONS
 -- ============================================================
@@ -725,271 +724,59 @@ BEGIN
     RAISE NOTICE '✅ Created % new enrollment(s)', v_enrollment_count;
 END $$;
 
--- Function 1: Get or Create Daily Attendance Record
-CREATE OR REPLACE FUNCTION get_daily_attendance_record(
-    p_stud_id INT,
-    p_date DATE DEFAULT CURRENT_DATE
-)
-RETURNS TABLE (
-    daily_attend_id INT,
-    time_in TIMESTAMP,
-    time_out TIMESTAMP,
-    status VARCHAR(20),
-    forgot_timeout BOOLEAN,
-    can_time_in BOOLEAN,
-    can_time_out BOOLEAN
-) AS $$
+-- FIX 5: Add class_id column to daily_attendance_log table and update unique constraint to prevent duplicate time-ins for the same class on the same day
+DO $$ 
 BEGIN
-    RETURN QUERY
-    SELECT 
-        dal.daily_attend_id,
-        dal.time_in,
-        dal.time_out,
-        dal.status,
-        dal.forgot_timeout,
-        -- Can time in if: no record OR time_out is set (completed previous day)
-        CASE 
-            WHEN dal.daily_attend_id IS NULL THEN TRUE
-            WHEN dal.time_out IS NOT NULL THEN TRUE
-            ELSE FALSE
-        END as can_time_in,
-        -- Can time out if: time_in is set AND time_out is NULL
-        CASE 
-            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL THEN TRUE
-            ELSE FALSE
-        END as can_time_out
-    FROM (SELECT p_stud_id as stud_id, p_date as attend_date) as student_day
-    LEFT JOIN daily_attendance_log dal 
-        ON dal.stud_id = student_day.stud_id 
-        AND dal.attend_date = student_day.attend_date;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION get_daily_attendance_record IS 
-'Retrieves daily attendance record with metadata about what actions are allowed (time in/out)';
-
--- Function 2: Check for Incomplete Previous Records
-CREATE OR REPLACE FUNCTION check_incomplete_attendance(p_stud_id INT)
-RETURNS TABLE (
-    daily_attend_id INT,
-    attend_date DATE,
-    time_in TIMESTAMP,
-    days_incomplete INT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        dal.daily_attend_id,
-        dal.attend_date,
-        dal.time_in,
-        (CURRENT_DATE - dal.attend_date)::INT as days_incomplete
-    FROM daily_attendance_log dal
-    WHERE dal.stud_id = p_stud_id
-    AND dal.attend_date < CURRENT_DATE
-    AND dal.time_out IS NULL
-    AND dal.forgot_timeout = FALSE
-    ORDER BY dal.attend_date DESC
-    LIMIT 1;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION check_incomplete_attendance IS 
-'Finds the most recent incomplete attendance record (forgot to time out) for a student';
-
--- Function 3: Time In Operation
-CREATE OR REPLACE FUNCTION record_time_in(
-    p_stud_id INT,
-    p_timestamp TIMESTAMP DEFAULT NOW()
-)
-RETURNS TABLE (
-    success BOOLEAN,
-    message TEXT,
-    daily_attend_id INT,
-    incomplete_date DATE
-) AS $$
-DECLARE
-    v_incomplete_record RECORD;
-    v_new_attend_id INT;
-    v_today DATE := p_timestamp::DATE;
-BEGIN
-    -- Check for incomplete previous records
-    SELECT * INTO v_incomplete_record
-    FROM check_incomplete_attendance(p_stud_id);
-    
-    -- If incomplete record found, mark it as forgot to time out
-    IF v_incomplete_record.daily_attend_id IS NOT NULL THEN
-        UPDATE daily_attendance_log
-        SET status = 'incomplete',
-            forgot_timeout = TRUE,
-            updated_at = NOW()
-        WHERE daily_attend_id = v_incomplete_record.daily_attend_id;
-    END IF;
-    
-    -- Check if already timed in today
-    IF EXISTS (
-        SELECT 1 FROM daily_attendance_log 
-        WHERE stud_id = p_stud_id 
-        AND attend_date = v_today 
-        AND time_out IS NULL
+    -- Add class_id column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'daily_attendance_log' 
+        AND column_name = 'class_id'
     ) THEN
-        RETURN QUERY 
-        SELECT 
-            FALSE as success,
-            'Already timed in for today'::TEXT as message,
-            NULL::INT as daily_attend_id,
-            v_incomplete_record.attend_date as incomplete_date;
-        RETURN;
+        ALTER TABLE daily_attendance_log ADD COLUMN class_id INT;
+        
+        -- Add foreign key constraint
+        ALTER TABLE daily_attendance_log ADD CONSTRAINT fk_daily_attend_class
+        FOREIGN KEY (class_id) 
+        REFERENCES classes(class_id) 
+        ON DELETE CASCADE;
+        
+        -- Add index for foreign key
+        CREATE INDEX idx_daily_attend_class_id ON daily_attendance_log(class_id);
+        
+        -- Add comment
+        COMMENT ON COLUMN daily_attendance_log.class_id IS 
+        'Foreign key to classes table. Links daily attendance to specific class to prevent duplicate time-ins for same class on same day.';
+    END IF;
+END $$;
+
+-- Update unique constraint: One record per student per class per date
+DO $$
+BEGIN
+    -- Drop old constraint
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'daily_attendance_unique_student_date'
+    ) THEN
+        ALTER TABLE daily_attendance_log DROP CONSTRAINT daily_attendance_unique_student_date;
     END IF;
     
-    -- Create new time in record
-    INSERT INTO daily_attendance_log (
-        stud_id, 
-        attend_date, 
-        time_in, 
-        status,
-        created_at,
-        updated_at
-    )
-    VALUES (
-        p_stud_id,
-        v_today,
-        p_timestamp,
-        'active',
-        NOW(),
-        NOW()
-    )
-    RETURNING daily_attendance_log.daily_attend_id INTO v_new_attend_id;
-    
-    RETURN QUERY 
-    SELECT 
-        TRUE as success,
-        'Time in recorded successfully'::TEXT as message,
-        v_new_attend_id as daily_attend_id,
-        v_incomplete_record.attend_date as incomplete_date;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION record_time_in IS 
-'Records student time in. Checks for incomplete previous records and auto-marks them as forgot_timeout.';
-
--- Function 4: Time Out Operation
-CREATE OR REPLACE FUNCTION record_time_out(
-    p_stud_id INT,
-    p_timestamp TIMESTAMP DEFAULT NOW()
-)
-RETURNS TABLE (
-    success BOOLEAN,
-    message TEXT,
-    daily_attend_id INT,
-    time_in TIMESTAMP,
-    time_out TIMESTAMP,
-    duration_hours NUMERIC
-) AS $$
-DECLARE
-    v_record RECORD;
-    v_today DATE := p_timestamp::DATE;
-BEGIN
-    -- Find today's active record
-    SELECT * INTO v_record
-    FROM daily_attendance_log
-    WHERE stud_id = p_stud_id
-    AND attend_date = v_today
-    AND time_out IS NULL;
-    
-    -- Check if no active time in
-    IF v_record.daily_attend_id IS NULL THEN
-        RETURN QUERY 
-        SELECT 
-            FALSE as success,
-            'No active time in found for today'::TEXT as message,
-            NULL::INT as daily_attend_id,
-            NULL::TIMESTAMP as time_in,
-            NULL::TIMESTAMP as time_out,
-            NULL::NUMERIC as duration_hours;
-        RETURN;
+    -- Add new constraint with class_id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'daily_attendance_unique_student_class_date'
+    ) THEN
+        ALTER TABLE daily_attendance_log ADD CONSTRAINT daily_attendance_unique_student_class_date 
+        UNIQUE (stud_id, class_id, attend_date);
+        
+        COMMENT ON CONSTRAINT daily_attendance_unique_student_class_date ON daily_attendance_log IS 
+        'Ensures one attendance record per student per class per day - prevents duplicate time-ins after completion';
     END IF;
-    
-    -- Check if time out is before time in
-    IF p_timestamp <= v_record.time_in THEN
-        RETURN QUERY 
-        SELECT 
-            FALSE as success,
-            'Time out cannot be before time in'::TEXT as message,
-            NULL::INT as daily_attend_id,
-            NULL::TIMESTAMP as time_in,
-            NULL::TIMESTAMP as time_out,
-            NULL::NUMERIC as duration_hours;
-        RETURN;
-    END IF;
-    
-    -- Record time out
-    UPDATE daily_attendance_log
-    SET time_out = p_timestamp,
-        status = 'completed',
-        updated_at = NOW()
-    WHERE daily_attend_id = v_record.daily_attend_id;
-    
-    RETURN QUERY 
-    SELECT 
-        TRUE as success,
-        'Time out recorded successfully'::TEXT as message,
-        v_record.daily_attend_id as daily_attend_id,
-        v_record.time_in as time_in,
-        p_timestamp as time_out,
-        ROUND(EXTRACT(EPOCH FROM (p_timestamp - v_record.time_in))/3600, 2) as duration_hours;
-END;
-$$ LANGUAGE plpgsql;
+END $$;
 
-COMMENT ON FUNCTION record_time_out IS 
-'Records student time out. Validates that time in exists and time out is after time in.';
-
--- Function 5: Auto-mark Incomplete Attendance (Run daily via cron/scheduler)
-CREATE OR REPLACE FUNCTION auto_mark_incomplete_attendance()
-RETURNS TABLE (
-    marked_count INT,
-    details TEXT
-) AS $$
-DECLARE
-    v_count INT;
-BEGIN
-    -- Mark all records from yesterday that don't have time_out as incomplete
-    UPDATE daily_attendance_log
-    SET status = 'incomplete',
-        forgot_timeout = TRUE,
-        updated_at = NOW()
-    WHERE attend_date < CURRENT_DATE
-    AND time_out IS NULL
-    AND status = 'active';
-    
-    GET DIAGNOSTICS v_count = ROW_COUNT;
-    
-    RETURN QUERY 
-    SELECT 
-        v_count as marked_count,
-        format('Marked %s record(s) as incomplete for date(s) before %s', v_count, CURRENT_DATE) as details;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION auto_mark_incomplete_attendance IS 
-'Scheduled function to auto-mark forgotten time outs. Should be run daily at midnight.';
-
-
-CREATE OR REPLACE FUNCTION update_daily_attendance_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_daily_attendance_updated_at
-    BEFORE UPDATE ON daily_attendance_log
-    FOR EACH ROW
-EXECUTE FUNCTION update_daily_attendance_timestamp();
-
-COMMENT ON TRIGGER trg_daily_attendance_updated_at ON daily_attendance_log IS 
-'Auto-updates updated_at timestamp on every record modification';
-
+-- Add composite index for faster queries
+CREATE INDEX IF NOT EXISTS idx_daily_attend_stud_class_date_composite 
+ON daily_attendance_log(stud_id, class_id, attend_date, status);
 
 
 -- ============================================================
