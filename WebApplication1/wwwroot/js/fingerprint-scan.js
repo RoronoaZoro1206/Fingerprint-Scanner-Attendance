@@ -1,4 +1,4 @@
-﻿// Modern Fingerprint Authentication JavaScript
+// Modern Fingerprint Authentication JavaScript
 // Enhanced with automatic fingerprint detection and Bootstrap Icons
 document.addEventListener('DOMContentLoaded', function () {
  const fingerprintScanner = document.getElementById('fingerprintScanner');
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
      isScanning = true;
      
        // Remove previous states
-          fingerprintScanner.classList.remove('success', 'error', 'offline');
+          fingerprintScanner.classList.remove('success', 'error', 'offline', 'validating');
         fingerprintScanner.classList.add('scanning');
  fingerprintScanner.style.animation = 'none';
  
@@ -173,11 +173,11 @@ fingerprintScanner.classList.add('success');
       if (!isAutoScan) {
          showMessage('<i class="bi bi-hand-index me-2"></i>Please place your finger on the scanner.', 'info');
               }
-         fingerprintScanner.classList.remove('scanning');
+         fingerprintScanner.classList.remove('scanning', 'validating');
        fingerprintScanner.style.animation = 'pulse 2s infinite';
   } else {
       // Fingerprint not recognized - show error
-   fingerprintScanner.classList.remove('scanning');
+   fingerprintScanner.classList.remove('scanning', 'validating');
      fingerprintScanner.classList.add('error');
 
  // Define the icon HTML separately for consistency
@@ -204,7 +204,7 @@ const errorIcon = '<i class="bi bi-fingerprint me-2"></i>';
             // CONNECTION ERROR - only show if not auto-scan
  if (!isAutoScan) {
           console.error('Error during authentication:', error);
-     fingerprintScanner.classList.remove('scanning');
+     fingerprintScanner.classList.remove('scanning', 'validating');
           fingerprintScanner.classList.add('error');
          showMessage('<i class="bi bi-exclamation-octagon me-2"></i>Connection error. Please try again.', 'error');
 
@@ -215,7 +215,7 @@ const errorIcon = '<i class="bi bi-fingerprint me-2"></i>';
   }, 4000);
             } else {
           // Silent fail for auto-scan
-       fingerprintScanner.classList.remove('scanning');
+       fingerprintScanner.classList.remove('scanning', 'validating');
        fingerprintScanner.style.animation = 'pulse 2s infinite';
     }
 

@@ -404,7 +404,20 @@ background: linear-gradient(45deg,
   z-index: -1;
 }
 
-/* Success state - green border with bounce */
+/* ✅ NEW: Validating state - yellow/amber border with gentle pulse (NO GREEN) */
+.scanner-circle.validating {
+    background: #ffffff !important;
+    border-color: #f59e0b !important;
+    border-width: 4px !important;
+    animation: validatingPulse 1.5s ease-in-out infinite;
+}
+
+.scanner-circle.validating .scanner-instruction {
+    color: rgba(245, 158, 11, 0.9);
+    animation: textPulse 1.5s ease-in-out infinite;
+}
+
+/* Success state - green border with bounce (ONLY SHOWN AFTER VALIDATION) */
 .scanner-circle.success {
     background: #ffffff !important;
     border-color: #10b981 !important;
@@ -413,7 +426,7 @@ background: linear-gradient(45deg,
 }
 
 .scanner-circle.success::after {
-    content: '?';
+    content: '✓';
     position: absolute;
     top: 50%;
     left: 50%;
@@ -468,6 +481,17 @@ background: linear-gradient(45deg,
     50% {
    transform: scale(1.03);
     box-shadow: 0 15px 40px rgba(59, 130, 246, 0.3);
+    }
+}
+
+@keyframes validatingPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.2);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 15px 40px rgba(245, 158, 11, 0.3);
     }
 }
 
