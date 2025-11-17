@@ -288,6 +288,136 @@
         isolation: isolate;
     }
 
+    /* ======================================================================== */
+       /* ✅ SUBTLE ENHANCEMENTS: Role-Based Error Message Styling */
+       /* Conservative color-coded top borders to distinguish error types */
+       /* Maintains standard SweetAlert2 appearance with minimal visual changes */
+       /* ======================================================================== */
+
+    /* Student Error (No Class Scheduled) - Subtle Blue Top Border */
+    .swal2-popup.student-error-subtle {
+        border-top: 4px solid #4a90e2 !important; /* Subtle blue */
+    }
+
+    /* Faculty Error (Wrong Role) - Subtle Orange Top Border */
+    .swal2-popup.faculty-error-subtle {
+        border-top: 4px solid #f5a623 !important; /* Subtle orange */
+    }
+
+    /* Admin Error (Wrong Role) - Subtle Red Top Border */
+    .swal2-popup.admin-error-subtle {
+        border-top: 4px solid #e74c3c !important; /* Subtle red */
+    }
+
+    /* ✅ NEW: Generic Error (Fingerprint Not Recognized) - Refined Gray Border */
+    .swal2-popup.generic-error-refined {
+        border-top: 5px solid #6b7280 !important; /* Neutral gray for generic errors */
+        padding: 2.5rem 2rem !important;
+    }
+
+    /* ✅ Optional: Slightly improve text spacing in error messages */
+    .student-error-subtle .swal2-html-container p,
+    .faculty-error-subtle .swal2-html-container p,
+    .admin-error-subtle .swal2-html-container p {
+        margin-bottom: 16px !important;
+        line-height: 1.6 !important;
+    }
+
+    .student-error-subtle .swal2-html-container p:last-child,
+    .faculty-error-subtle .swal2-html-container p:last-child,
+    .admin-error-subtle .swal2-html-container p:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    /* ✅ Subtle button hover enhancement (only for these error modals) */
+    .student-error-subtle .swal2-confirm:hover,
+    .faculty-error-subtle .swal2-confirm:hover,
+    .admin-error-subtle .swal2-confirm:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* ========================================================================
+       ✅ NEW: REFINED UI FOR GENERIC ERROR ONLY (FINGERPRINT NOT RECOGNIZED)
+       Professional typography and spacing ONLY for the generic error modal
+       ======================================================================== */
+
+    /* Title styling - cleaner hierarchy */
+    .generic-error-refined .swal2-title {
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        color: #1f2937 !important;
+        margin-bottom: 1.5rem !important;
+        line-height: 1.3 !important;
+        letter-spacing: -0.02em !important;
+    }
+
+    /* Improved content container spacing */
+    .generic-error-refined .swal2-html-container {
+        margin: 0 !important;
+        padding: 0 1rem !important;
+        color: #374151 !important;
+        font-size: 1rem !important;
+        line-height: 1.7 !important;
+    }
+
+    /* Refined paragraph spacing */
+    .generic-error-refined .swal2-html-container p {
+        margin-bottom: 1.25rem !important;
+        line-height: 1.7 !important;
+    }
+
+    .generic-error-refined .swal2-html-container p:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    /* Strong text emphasis */
+    .generic-error-refined .swal2-html-container strong {
+        font-weight: 600 !important;
+        color: #111827 !important;
+    }
+
+    /* Modern button with better proportions */
+    .generic-error-refined .swal2-confirm {
+        padding: 0.875rem 2.5rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        letter-spacing: 0.02em !important;
+        margin-top: 1.5rem !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* Refined hover effect */
+    .generic-error-refined .swal2-confirm:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    /* Pressed state for tactile feedback */
+    .generic-error-refined .swal2-confirm:active {
+        transform: translateY(0) !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Subtle emoji/icon spacing */
+    .generic-error-refined .swal2-html-container p:first-child {
+        color: #6b7280 !important;
+        font-size: 0.95rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Cleaner icon styling */
+    .generic-error-refined .swal2-icon {
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* Subtle shadow for depth */
+    .generic-error-refined {
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+    }
+
     /* Student Info Cards
 -------------------------------------------------------------- */
 .student-info-cards {
@@ -538,6 +668,30 @@
 .info-label {
     font-size: 0.875rem;
     color: #6b7280;
+}
+
+/* ========================================================================
+   RESPONSIVE ADJUSTMENTS FOR GENERIC ERROR ONLY
+   ======================================================================== */
+
+@@media (max-width: 640px) {
+    .generic-error-refined {
+        padding: 2rem 1.5rem !important;
+    }
+
+    .generic-error-refined .swal2-title {
+        font-size: 1.5rem !important;
+    }
+
+    .generic-error-refined .swal2-html-container {
+        font-size: 0.95rem !important;
+        padding: 0 0.5rem !important;
+    }
+
+    .generic-error-refined .swal2-confirm {
+        padding: 0.75rem 2rem !important;
+        font-size: 0.95rem !important;
+    }
 }
 </style>
 

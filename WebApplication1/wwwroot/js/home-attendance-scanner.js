@@ -368,7 +368,44 @@ document.addEventListener('DOMContentLoaded', function () {
                     confirmButtonColor: '#ef4444',
                     timer: 6000,
                     timerProgressBar: true,
-                    allowOutsideClick: true
+                    allowOutsideClick: true,
+                    customClass: {
+                        popup: 'student-error-subtle'  // ✅ SUBTLE ENHANCEMENT: Blue top border for student error
+                    }
+                });
+            } else if (result.messageType === 'role_restriction') {
+                // ✅ SUBTLE ENHANCEMENT: Handle role restriction errors with colored borders
+                const userRole = result.userRole || 'Unknown';
+                const userName = result.userName || 'User';
+                
+                // Determine role emoji and custom class
+                let roleEmoji = '🚫';
+                let customClass = 'admin-error-subtle'; // Default
+                
+                if (userRole === 'Faculty') {
+                    roleEmoji = '👨‍🏫';
+                    customClass = 'faculty-error-subtle'; // ✅ Orange border
+                } else if (userRole === 'Admin') {
+                    roleEmoji = '🛡️';
+                    customClass = 'admin-error-subtle'; // ✅ Red border
+                }
+                
+                // Parse the message to extract details
+                const fullMessage = result.message || '';
+                
+                Swal.fire({
+                    ...swalOptions,
+                    icon: 'error',
+                    title: '❌ Cannot Record Attendance',
+                    html: fullMessage.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'),
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#ef4444',
+                    timer: 7000,
+                    timerProgressBar: true,
+                    allowOutsideClick: true,
+                    customClass: {
+                        popup: customClass  // ✅ SUBTLE ENHANCEMENT: Role-based colored border
+                    }
                 });
             } else {
                 // Generic error
@@ -376,12 +413,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     ...swalOptions,
                     icon: 'error',
                     title: '❌ Cannot Record Attendance',
-                    html: result.message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>'),
+                    html: `
+                        <div style="text-align: left; line-height: 1.8;">
+                            <p style="font-size: 16px; color: #6b7280; margin-bottom: 10px;">🔍 Fingerprint not recognized.</p>
+                            <p style="color: #374151;">This fingerprint is not registered in the system.</p>
+                            <p style="color: #374151;">Please contact the administration office to register your fingerprint.</p>
+                        </div>
+                    `,
                     confirmButtonText: 'OK',
                     confirmButtonColor: '#ef4444',
                     timer: 6000,
                     timerProgressBar: true,
-                    allowOutsideClick: true
+                    allowOutsideClick: true,
+                    customClass: {
+                        popup: 'generic-error-refined'  // ✅ Apply refined styling
+                    }
                 });
             }
         } else {
