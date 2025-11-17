@@ -132,6 +132,20 @@ fingerprintScanner.classList.add('validating');
     // STEP 2: Wait 1.5 seconds to simulate validation
     await new Promise(resolve => setTimeout(resolve, 1500));
       
+    // ✅ FIX ISSUE #1: Activate hardware LED AFTER validation delay
+    // This synchronizes the physical green LED with the success message display
+    try {
+        await fetch('/FingerprintAuth/ActivateSuccessLED', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log('✅ Success LED activated on hardware scanner');
+    } catch (ledError) {
+        console.warn('Could not activate LED:', ledError);
+    }
+      
     // STEP 3: Show SUCCESS message with user info
    fingerprintScanner.classList.remove('validating');
 fingerprintScanner.classList.add('success');

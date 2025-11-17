@@ -78,9 +78,10 @@ namespace Fingerprint_Attendance_System.Controllers.Auth
         // ✅ CRITICAL FIX: Turn OFF the scanner's default green LED immediately after capture
         // This prevents the hardware from showing green before verification is complete
         _fingerprintService.TurnOffAllLeds();
-        
-        // ✅ ENHANCED: Add small delay to ensure LED off command is processed by hardware
-        await Task.Delay(100);
+
+        // ✅ FIX ISSUE #2: Increased delay from 100ms to 500ms to ensure hardware processes LED off command
+        // The hardware LED controller needs adequate time to turn off the LEDs before verification starts
+        await Task.Delay(500); // ✅ CHANGED: Increased from 100ms to give hardware more processing time
         
         _logger.LogInformation("✅ Scanner LEDs disabled - starting verification phase...");
 
@@ -246,27 +247,18 @@ ScanLogMessage = $"Successful biometric login - {user.UserEmail} (Match Score: {
 
     _logger.LogInformation($"✅ Successful login for user: {user.UserEmail}");
 
-       // Create user session
-        HttpContext.Session.SetInt32("UserId", user.UserId);
-  HttpContext.Session.SetInt32("RoleId", user.RoleId);
-       HttpContext.Session.SetString("UserEmail", user.UserEmail);
- HttpContext.Session.SetString("UserProfileImage", user.UserProfileImage);
-         HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
-     HttpContext.Session.SetString("justLoggedIn", "true");
+    // ✅ FIX ISSUE #1: REMOVE LED OFF command here - let LED stay off during validation
+    // DO NOT turn off LED here - frontend will handle LED timing via separate endpoint
+    
+    _logger.LogInformation("⏳ Returning success to frontend - LED will activate after UI validation display");
 
-      // ✅ CRITICAL FIX: Wait 1.5 seconds to match frontend's "Validating identity..." delay
-     // This ensures the physical green LED only activates when the UI shows success message
-      _logger.LogInformation("⏳ Waiting 1.5 seconds to synchronize LED with frontend validation display...");
-      await Task.Delay(1500);
-
-      // ✅ SUCCESS: ONLY NOW activate the physical scanner's green LED
-     // This is triggered AFTER the frontend validation delay, synchronizing hardware and UI
-      _logger.LogInformation("✅ Validation delay complete - activating green LED on physical scanner hardware");
-     _fingerprintService.SetLedLight("green", true);
-  _fingerprintService.Beep(true);
-            await Task.Delay(300);
-        _fingerprintService.SetLedLight("green", false);
-        _fingerprintService.Beep(false);
+    // Create user session
+    HttpContext.Session.SetInt32("UserId", user.UserId);
+    HttpContext.Session.SetInt32("RoleId", user.RoleId);
+    HttpContext.Session.SetString("UserEmail", user.UserEmail);
+    HttpContext.Session.SetString("UserProfileImage", user.UserProfileImage);
+    HttpContext.Session.SetString("UserName", $"{user.UserFirstName} {user.UserLastName}");
+    HttpContext.Session.SetString("justLoggedIn", "true");
 
         // Determine redirect URL based on user role
  string redirectUrl = user.RoleType switch
@@ -338,6 +330,29 @@ _fingerprintService.Beep(true);
        message = "Authentication error. Please try again or contact support." 
    });
   }
+        }
+
+        // ✅ NEW: Add endpoint for frontend-controlled LED activation
+        [HttpPost]
+        public IActionResult ActivateSuccessLED()
+        {
+            try
+            {
+                _logger.LogInformation("✅ Frontend requested success LED activation");
+                _fingerprintService.SetLedLight("green", true);
+                _fingerprintService.Beep(true);
+                Task.Delay(300).ContinueWith(_ =>
+                {
+                    _fingerprintService.SetLedLight("green", false);
+                    _fingerprintService.Beep(false);
+                });
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error activating success LED");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         // GET: Check if scanner is available

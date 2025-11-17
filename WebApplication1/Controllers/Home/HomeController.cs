@@ -262,16 +262,24 @@ public class HomeController : Controller
                     _fingerprintService.Beep(false);
                 });
                 
-                // ✅ FIX: Include student's full name in "no class scheduled" error message
-                var studentFullName = $"{student.User?.UserFirstName} {student.User?.UserLastName}".Trim();
+                // ✅ FIX ISSUE #2: Build complete student name including middle name if present
+                var studentFirstName = student.User?.UserFirstName ?? "";
+                var studentMiddleName = student.User?.UserMiddleName ?? "";
+                var studentLastName = student.User?.UserLastName ?? "";
+                
+                // Format full name: "FirstName MiddleName LastName" (only include middle if present)
+                var studentFullName = string.IsNullOrWhiteSpace(studentMiddleName)
+                    ? $"{studentFirstName} {studentLastName}".Trim()
+                    : $"{studentFirstName} {studentMiddleName} {studentLastName}".Trim();
+                
+                _logger.LogInformation($"✅ FIX ISSUE #2: Sending student name '{studentFullName}' to frontend");
                 
                 return Json(new
                 {
                     success = false,
                     messageType = "no_schedule",
-                    studentName = studentFullName, // ✅ NEW: Add student name for frontend display
+                    studentName = studentFullName, // ✅ FIX ISSUE #2: Now includes first, middle (if present), and last name
                     message = $"📅 No class scheduled at this time.\n\n" +
-                              $"Hello, {studentFullName}\n\n" +
                               $"You have no subject/course assigned for {currentDay} at {currentTime:h:mm tt}."
                 });
             }

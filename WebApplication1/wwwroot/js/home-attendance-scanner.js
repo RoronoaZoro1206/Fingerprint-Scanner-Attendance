@@ -279,27 +279,30 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // ✅ NEW: Change status message background to white when modal opens
+        // ✅ FIX ISSUE #3: Get status message element for background color control
         const statusMessageElement = document.getElementById('scanStatusMessage');
         
         const swalOptions = {
             willOpen: () => {
-                // Change background to white when modal opens
+                // ✅ FIX ISSUE #3: Change background to white when SweetAlert2 modal opens
                 if (statusMessageElement && statusMessageElement.classList.contains('show')) {
+                    console.log('✅ SweetAlert2 opened - changing status message background to white');
                     statusMessageElement.classList.add('swal-active');
                 }
             },
             didClose: () => {
-                // ✅ FIX ISSUE #2: Restore green background when modal closes
+                // ✅ FIX ISSUE #3: Restore green background when SweetAlert2 modal closes
                 if (statusMessageElement && statusMessageElement.classList.contains('show')) {
+                    console.log('✅ SweetAlert2 closed - restoring status message green background');
                     statusMessageElement.classList.remove('swal-active');
                     
                     // ✅ CRITICAL FIX: Force restore "ready" state with green background
+                    // Wait 100ms to ensure smooth transition after modal closes
                     setTimeout(() => {
                         statusMessageElement.classList.remove('success', 'error', 'warning', 'scanning', 'validating');
                         statusMessageElement.classList.add('info');
                         statusMessageElement.innerHTML = 'Scanner ready. Place finger to scan.';
-                    }, 100); // Small delay to ensure smooth transition
+                    }, 100);
                 }
             }
         };
@@ -338,8 +341,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     allowOutsideClick: false
                 });
             } else if (result.messageType === 'no_schedule') {
-                // ✅ FIX ISSUE #1: Display student name in "no class scheduled" alert
+                // ✅ FIX ISSUE #1 & #2: Display complete student name, day, and time
                 const studentGreeting = result.studentName ? `Hello, ${result.studentName}` : 'Hello';
+                
+                // ✅ CRITICAL FIX: Parse the message to extract day and time
+                // Message format: "📅 No class scheduled at this time.\n\nYou have no subject/course assigned for Monday at 9:27 am."
+                const fullMessage = result.message || '';
+                
+                // Extract the complete sentence about day and time
+                // Look for pattern: "You have no subject\/course assigned for [Day] at [Time]."
+                const dayTimeMatch = fullMessage.match(/You have no subject\/course assigned for (.+?)\./i);
+                const dayTimeText = dayTimeMatch ? dayTimeMatch[1] : '';
                 
                 Swal.fire({
                     ...swalOptions,
@@ -347,9 +359,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     title: '❌ Cannot Record Attendance',
                     html: `
                         <div style="text-align: left; line-height: 1.8;">
-                            <p style="font-size: 16px; color: #6b7280; margin-bottom: 5px;">📅 No class scheduled at this time.</p>
+                            <p style="font-size: 16px; color: #6b7280; margin-bottom: 10px;">📅 No class scheduled at this time.</p>
                             <p style="font-weight: 600; font-size: 18px; margin-bottom: 15px;">${studentGreeting}</p>
-                            <p>${result.message.split('\n\n').slice(2).join('\n\n')}</p>
+                            ${dayTimeText ? `<p style="color: #374151;">You have no subject/course assigned for <strong>${dayTimeText}</strong>.</p>` : ''}
                         </div>
                     `,
                     confirmButtonText: 'OK',
