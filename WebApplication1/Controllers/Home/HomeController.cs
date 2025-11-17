@@ -515,6 +515,12 @@ public class HomeController : Controller
                         var student = await _studentRepo.GetByUserIdAsync(user.UserId);
                         if (student != null)
                         {
+                            // ✅ FIX: Populate student.User navigation property immediately
+                            // This ensures student name is available for all error messages
+                            student.User = user;
+                            
+                            _logger.LogInformation($"Student retrieved: {student.StudNumber}, Name: {user.UserFirstName} {user.UserMiddleName} {user.UserLastName}");
+                            
                             return new FingerprintMatchResult 
                             { 
                                 Student = student, 
