@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -168,78 +168,112 @@ _logger.LogError("Failed to open device");
           }
       }
       
-  // Capture both image and template with detailed error information
-    var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
+                // ✅ STEP 1: Capture fingerprint (LED should be OFF during capture)
+                _logger.LogInformation("🔴 LED OFF - Starting capture phase");
+                
+  var (imageData, width, height, template, errorCode, errorMessage) = _fingerprintService.CaptureFingerprintWithImage();
 
         if (template == null || imageData == null)
        {
         _logger.LogWarning($"Failed to capture fingerprint - {errorMessage} (Error code: {errorCode})");
    
-        // Error feedback: red light + beep sound
+                    // ✅ Error case: Activate RED LED immediately (error feedback is immediate)
+                    _logger.LogInformation("🔴 LED RED - Capture failed, activating error feedback");
  _fingerprintService.SetLedLight("red", true);
       _fingerprintService.Beep(true);
-         _ = Task.Delay(500).ContinueWith(_ =>
-        {
-   _fingerprintService.SetLedLight("red", false);
-  _fingerprintService.Beep(false);
-});
+                    
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(3000);
+                        _fingerprintService.SetLedLight("red", false);
+                        _fingerprintService.Beep(false);
+                        _logger.LogInformation("🔴 LED OFF - Error feedback complete after 3 seconds");
+                    });
    
-    // Return specific error message from scanner
-      return Json(new { 
+    return Json(new { 
            success = false, 
    message = string.IsNullOrEmpty(errorMessage) 
      ? "Failed to capture fingerprint. Please try again." 
      : errorMessage,
    errorCode = errorCode,
-   shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+   shouldRefreshStatus = true,
+                        ledDuration = 3000
 });
            }
 
-        // Convert image to Base64 for display
+                // ✅ STEP 2: SUCCESS - Convert image to Base64
   var imageBase64 = _fingerprintService.ConvertImageToBase64(imageData, width, height);
 var templateBase64 = Convert.ToBase64String(template);
 
-         _logger.LogInformation($"Fingerprint captured successfully. Image: {width}x{height}, Template: {template.Length} bytes");
+         _logger.LogInformation($"✅ Fingerprint captured successfully. Image: {width}x{height}, Template: {template.Length} bytes");
 
- // Success feedback: green light + beep sound
-        _fingerprintService.SetLedLight("green", true);
-   _fingerprintService.Beep(true);
-      _ = Task.Delay(200).ContinueWith(_ =>
-{
-_fingerprintService.SetLedLight("green", false);
-   _fingerprintService.Beep(false);
-        });
+                // ✅ FIX: DO NOT activate LED here - let frontend control timing after UI updates
+                _logger.LogInformation("⏸️ LED control deferred to frontend for synchronized timing");
 
           return Json(new 
     { 
    success = true, 
   templateBase64,
- imageBase64,  // Add image data for display
+ imageBase64,
  imageWidth = width,
      imageHeight = height,
-     shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+     shouldRefreshStatus = true,
+                    ledControlDeferred = true // ✅ Signal frontend to activate LED after UI updates
 });
          }
      catch (Exception ex)
      {
      _logger.LogError(ex, "Error capturing fingerprint");
 
-       // Error feedback: red light + beep sound
+                // Error feedback: red LED immediately
+                _logger.LogInformation("🔴 LED RED - Exception occurred, activating error feedback");
       _fingerprintService.SetLedLight("red", true);
    _fingerprintService.Beep(true);
-      _ = Task.Delay(500).ContinueWith(_ =>
-   {
-          _fingerprintService.SetLedLight("red", false);
-  _fingerprintService.Beep(false);
-  });
+                
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3000);
+                    _fingerprintService.SetLedLight("red", false);
+                    _fingerprintService.Beep(false);
+                    _logger.LogInformation("🔴 LED OFF - Error feedback complete after exception");
+                });
  
     return Json(new { 
         success = false, 
         message = "Error: " + ex.Message,
-        shouldRefreshStatus = true // ✅ Tell frontend to refresh status
+        shouldRefreshStatus = true,
+                    ledDuration = 3000
     });
    }
  }
+
+        // ✅ NEW: Separate endpoint for frontend to activate LED after UI updates
+        [HttpPost("ActivateLED")]
+        public IActionResult ActivateLED()
+        {
+            try
+            {
+                _logger.LogInformation("🟢 LED GREEN - Frontend requested activation after UI updates (synchronized)");
+                _fingerprintService.SetLedLight("green", true);
+                _fingerprintService.Beep(true);
+                
+                // Schedule LED turn-off after 3 seconds
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3000);
+                    _fingerprintService.SetLedLight("green", false);
+                    _fingerprintService.Beep(false);
+                    _logger.LogInformation("🟢 LED OFF - Success feedback complete after 3 seconds");
+                });
+
+                return Ok(new { success = true, message = "LED activated" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error activating LED");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
 
         // POST: Register fingerprint
         [HttpPost("RegisterFingerprint")]

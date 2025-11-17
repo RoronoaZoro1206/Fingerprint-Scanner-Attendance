@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let capturedImageBase64 = null;
     let isRegistered = false;
 
+    // ✅ NEW: Toast management to prevent overlapping toasts
+    let activeToast = null;
+    let toastQueue = [];
+
     // Detect user role from URL
     const path = window.location.pathname;
     let baseUrl = '';
@@ -57,13 +61,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 btnScan.textContent = 'Scanning...';
                 fingerprintScanner.classList.add('scanning');
 
-                // ? Show "Scanning in progress" toast
+                // 📝 Show "Scanning in progress" toast
                 showToast('Scanning in progress, please wait...', 'info');
 
                 const url = `${baseUrl}/CaptureFingerprint`;
                 console.log('Fetching:', url);
 
-                // ? Track start time for minimum scanning duration
+                // 📝 Track start time for minimum scanning duration
                 const scanStartTime = Date.now();
                 const MIN_SCAN_DURATION = 2000; // 2 seconds minimum (matches login page feel)
 
@@ -80,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const result = await response.json();
                 console.log('Response data:', result);
 
-                // ? Calculate elapsed time and wait if needed
+                // 📝 Calculate elapsed time and wait if needed
                 const scanElapsedTime = Date.now() - scanStartTime;
                 const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanElapsedTime);
 
@@ -93,13 +97,33 @@ document.addEventListener('DOMContentLoaded', function () {
                     capturedTemplateBase64 = result.templateBase64;
                     capturedImageBase64 = result.imageBase64;
 
-                    // Display the fingerprint image in the circle
+                    // ✅ STEP 1: Display the fingerprint image in the circle FIRST
                     displayFingerprintImage(result.imageBase64, result.imageWidth, result.imageHeight);
 
-                    // Show success toast
-                    showToast('Fingerprint captured successfully!', 'success');
+                    // ✅ STEP 2: Show success toast SECOND
+                    showToast('Fingerprint captured successfully!', 'success', 3000);
+                    
                     fingerprintScanner.classList.add('captured');
                     btnRegister.disabled = false;
+
+                    // ✅ STEP 3: Wait for DOM to finish rendering (ensure image and toast are visible)
+                    await new Promise(resolve => requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve); // Double RAF ensures paint is complete
+                    }));
+
+                    // ✅ STEP 4: NOW activate LED after UI is fully updated (SYNCHRONIZED!)
+                    if (result.ledControlDeferred) {
+                        console.log('🟢 Activating LED after UI updates (synchronized timing)');
+                        try {
+                            await fetch(`${baseUrl}/ActivateLED`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            console.log('✅ LED activated successfully after UI rendering');
+                        } catch (ledError) {
+                            console.warn('Could not activate LED:', ledError);
+                        }
+                    }
 
                     // ✅ Refresh status if indicated by server
                     if (result.shouldRefreshStatus) {
@@ -107,8 +131,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         await checkDeviceStatus();
                     }
                 } else {
-                    // Show error toast
-                    showToast(result.message || 'Failed to capture fingerprint', 'error');
+                    // ✅ Error case: LED already activated by backend immediately
+                    showToast(result.message || 'Failed to capture fingerprint', 'error', 3000);
+                    
                     fingerprintScanner.classList.add('error');
                     setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
 
@@ -121,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 console.error('Error capturing fingerprint:', error);
                 // Show error toast
-                showToast('Error: ' + error.message, 'error');
+                showToast('Error: ' + error.message, 'error', 3000);
             } finally {
                 btnScan.disabled = false;
                 btnScan.textContent = 'Scan Fingerprint';
@@ -159,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btnRegister.addEventListener('click', async function () {
             if (!capturedTemplateBase64) {
                 // KEEP TOASTIFY: Simple warning
-                showToast('Please scan your fingerprint first', 'warning');
+                showToast('Please scan your fingerprint first', 'warning', 3000);
                 return;
             }
 
@@ -376,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Log duplicate attempt
                     console.error(`Duplicate fingerprint detected! Match score: ${result.matchScore}`);
                 } else {
-                    // ? INCORRECT PASSWORD: Show SweetAlert2 error + inline validation
+                    // ✅ INCORRECT PASSWORD: Show SweetAlert2 error + inline validation
                     console.warn('Password validation failed:', result.message);
 
                     // Close the modal first
@@ -558,9 +583,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Toast notification helper - KEEP FOR SIMPLE NOTIFICATIONS
-    function showToast(message, type = 'info') {
-        console.log(`Toast: [${type}] ${message}`);
+    // ✅ IMPROVED: Toast notification helper with queue management to prevent overlapping
+    function showToast(message, type = 'info', duration = 3000) {
+        console.log(`Toast: [${type}] ${message} (Duration: ${duration}ms)`);
+
+        // ✅ Dismiss any existing toast before showing new one
+        if (activeToast) {
+            console.log('Dismissing existing toast before showing new one');
+            activeToast.classList.remove('show');
+            activeToast.remove();
+            activeToast = null;
+        }
 
         // Create toast element
         const toast = document.createElement('div');
@@ -569,15 +602,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Add to body
         document.body.appendChild(toast);
+        activeToast = toast;
 
         // Show with animation
         setTimeout(() => toast.classList.add('show'), 10);
 
-        // Remove after 3 seconds
+        // ✅ Remove after specified duration (synchronized with LED timing)
         setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+            if (activeToast === toast) { // Only remove if it's still the active toast
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                    if (activeToast === toast) {
+                        activeToast = null;
+                        console.log('Toast removed after duration');
+                    }
+                }, 300);
+            }
+        }, duration);
     }
 });
 
