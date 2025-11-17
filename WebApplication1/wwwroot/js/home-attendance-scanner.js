@@ -6,6 +6,7 @@
  * ✅ NEW: Success messages stay visible for 7 seconds
  * ✅ NEW: Error messages stay visible for 5 seconds
  * ✅ NEW: Smooth state transitions with adequate reading time
+ * ✅ ROBUST: Counter-based alert state management for rapid sequential alerts
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -13,13 +14,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const scanStatusMessage = document.getElementById('scanStatusMessage');
     const successRateElement = document.querySelector('.scan-stat-card.success h3');
     const todayScansElement = document.querySelector('.scan-stat-card.total h3');
-    
+
     let isScanning = false;
     let isCooldown = false;
     let deviceInitialized = false;
     let scanTimeout = null;
     let statsUpdateInterval = null;
     let autoScanInterval = null;
+
+    // ✅ NEW: Global state for managing multiple overlapping alerts
+    let activeAlertCount = 0;
+    let backgroundRestoreTimeout = null;
 
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
@@ -42,6 +47,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
+     * ✅ NEW: Centralized status background update function
+     * Handles background color based on active alert count
+     */
+    function updateStatusBackground() {
+        if (!scanStatusMessage || !scanStatusMessage.classList.contains('show')) {
+            return;
+        }
+
+        if (activeAlertCount > 0) {
+            // At least one alert is active - force white background
+            if (!scanStatusMessage.classList.contains('swal-active')) {
+                console.log(`✅ Activating white background (Active alerts: ${activeAlertCount})`);
+                scanStatusMessage.classList.add('swal-active');
+            }
+        } else {
+            // No alerts active - restore green background
+            if (scanStatusMessage.classList.contains('swal-active')) {
+                console.log('✅ Restoring green background (No active alerts)');
+                scanStatusMessage.classList.remove('swal-active');
+
+                // Force restore "ready" state
+                setTimeout(() => {
+                    if (scanStatusMessage.classList.contains('show')) {
+                        scanStatusMessage.classList.remove('success', 'error', 'warning', 'scanning', 'validating');
+                        scanStatusMessage.classList.add('info');
+                        scanStatusMessage.innerHTML = 'Scanner ready. Place finger to scan.';
+                    }
+                }, 50);
+            }
+        }
+    }
+
+    /**
      * ✅ Initialize scanner device and start auto-detection
      */
     async function initializeScanner() {
@@ -60,9 +98,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 fingerprintScanner.classList.remove('scanning');
                 fingerprintScanner.classList.add('ready');
                 showMessage('Scanner ready. Place finger to scan.', 'success');
-                
+
                 fingerprintScanner.style.animation = 'pulse 2s infinite';
-                
+
                 startAutoDetection();
             } else {
                 deviceInitialized = false;
@@ -84,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function startAutoDetection() {
         console.log('✅ Starting automatic fingerprint detection...');
-        
+
         // ✅ FIX: Increased polling interval to 1000ms (1 second) to reduce rapid retry errors
         autoScanInterval = setInterval(async () => {
             if (!isScanning && !isCooldown && deviceInitialized) {
@@ -98,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     async function tryAutoScan() {
         if (isScanning || isCooldown) return;
-        
+
         await scanFingerprint(true);
     }
 
@@ -123,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
             fingerprintScanner.classList.remove('ready', 'success', 'error');
             fingerprintScanner.classList.add('scanning');
             fingerprintScanner.style.animation = 'none';
-            
+
             if (!isAutoScan) {
                 showMessage('Place your finger firmly on the scanner...', 'scanning');
             }
@@ -150,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 fingerprintScanner.classList.remove('scanning');
                 fingerprintScanner.classList.add('validating');
                 showMessage('Verifying fingerprint...', 'validating');
-                
+
                 await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds for verification
             }
 
@@ -162,20 +200,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     clearInterval(autoScanInterval);
                     autoScanInterval = null;
                 }
-                
+
                 handleSuccess(result);
             } else {
                 // ✅ ENHANCED: Better handling for "no finger detected" errors
-                if (isAutoScan && result.message && 
-                    (result.message.includes('No fingerprint detected') || 
-                     result.message.includes('No finger detected') ||
-                     result.message.includes('Failed to capture') ||
-                     result.message.includes('Place your finger'))) {
+                if (isAutoScan && result.message &&
+                    (result.message.includes('No fingerprint detected') ||
+                        result.message.includes('No finger detected') ||
+                        result.message.includes('Failed to capture') ||
+                        result.message.includes('Place your finger'))) {
                     // Silent fail - finger not on scanner yet, just continue polling
                     fingerprintScanner.classList.remove('scanning', 'validating');
                     fingerprintScanner.classList.add('ready');
                     fingerprintScanner.style.animation = 'pulse 2s infinite';
-                    
+
                     // Show a subtle hint for manual scans only
                     if (!isAutoScan) {
                         showMessage('Waiting for finger... Place your finger firmly on the scanner.', 'info');
@@ -187,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             clearTimeout(scanTimeout);
-            
+
             if (isAutoScan) {
                 fingerprintScanner.classList.remove('scanning', 'validating');
                 fingerprintScanner.classList.add('ready');
@@ -198,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } finally {
             isScanning = false;
-            
+
             // ✅ ENHANCED: Longer cooldown after failed manual scans
             if (!isAutoScan) {
                 isCooldown = true;
@@ -247,16 +285,16 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update student info
         const student = result.student || {};
         const currentClass = result.currentClass || {};
-        
+
         studentName.textContent = student.fullName || '-';
-        
+
         // Format course name
         if (currentClass.courseCode && currentClass.courseName) {
             courseName.textContent = `${currentClass.courseCode} - ${currentClass.courseName}`;
         } else {
             courseName.textContent = '-';
         }
-        
+
         // Format faculty name
         if (currentClass.facultyName) {
             facultyName.textContent = currentClass.facultyName;
@@ -271,7 +309,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * ✅ NEW: Show SweetAlert2 notification with dynamic background color control
+     * ✅ ENHANCED: Show SweetAlert2 notification with ROBUST counter-based background control
+     * Handles rapid sequential alerts without race conditions
      */
     function showSweetAlertNotification(result) {
         if (!window.Swal) {
@@ -279,31 +318,76 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // ✅ FIX ISSUE #3: Get status message element for background color control
         const statusMessageElement = document.getElementById('scanStatusMessage');
-        
+
         const swalOptions = {
             willOpen: () => {
-                // ✅ FIX ISSUE #3: Change background to white when SweetAlert2 modal opens
-                if (statusMessageElement && statusMessageElement.classList.contains('show')) {
-                    console.log('✅ SweetAlert2 opened - changing status message background to white');
-                    statusMessageElement.classList.add('swal-active');
+                // ✅ CRITICAL: Increment counter when alert opens
+                activeAlertCount++;
+                console.log(`[${new Date().toLocaleTimeString()}] Alert opened. Counter: ${activeAlertCount}`);
+
+                // ✅ Cancel any pending green restore
+                if (backgroundRestoreTimeout) {
+                    clearTimeout(backgroundRestoreTimeout);
+                    backgroundRestoreTimeout = null;
+                    console.log('Cancelled pending green restore');
                 }
+
+                // ✅ Immediately update to white
+                updateStatusBackground();
             },
             didClose: () => {
-                // ✅ FIX ISSUE #3: Restore green background when SweetAlert2 modal closes
-                if (statusMessageElement && statusMessageElement.classList.contains('show')) {
-                    console.log('✅ SweetAlert2 closed - restoring status message green background');
-                    statusMessageElement.classList.remove('swal-active');
-                    
-                    // ✅ CRITICAL FIX: Force restore "ready" state with green background
-                    // Wait 100ms to ensure smooth transition after modal closes
-                    setTimeout(() => {
-                        statusMessageElement.classList.remove('success', 'error', 'warning', 'scanning', 'validating');
-                        statusMessageElement.classList.add('info');
-                        statusMessageElement.innerHTML = 'Scanner ready. Place finger to scan.';
-                    }, 100);
+                // ✅ CRITICAL: Decrement counter when alert closes
+                activeAlertCount--;
+                console.log(`[${new Date().toLocaleTimeString()}] Alert closed. Counter: ${activeAlertCount}`);
+
+                // ✅ Cancel any existing timer
+                if (backgroundRestoreTimeout) {
+                    clearTimeout(backgroundRestoreTimeout);
                 }
+
+                // ✅ Set new timer to restore green with multi-layer validation
+                backgroundRestoreTimeout = setTimeout(() => {
+                    // Layer 1: Check counter
+                    if (activeAlertCount !== 0) {
+                        console.warn(`⚠️ Green restore blocked: Counter still at ${activeAlertCount}`);
+                        return;
+                    }
+
+                    // Layer 2: Check DOM for any visible SweetAlert2 modals
+                    const visibleSwalPopup = document.querySelector('.swal2-popup:not([style*="display: none"])');
+                    const visibleSwalContainer = document.querySelector('.swal2-container:not(.swal2-container-hidden)');
+                    const swalShown = document.querySelector('.swal2-shown');
+
+                    // Layer 3: Check if SweetAlert2 is animating
+                    const isAnimating = document.querySelector('.swal2-animate-show-class') ||
+                        document.querySelector('.swal2-animate-hide-class') ||
+                        document.querySelector('.swal2-show') ||
+                        document.querySelector('.swal2-hide');
+
+                    // Layer 4: Check SweetAlert2 internal state
+                    const swalIsOpen = window.Swal && typeof window.Swal.isVisible === 'function' && window.Swal.isVisible();
+
+                    // Log validation results for debugging
+                    console.log(`[${new Date().toLocaleTimeString()}] Restore check:`, {
+                        counter: activeAlertCount,
+                        visiblePopup: !!visibleSwalPopup,
+                        visibleContainer: !!visibleSwalContainer,
+                        swalShown: !!swalShown,
+                        isAnimating: !!isAnimating,
+                        swalIsOpen: !!swalIsOpen
+                    });
+
+                    // ✅ CRITICAL: Only restore green if ALL checks confirm no alert is visible
+                    const isAnySwalVisible = visibleSwalPopup || visibleSwalContainer || swalShown || isAnimating || swalIsOpen;
+
+                    if (!isAnySwalVisible) {
+                        console.log('✅ All checks passed - restoring green background');
+                        updateStatusBackground();
+                    } else {
+                        console.warn('⚠️ SweetAlert2 still visible - keeping white background');
+                    }
+                }, 300); // Extended delay for SweetAlert2 cleanup
             }
         };
 
@@ -343,16 +427,16 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (result.messageType === 'no_schedule') {
                 // ✅ FIX ISSUE #1 & #2: Display complete student name, day, and time
                 const studentGreeting = result.studentName ? `Hello, ${result.studentName}` : 'Hello';
-                
+
                 // ✅ CRITICAL FIX: Parse the message to extract day and time
                 // Message format: "📅 No class scheduled at this time.\n\nYou have no subject/course assigned for Monday at 9:27 am."
                 const fullMessage = result.message || '';
-                
+
                 // Extract the complete sentence about day and time
                 // Look for pattern: "You have no subject\/course assigned for [Day] at [Time]."
                 const dayTimeMatch = fullMessage.match(/You have no subject\/course assigned for (.+?)\./i);
                 const dayTimeText = dayTimeMatch ? dayTimeMatch[1] : '';
-                
+
                 Swal.fire({
                     ...swalOptions,
                     icon: 'error',
@@ -362,6 +446,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             <p style="font-size: 16px; color: #6b7280; margin-bottom: 10px;">📅 No class scheduled at this time.</p>
                             <p style="font-weight: 600; font-size: 18px; margin-bottom: 15px;">${studentGreeting}</p>
                             ${dayTimeText ? `<p style="color: #374151;">You have no subject/course assigned for <strong>${dayTimeText}</strong>.</p>` : ''}
+
+                            <p style="margin-top: 15px; color: #dc2626;">
+                                <strong>Please check your class schedule or contact the administration.</strong>
+                            </p>
                         </div>
                     `,
                     confirmButtonText: 'OK',
@@ -377,11 +465,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 // ✅ SUBTLE ENHANCEMENT: Handle role restriction errors with colored borders
                 const userRole = result.userRole || 'Unknown';
                 const userName = result.userName || 'User';
-                
+
                 // Determine role emoji and custom class
-                let roleEmoji = '🚫';
+                let roleEmoji = '🛡️';
                 let customClass = 'admin-error-subtle'; // Default
-                
+
                 if (userRole === 'Faculty') {
                     roleEmoji = '👨‍🏫';
                     customClass = 'faculty-error-subtle'; // ✅ Orange border
@@ -389,10 +477,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     roleEmoji = '🛡️';
                     customClass = 'admin-error-subtle'; // ✅ Red border
                 }
-                
+
                 // Parse the message to extract details
                 const fullMessage = result.message || '';
-                
+
                 Swal.fire({
                     ...swalOptions,
                     icon: 'error',
@@ -434,24 +522,24 @@ document.addEventListener('DOMContentLoaded', function () {
             // Success notifications
             const student = result.student || {};
             const currentClass = result.currentClass || {};
-            
-            const title = result.action === 'time_in' 
-                ? '✅ Welcome!' 
+
+            const title = result.action === 'time_in'
+                ? '👋 Welcome!'
                 : '👋 Goodbye!';
-            
+
             const studentName = student.fullName || 'Student';
             const programInfo = student.programName || '';
-            const yearSection = student.yearLevel && student.sectionName 
+            const yearSection = student.yearLevel && student.sectionName
                 ? `${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year, ${student.sectionName}`
                 : '';
-            
+
             const courseDisplay = currentClass.courseCode && currentClass.courseName
                 ? `${currentClass.courseCode} - ${currentClass.courseName}`
                 : '-';
-            
+
             const facultyDisplay = currentClass.facultyName || '-';
-            
-            const timestamp = result.timestamp 
+
+            const timestamp = result.timestamp
                 ? new Date(result.timestamp).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -459,12 +547,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     hour12: true
                 })
                 : '';
-            
+
             let html = `
                 <div style="text-align: left; line-height: 1.8; padding: 10px;">
                     <p style="font-size: 18px; font-weight: 700; margin-bottom: 5px;">${studentName}</p>
             `;
-            
+
             if (programInfo) {
                 html += `<p style="color: #6b7280; margin-bottom: 3px;">${programInfo}`;
                 if (yearSection) {
@@ -472,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 html += `</p>`;
             }
-            
+
             html += `
                     <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 15px; border-radius: 8px; margin: 15px 0;">
                         <div style="margin-bottom: 10px;">
@@ -484,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <span style="color: #374151;">${facultyDisplay}</span>
                         </div>
             `;
-            
+
             if (currentClass.roomCode) {
                 html += `
                         <div style="margin-top: 10px;">
@@ -493,16 +581,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                 `;
             }
-            
+
             html += `</div>`;
-            
+
             html += `
                     <div style="margin-top: 15px; padding: 12px; background: ${result.action === 'time_in' ? '#d1fae5' : '#dbeafe'}; border-radius: 8px;">
-                        <strong>${result.action === 'time_in' ? '⏰ Time In:' : '🚪 Time Out:'}</strong>
+                        <strong>${result.action === 'time_in' ? '✅ Time In:' : '👋 Time Out:'}</strong>
                         <span style="font-size: 18px; font-weight: bold; margin-left: 10px;">${timestamp}</span>
                     </div>
             `;
-            
+
             // Add duration for time out
             if (result.action === 'time_out' && result.message) {
                 const durationMatch = result.message.match(/(\d+ hours? and \d+ minutes?)|(\d+ minutes? and \d+ seconds?)/i);
@@ -514,9 +602,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     `;
                 }
             }
-            
+
             html += `</div>`;
-            
+
             Swal.fire({
                 ...swalOptions,
                 icon: 'success',
@@ -530,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
-    
+
     /**
      * ✅ NEW: Helper function to get ordinal suffix (1st, 2nd, 3rd, 4th)
      */
@@ -562,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update info cards (gradient cards below scanner)
         updateInfoCards(student, currentClass, result);
 
-        // ❌ REMOVED: No inline success message - only SweetAlert2
+        // ✅ REMOVED: No inline success message - only SweetAlert2
 
         updateStats();
 
@@ -580,11 +668,11 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function updateInfoCards(student, currentClass, result) {
         const infoCardsContainer = document.getElementById('studentInfoCards');
-        
+
         if (infoCardsContainer) {
             // Show info cards
             infoCardsContainer.style.display = 'grid';
-            
+
             // Update student name
             const studentNameElement = document.getElementById('currentStudentName');
             const studentNumberElement = document.getElementById('currentStudentNumber');
@@ -594,7 +682,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (studentNumberElement) {
                 studentNumberElement.textContent = student.studNumber || '-';
             }
-            
+
             // Update program
             const programElement = document.getElementById('currentProgram');
             const yearSectionElement = document.getElementById('currentYearSection');
@@ -611,19 +699,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 yearSectionElement.textContent = yearSection || '-';
             }
-            
+
             // Update course
             const courseElement = document.getElementById('currentCourse');
             const roomElement = document.getElementById('currentRoom');
             if (courseElement && currentClass) {
-                courseElement.textContent = currentClass.courseCode 
-                    ? `${currentClass.courseCode} - ${currentClass.courseName}` 
+                courseElement.textContent = currentClass.courseCode
+                    ? `${currentClass.courseCode} - ${currentClass.courseName}`
                     : '-';
             }
             if (roomElement && currentClass) {
                 roomElement.textContent = currentClass.roomCode || '-';
             }
-            
+
             // Update faculty
             const facultyElement = document.getElementById('currentFaculty');
             const scheduleElement = document.getElementById('currentSchedule');
@@ -641,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function buildProgramInfo(student) {
         if (!student.programName) return '';
-        
+
         let programDisplay = student.programName;
         if (student.yearLevel) {
             programDisplay += ` - ${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
@@ -649,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (student.sectionName) {
             programDisplay += `, ${student.sectionName}`;
         }
-        
+
         return `<strong>Program:</strong> ${programDisplay}`;
     }
 
@@ -658,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function buildClassInfo(currentClass) {
         if (!currentClass || !currentClass.courseCode) return '';
-        
+
         return `
             <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <strong style="font-size: 16px; color: #1f2937;">📚 Current Class</strong><br>
@@ -680,18 +768,18 @@ document.addEventListener('DOMContentLoaded', function () {
         fingerprintScanner.classList.add('error');
 
         let displayTime = 4000; // Default 4 seconds
-        
+
         // ✅ ENHANCED: Only show SweetAlert2 for actual errors
         // DO NOT show inline messages for role restrictions, schedule errors, or attendance errors
-        if (result.message && 
+        if (result.message &&
             !result.message.includes('No finger detected') &&
             !result.message.includes('No fingerprint detected') &&
             !result.message.includes('Failed to capture')) {
-            
+
             // Show SweetAlert2 for all other errors (role restriction, no schedule, etc.)
             showSweetAlertNotification(result);
-            
-            // ❌ NO inline message for these errors
+
+            // ✅ NO inline message for these errors
         } else {
             // For "no finger" errors during manual scan, show brief inline hint
             if (!result.message || result.message.includes('No finger detected')) {
@@ -769,7 +857,7 @@ document.addEventListener('DOMContentLoaded', function () {
         scanStatusMessage.style.opacity = '0';
         scanStatusMessage.style.transform = 'translateY(-10px)';
         scanStatusMessage.style.display = 'block'; // Ensure visible
-        
+
         requestAnimationFrame(() => {
             scanStatusMessage.style.opacity = '1';
             scanStatusMessage.style.transform = 'translateY(0)';
