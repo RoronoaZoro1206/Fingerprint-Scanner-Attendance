@@ -114,6 +114,25 @@ public class StudentIdPoolRepository : IStudentIdPoolRepository
         return await _db.ExecuteNonQueryAsync(query, new() { { "@id", poolId } }) > 0;
     }
 
+    // ✅ NEW: Release student ID back to pool (mark as available again)
+    public async Task<bool> ReleaseStudentIdAsync(int poolId, string releaseReason)
+    {
+        string query = @"
+            UPDATE student_id_pool 
+            SET is_used = FALSE, 
+                used_at = NULL,
+                remarks = @reason
+            WHERE pool_id = @id;";
+        
+        var parameters = new Dictionary<string, object>
+        {
+            { "@id", poolId },
+            { "@reason", releaseReason }
+        };
+        
+        return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
+    }
+
     public async Task<bool> UpdateRemarksAsync(int poolId, string remarks)
     {
         string query = "UPDATE student_id_pool SET remarks = @remarks WHERE pool_id = @id;";

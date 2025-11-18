@@ -468,315 +468,99 @@ CREATE TRIGGER trg_mark_student_id_used
     FOR EACH ROW
 EXECUTE FUNCTION mark_student_id_used();
 
--- Function to auto-update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_excuse_request_timestamp()
+-- ✅ NEW TRIGGER: Automatically mark student IDs as used when students are created
+-- This provides a database-level guarantee that pool status stays synchronized
+CREATE OR REPLACE FUNCTION auto_mark_student_id_used()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    -- Mark the student ID as used in the pool
+    UPDATE student_id_pool
+    SET 
+        is_used = TRUE,
+        used_at = NOW(),
+        remarks = COALESCE(remarks, '') || ' | Auto-assigned to student on ' || NOW()::TEXT
+    WHERE student_id_code = NEW.stud_number
+      AND is_used = FALSE;
+    
+    -- Log if student ID was not found in pool
+    IF NOT FOUND THEN
+        RAISE WARNING 'Student ID % was not found in student_id_pool or is already used', NEW.stud_number;
+    END IF;
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger for student_excuse_requests
-DROP TRIGGER IF EXISTS trg_excuse_request_updated_at ON student_excuse_requests;
-CREATE TRIGGER trg_excuse_request_updated_at
-    BEFORE UPDATE ON student_excuse_requests
+-- Drop old trigger if it exists and create new one
+DROP TRIGGER IF EXISTS trg_mark_student_id_used ON students;
+CREATE TRIGGER trg_mark_student_id_used
+    AFTER INSERT ON students
     FOR EACH ROW
-EXECUTE FUNCTION update_excuse_request_timestamp();
+EXECUTE FUNCTION auto_mark_student_id_used();
 
-
--- Update timestamp on class update
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $$
+-- ✅ NEW TRIGGER: Automatically release student IDs back to pool when students are deleted
+CREATE OR REPLACE FUNCTION auto_release_student_id()
+RETURNS TRIGGER AS $$
 BEGIN
-    NEW.class_updated_at = NOW();
+    -- Release the student ID back to the pool
+    UPDATE student_id_pool
+    SET 
+        is_used = FALSE,
+        used_at = NULL,
+        remarks = COALESCE(remarks, '') || ' | Released from deleted student on ' || NOW()::TEXT
+    WHERE student_id_code = OLD.stud_number
+      AND is_used = TRUE;
+    
+    -- Log if student ID was not found in pool
+    IF NOT FOUND THEN
+        RAISE WARNING 'Student ID % was not found in student_id_pool or is not marked as used', OLD.stud_number;
+    END IF;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_release_student_id
+    AFTER DELETE ON students
+    FOR EACH ROW
+EXECUTE FUNCTION auto_release_student_id();
+
+-- ✅ NEW TRIGGER: Handle student number changes (release old, mark new)
+CREATE OR REPLACE FUNCTION auto_handle_student_id_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only process if student number actually changed
+    IF OLD.stud_number != NEW.stud_number THEN
+        -- Release old student ID back to pool
+        UPDATE student_id_pool
+        SET 
+            is_used = FALSE,
+            used_at = NULL,
+            remarks = COALESCE(remarks, '') || ' | Released due to student reassignment on ' || NOW()::TEXT
+        WHERE student_id_code = OLD.stud_number
+          AND is_used = TRUE;
+        
+        -- Mark new student ID as used
+        UPDATE student_id_pool
+        SET 
+            is_used = TRUE,
+            used_at = NOW(),
+            remarks = COALESCE(remarks, '') || ' | Reassigned from ' || OLD.stud_number || ' on ' || NOW()::TEXT
+        WHERE student_id_code = NEW.stud_number
+          AND is_used = FALSE;
+        
+        -- Log the change
+        RAISE NOTICE 'Student ID changed from % to % for student %', OLD.stud_number, NEW.stud_number, NEW.stud_id;
+    END IF;
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_classes_updated_at
-    BEFORE UPDATE ON classes
+CREATE TRIGGER trg_handle_student_id_change
+    AFTER UPDATE ON students
     FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
-
--- Ensure only one active academic term
-CREATE OR REPLACE FUNCTION enforce_single_active_term()
-    RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.is_active = TRUE THEN
-        UPDATE academic_terms
-        SET is_active = FALSE
-        WHERE term_id <> NEW.term_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_enforce_single_active_term
-    BEFORE INSERT OR UPDATE ON academic_terms
-    FOR EACH ROW
-EXECUTE FUNCTION enforce_single_active_term();
-
--- Add comment to explain the purpose
-COMMENT ON COLUMN students.profile_submitted IS 'Indicates if student has submitted their profile with academic information for the first time';
-COMMENT ON COLUMN students.profile_submitted_at IS 'Timestamp when student first submitted their profile with academic information';
-
--- Add new column to link to daily attendance log
-DO $$ 
-BEGIN
-    -- Add daily_attend_id column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'attendance' 
-        AND column_name = 'daily_attend_id'
-    ) THEN
-        ALTER TABLE attendance ADD COLUMN daily_attend_id INT;
-        
-        -- Add foreign key constraint
-        ALTER TABLE attendance ADD CONSTRAINT fk_attendance_daily_log
-        FOREIGN KEY (daily_attend_id) 
-        REFERENCES daily_attendance_log(daily_attend_id) 
-        ON DELETE CASCADE;
-        
-        -- Add index for foreign key
-        CREATE INDEX idx_attendance_daily_log ON attendance(daily_attend_id);
-    END IF;
-
-    -- Add is_present column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'attendance' 
-        AND column_name = 'is_present'
-    ) THEN
-        ALTER TABLE attendance ADD COLUMN is_present BOOLEAN DEFAULT TRUE;
-    END IF;
-END $$;
-
--- Drop old unique constraint (if exists)
-ALTER TABLE attendance DROP CONSTRAINT IF EXISTS attendance_class_id_stud_id_attend_scan_time_attend_type_key;
-
--- Add new unique constraint: one attendance record per student per class per date
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'attendance_class_student_date_unique'
-    ) THEN
-        ALTER TABLE attendance ADD CONSTRAINT attendance_class_student_date_unique 
-        UNIQUE (class_id, stud_id, attend_date);
-    END IF;
-END $$;
-
--- Update comments
-COMMENT ON COLUMN attendance.daily_attend_id IS 
-'Foreign key to daily_attendance_log. Links class attendance to daily time in/out record.';
-
-COMMENT ON COLUMN attendance.is_present IS 
-'Indicates if student was marked present for this specific class. Used for manual overrides.';
-
-COMMENT ON COLUMN attendance.attend_scan_time IS 
-'DEPRECATED: Use daily_attendance_log.time_in instead. Kept for backward compatibility.';
-
-COMMENT ON COLUMN attendance.attend_type IS 
-'DEPRECATED: No longer used in daily time in/out system. Kept for backward compatibility.';
-
-COMMENT ON TABLE attendance IS 
-'Class-specific attendance records. Each record links to a daily_attendance_log entry and determines if student was Late/Present/Absent for a specific class based on their daily Time In.';
-
-
--- FIX 1: Auto-create missing student records for users with role=student
-DO $$
-DECLARE
-    v_user_record RECORD;
-    v_temp_stud_number VARCHAR(50);
-    v_created_count INT := 0;
-BEGIN
-    FOR v_user_record IN 
-        SELECT u.user_id, u.user_email, u.user_first_name, u.user_last_name
-        FROM users u
-        LEFT JOIN students s ON u.user_id = s.user_id
-        WHERE u.role_id = 3  -- Student role
-        AND s.stud_id IS NULL
-    LOOP
-   
-        -- Format: TEMP-{user_id}-{seconds} (max 20 chars)
-        v_temp_stud_number := 'TEMP-' || v_user_record.user_id || '-' || TO_CHAR(NOW(), 'SSSSS');
-        
-        -- Insert student record
-        INSERT INTO students (user_id, stud_number, stud_created_at)
-        VALUES (v_user_record.user_id, v_temp_stud_number, NOW());
-        
-        v_created_count := v_created_count + 1;
-        
-        RAISE NOTICE 'Created student record for: % % (Email: %, Temp ID: %)', 
-            v_user_record.user_first_name, 
-            v_user_record.user_last_name,
-            v_user_record.user_email,
-            v_temp_stud_number;
-    END LOOP;
-    
-    RAISE NOTICE '✅ Created % student record(s)', v_created_count;
-END $$;
-
--- FIX 2: Enroll all students in the existing class (Class ID 2 - Programming 1)
-DO $$
-DECLARE
-    v_student_record RECORD;
-    v_enrolled_count INT := 0;
-    v_class_id INT := 2;  -- Programming 1 class
-BEGIN
-    FOR v_student_record IN 
-        SELECT s.stud_id, s.stud_number, u.user_first_name, u.user_last_name
-        FROM students s
-        JOIN users u ON s.user_id = u.user_id
-        WHERE s.stud_id NOT IN (
-            SELECT stud_id FROM enrollment WHERE class_id = v_class_id
-        )
-    LOOP
-        INSERT INTO enrollment (stud_id, class_id, enroll_at)
-        VALUES (v_student_record.stud_id, v_class_id, NOW())
-        ON CONFLICT DO NOTHING;
-        
-        v_enrolled_count := v_enrolled_count + 1;
-        
-        RAISE NOTICE 'Enrolled: % % (ID: %) in Class ID %', 
-            v_student_record.user_first_name,
-            v_student_record.user_last_name,
-            v_student_record.stud_number,
-            v_class_id;
-    END LOOP;
-    
-    RAISE NOTICE '✅ Enrolled % student(s) in Class ID %', v_enrolled_count, v_class_id;
-END $$;
-
--- FIX 3: Create additional sample classes
--- Get the active term ID
-DO $$
-DECLARE
-    v_term_id INT;
-    v_fac_id INT;
-    v_created_count INT := 0;
-    v_room_count INT;
-BEGIN
-    -- Get active term
-    SELECT term_id INTO v_term_id
-    FROM academic_terms
-    WHERE is_active = TRUE
-    LIMIT 1;
-    
-    -- Get faculty ID
-    SELECT fac_id INTO v_fac_id
-    FROM faculty
-    LIMIT 1;
-    
-    -- Get total room count
-    SELECT COUNT(*) INTO v_room_count FROM rooms;
-    
-    -- Create classes for available courses (simple round-robin room assignment)
-    WITH numbered_courses AS (
-        SELECT 
-            course_id,
-            ROW_NUMBER() OVER() - 1 AS rn
-        FROM courses c
-        WHERE c.course_id NOT IN (SELECT course_id FROM classes WHERE course_id IS NOT NULL)
-    ),
-    room_assignment AS (
-        SELECT 
-            nc.course_id,
-            (SELECT room_id FROM rooms ORDER BY room_id LIMIT 1 OFFSET (nc.rn % v_room_count)) as room_id
-        FROM numbered_courses nc
-    )
-    INSERT INTO classes (course_id, room_id, fac_id, term_id, class_created_at, class_updated_at)
-    SELECT 
-        ra.course_id,
-        ra.room_id,
-        v_fac_id,
-        v_term_id,
-        NOW(),
-        NOW()
-    FROM room_assignment ra
-    ON CONFLICT DO NOTHING;
-    
-    GET DIAGNOSTICS v_created_count = ROW_COUNT;
-    
-    RAISE NOTICE '✅ Created % new class(es)', v_created_count;
-END $$;
-
-
--- FIX 4: Enroll all students in all classes
-DO $$
-DECLARE
-    v_enrollment_count INT := 0;
-BEGIN
-    INSERT INTO enrollment (stud_id, class_id, enroll_at)
-    SELECT s.stud_id, c.class_id, NOW()
-    FROM students s
-    CROSS JOIN classes c
-    WHERE NOT EXISTS (
-        SELECT 1 FROM enrollment e 
-        WHERE e.stud_id = s.stud_id AND e.class_id = c.class_id
-    )
-    ON CONFLICT DO NOTHING;
-    
-    GET DIAGNOSTICS v_enrollment_count = ROW_COUNT;
-    
-    RAISE NOTICE '✅ Created % new enrollment(s)', v_enrollment_count;
-END $$;
-
--- FIX 5: Add class_id column to daily_attendance_log table and update unique constraint to prevent duplicate time-ins for the same class on the same day
-DO $$ 
-BEGIN
-    -- Add class_id column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'daily_attendance_log' 
-        AND column_name = 'class_id'
-    ) THEN
-        ALTER TABLE daily_attendance_log ADD COLUMN class_id INT;
-        
-        -- Add foreign key constraint
-        ALTER TABLE daily_attendance_log ADD CONSTRAINT fk_daily_attend_class
-        FOREIGN KEY (class_id) 
-        REFERENCES classes(class_id) 
-        ON DELETE CASCADE;
-        
-        -- Add index for foreign key
-        CREATE INDEX idx_daily_attend_class_id ON daily_attendance_log(class_id);
-        
-        -- Add comment
-        COMMENT ON COLUMN daily_attendance_log.class_id IS 
-        'Foreign key to classes table. Links daily attendance to specific class to prevent duplicate time-ins for same class on same day.';
-    END IF;
-END $$;
-
--- Update unique constraint: One record per student per class per date
-DO $$
-BEGIN
-    -- Drop old constraint
-    IF EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'daily_attendance_unique_student_date'
-    ) THEN
-        ALTER TABLE daily_attendance_log DROP CONSTRAINT daily_attendance_unique_student_date;
-    END IF;
-    
-    -- Add new constraint with class_id
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'daily_attendance_unique_student_class_date'
-    ) THEN
-        ALTER TABLE daily_attendance_log ADD CONSTRAINT daily_attendance_unique_student_class_date 
-        UNIQUE (stud_id, class_id, attend_date);
-        
-        COMMENT ON CONSTRAINT daily_attendance_unique_student_class_date ON daily_attendance_log IS 
-        'Ensures one attendance record per student per class per day - prevents duplicate time-ins after completion';
-    END IF;
-END $$;
-
--- Add composite index for faster queries
-CREATE INDEX IF NOT EXISTS idx_daily_attend_stud_class_date_composite 
-ON daily_attendance_log(stud_id, class_id, attend_date, status);
+EXECUTE FUNCTION auto_handle_student_id_change();
 
 
 -- ============================================================
@@ -856,7 +640,8 @@ SELECT
 FROM daily_attendance_log dal
 JOIN students s ON dal.stud_id = s.stud_id
 JOIN users u ON s.user_id = u.user_id
-LEFT JOIN attendance a ON dal.daily_attend_id = a.daily_attend_id
+LEFT JOIN attendance a ON dal.stud_id = a.stud_id 
+    AND dal.attend_date = a.attend_date
 WHERE dal.attend_date = CURRENT_DATE
 GROUP BY 
     dal.daily_attend_id, dal.stud_id, s.stud_number, 
@@ -898,7 +683,8 @@ SELECT
 FROM daily_attendance_log dal
 JOIN students s ON dal.stud_id = s.stud_id
 JOIN users u ON s.user_id = u.user_id
-LEFT JOIN attendance a ON dal.daily_attend_id = a.daily_attend_id
+LEFT JOIN attendance a ON dal.stud_id = a.stud_id 
+    AND dal.attend_date = a.attend_date
 LEFT JOIN classes c ON a.class_id = c.class_id
 LEFT JOIN courses co ON c.course_id = co.course_id
 GROUP BY 

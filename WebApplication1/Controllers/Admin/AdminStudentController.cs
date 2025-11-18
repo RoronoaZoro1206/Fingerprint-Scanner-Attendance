@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
@@ -231,23 +231,43 @@ public class AdminStudentController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
+            // ✅ FIX: Check if student ID is already used BEFORE creating student
+            var poolEntry = await _studentIdPoolRepository.GetByCodeAsync(student.StudNumber);
+            if (poolEntry == null)
+            {
+                _logger.LogWarning($"Student ID {student.StudNumber} not found in pool");
+                return Json(new { success = false, message = $"Student ID {student.StudNumber} is not in the ID pool. Please generate it first." });
+            }
+
+            if (poolEntry.IsUsed)
+            {
+                _logger.LogWarning($"Student ID {student.StudNumber} is already used");
+                return Json(new { success = false, message = $"Student ID {student.StudNumber} is already assigned to another student." });
+            }
+
             student.StudCreatedAt = DateTime.Now;
             var result = await _studentRepository.AddAsync(student);
 
             if (result)
             {
-                // Mark the student ID as used in the pool (if it exists)
-                var poolEntry = await _studentIdPoolRepository.GetByCodeAsync(student.StudNumber);
-                if (poolEntry != null)
+                // ✅ FIX: Mark the student ID as used in the pool with proper error handling
+                _logger.LogInformation($"Marking student ID {student.StudNumber} as used in pool (Pool ID: {poolEntry.PoolId})");
+                var markUsedResult = await _studentIdPoolRepository.MarkAsUsedAsync(poolEntry.PoolId);
+                
+                if (markUsedResult)
                 {
-                    await _studentIdPoolRepository.MarkAsUsedAsync(poolEntry.PoolId);
+                    _logger.LogInformation($"✅ Successfully marked student ID {student.StudNumber} as used");
+                }
+                else
+                {
+                    _logger.LogError($"❌ Failed to mark student ID {student.StudNumber} as used in pool");
                 }
 
                 var user = await _userRepository.GetByIdAsync(student.UserId);
                 var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
                 await _auditService.LogActionAsync(
                     "Created Student", 
-                    $"Created student record for: {userName} (Student Number: {student.StudNumber})");
+                    $"Created student record for: {userName} (Student Number: {student.StudNumber}, Pool ID: {poolEntry.PoolId})");
                 return Json(new { success = true, message = "Student created successfully" });
             }
             return Json(new { success = false, message = "Failed to create student" });
@@ -270,15 +290,59 @@ public class AdminStudentController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
+            // ✅ FIX: Get existing student to check if student number changed
+            var existingStudent = await _studentRepository.GetByIdAsync(student.StudId);
+            if (existingStudent == null)
+            {
+                return Json(new { success = false, message = "Student not found" });
+            }
+
+            string oldStudentNumber = existingStudent.StudNumber;
+            string newStudentNumber = student.StudNumber;
+
+            // ✅ FIX: Handle student number change (update pool accordingly)
+            if (oldStudentNumber != newStudentNumber)
+            {
+                _logger.LogInformation($"Student number changing from {oldStudentNumber} to {newStudentNumber}");
+
+                // Check if new student number exists in pool and is available
+                var newPoolEntry = await _studentIdPoolRepository.GetByCodeAsync(newStudentNumber);
+                if (newPoolEntry == null)
+                {
+                    return Json(new { success = false, message = $"Student ID {newStudentNumber} is not in the ID pool." });
+                }
+
+                if (newPoolEntry.IsUsed)
+                {
+                    return Json(new { success = false, message = $"Student ID {newStudentNumber} is already assigned to another student." });
+                }
+
+                // Release old student ID back to pool
+                var oldPoolEntry = await _studentIdPoolRepository.GetByCodeAsync(oldStudentNumber);
+                if (oldPoolEntry != null && oldPoolEntry.IsUsed)
+                {
+                    _logger.LogInformation($"Releasing old student ID {oldStudentNumber} back to pool (Pool ID: {oldPoolEntry.PoolId})");
+                    string releaseReason = $"Released on {DateTime.Now:yyyy-MM-dd HH:mm:ss} - Student reassigned to {newStudentNumber}";
+                    await _studentIdPoolRepository.ReleaseStudentIdAsync(oldPoolEntry.PoolId, releaseReason);
+                }
+
+                // Mark new student ID as used
+                _logger.LogInformation($"Marking new student ID {newStudentNumber} as used (Pool ID: {newPoolEntry.PoolId})");
+                await _studentIdPoolRepository.MarkAsUsedAsync(newPoolEntry.PoolId);
+            }
+
             var result = await _studentRepository.UpdateAsync(student);
 
             if (result)
             {
                 var user = await _userRepository.GetByIdAsync(student.UserId);
                 var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
-                await _auditService.LogActionAsync(
-                    "Updated Student", 
-                    $"Updated student record for: {userName} (Student Number: {student.StudNumber})");
+                
+                string changeDetails = oldStudentNumber != newStudentNumber 
+                    ? $"Updated student record for: {userName} (Changed Student Number: {oldStudentNumber} → {newStudentNumber})"
+                    : $"Updated student record for: {userName} (Student Number: {student.StudNumber})";
+                
+                await _auditService.LogActionAsync("Updated Student", changeDetails);
                 return Json(new { success = true, message = "Student updated successfully" });
             }
             return Json(new { success = false, message = "Failed to update student" });
@@ -297,8 +361,26 @@ public class AdminStudentController : Controller
         try
         {
             var student = await _studentRepository.GetByIdAsync(id);
+            if (student == null)
+            {
+                return Json(new { success = false, message = "Student not found" });
+            }
+
             var user = student != null ? await _userRepository.GetByIdAsync(student.UserId) : null;
             var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+            string studentNumber = student.StudNumber;
+
+            // ✅ FIX: Return student ID back to pool when student is deleted
+            var poolEntry = await _studentIdPoolRepository.GetByCodeAsync(studentNumber);
+            if (poolEntry != null && poolEntry.IsUsed)
+            {
+                _logger.LogInformation($"Returning student ID {studentNumber} back to pool (Pool ID: {poolEntry.PoolId})");
+                
+                string releaseReason = $"Released on {DateTime.Now:yyyy-MM-dd HH:mm:ss} - Student '{userName}' deleted";
+                await _studentIdPoolRepository.ReleaseStudentIdAsync(poolEntry.PoolId, releaseReason);
+                
+                _logger.LogInformation($"✅ Student ID {studentNumber} returned to pool and marked as available");
+            }
 
             var result = await _studentRepository.DeleteAsync(id);
 
@@ -306,8 +388,8 @@ public class AdminStudentController : Controller
             {
                 await _auditService.LogActionAsync(
                     "Deleted Student", 
-                    $"Deleted student record for: {userName} (Student Number: {student?.StudNumber})");
-                return Json(new { success = true, message = "Student deleted successfully" });
+                    $"Deleted student record for: {userName} (Student Number: {studentNumber}, ID returned to pool)");
+                return Json(new { success = true, message = "Student deleted successfully and ID returned to pool" });
             }
             return Json(new { success = false, message = "Failed to delete student" });
         }
