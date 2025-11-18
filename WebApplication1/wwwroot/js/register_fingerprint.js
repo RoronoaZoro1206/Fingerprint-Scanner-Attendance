@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnScan) {
         btnScan.addEventListener('click', async function () {
             try {
-                console.log('Scan button clicked');
+                console.log(`[${new Date().toISOString()}] [Frontend] Scan button clicked`);
                 btnScan.disabled = true;
                 btnScan.textContent = 'Scanning...';
                 fingerprintScanner.classList.add('scanning');
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showToast('Scanning in progress, please wait...', 'info');
 
                 const url = `${baseUrl}/CaptureFingerprint`;
-                console.log('Fetching:', url);
+                console.log(`[${new Date().toISOString()}] [Frontend] Fetching: ${url}`);
 
                 // 📝 Track start time for minimum scanning duration
                 const scanStartTime = Date.now();
@@ -78,22 +78,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 });
 
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers.get('content-type'));
+                console.log(`[${new Date().toISOString()}] [Frontend] Response status: ${response.status}`);
+                console.log(`[${new Date().toISOString()}] [Frontend] Response headers:`, response.headers.get('content-type'));
 
                 const result = await response.json();
-                console.log('Response data:', result);
+                console.log(`[${new Date().toISOString()}] [Frontend] Response data:`, result);
 
                 // 📝 Calculate elapsed time and wait if needed
                 const scanElapsedTime = Date.now() - scanStartTime;
                 const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanElapsedTime);
 
                 if (remainingTime > 0) {
-                    console.log(`Extending scan display by ${remainingTime}ms for better UX`);
+                    console.log(`[${new Date().toISOString()}] [Frontend] Extending scan display by ${remainingTime}ms for better UX`);
                     await new Promise(resolve => setTimeout(resolve, remainingTime));
                 }
 
                 if (result.success) {
+                    // ✅ SUCCESS PATH (already working)
+                    console.log(`[${new Date().toISOString()}] [Frontend] ✅ SUCCESS - Fingerprint captured`);
+                    
                     capturedTemplateBase64 = result.templateBase64;
                     capturedImageBase64 = result.imageBase64;
 
@@ -113,38 +116,68 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // ✅ STEP 4: NOW activate LED after UI is fully updated (SYNCHRONIZED!)
                     if (result.ledControlDeferred) {
-                        console.log('🟢 Activating LED after UI updates (synchronized timing)');
+                        console.log(`[${new Date().toISOString()}] [Frontend] 🟢 Activating GREEN LED after UI updates (synchronized timing)`);
                         try {
-                            await fetch(`${baseUrl}/ActivateLED`, {
+                            const ledResponse = await fetch(`${baseUrl}/ActivateLED`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' }
                             });
-                            console.log('✅ LED activated successfully after UI rendering');
+                            const ledResult = await ledResponse.json();
+                            console.log(`[${new Date().toISOString()}] [Frontend] ✅ GREEN LED Response:`, ledResult);
                         } catch (ledError) {
-                            console.warn('Could not activate LED:', ledError);
+                            console.warn(`[${new Date().toISOString()}] [Frontend] ⚠️ Could not activate GREEN LED:`, ledError);
                         }
                     }
 
                     // ✅ Refresh status if indicated by server
                     if (result.shouldRefreshStatus) {
-                        console.log('Refreshing device status after successful capture');
+                        console.log(`[${new Date().toISOString()}] [Frontend] Refreshing device status after successful capture`);
                         await checkDeviceStatus();
                     }
                 } else {
-                    // ✅ Error case: LED already activated by backend immediately
+                    // ✅ ERROR PATH (NEW: Frontend-controlled RED LED activation)
+                    console.log(`[${new Date().toISOString()}] [Frontend] ❌ ERROR - Capture failed`);
+                    console.log(`[${new Date().toISOString()}] [Frontend] Error type: ${result.errorType}`);
+                    console.log(`[${new Date().toISOString()}] [Frontend] Error message: ${result.message}`);
+                    
+                    // Display error toast
                     showToast(result.message || 'Failed to capture fingerprint', 'error', 3000);
                     
                     fingerprintScanner.classList.add('error');
                     setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
 
+                    // ✅ STEP 1: Wait for error UI to render
+                    await new Promise(resolve => requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve);
+                    }));
+
+                    // ✅ STEP 2: NOW activate RED LED after error UI is displayed (SYNCHRONIZED!)
+                    console.log(`[${new Date().toISOString()}] [Frontend] 🔴 Activating RED LED after error UI updates (synchronized timing)`);
+                    try {
+                        const ledResponse = await fetch(`${baseUrl}/ActivateErrorLED`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        const ledResult = await ledResponse.json();
+                        console.log(`[${new Date().toISOString()}] [Frontend] ✅ RED LED Response:`, ledResult);
+                        
+                        if (ledResult.success) {
+                            console.log(`[${new Date().toISOString()}] [Frontend] 🔴 RED LED activated successfully on hardware scanner`);
+                        } else {
+                            console.error(`[${new Date().toISOString()}] [Frontend] ❌ RED LED activation failed:`, ledResult.message);
+                        }
+                    } catch (ledError) {
+                        console.error(`[${new Date().toISOString()}] [Frontend] ❌ Could not activate RED LED:`, ledError);
+                    }
+
                     // ✅ Refresh status even on error (device might have come online)
                     if (result.shouldRefreshStatus) {
-                        console.log('Refreshing device status after capture error');
+                        console.log(`[${new Date().toISOString()}] [Frontend] Refreshing device status after capture error`);
                         await checkDeviceStatus();
                     }
                 }
             } catch (error) {
-                console.error('Error capturing fingerprint:', error);
+                console.error(`[${new Date().toISOString()}] [Frontend] ❌ Exception during capture:`, error);
                 // Show error toast
                 showToast('Error: ' + error.message, 'error', 3000);
             } finally {

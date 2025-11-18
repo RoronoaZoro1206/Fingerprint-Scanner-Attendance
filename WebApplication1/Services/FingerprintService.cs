@@ -740,11 +740,18 @@ return score;
         // ============================
         //  DEVICE LIGHT & BUZZER CONTROL
 // ============================
+        // ✅ TESTING MODE CONFIGURATION (set to true for 10-second LED testing)
+        private const bool TESTING_MODE = false; // Set to true to enable 10-second LED duration for visual confirmation
+
         public bool SetLedLight(string color, bool on)
      {
    try
  {
- if (!_isDeviceOpen) return false;
+        if (!_isDeviceOpen)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SetLedLight] ❌ Device not open");
+            return false;
+        }
 
   int code = color.ToLower() switch
         {
@@ -754,20 +761,152 @@ return score;
       _ => throw new ArgumentException("Invalid LED color (use 'white', 'green', or 'red').")
   };
 
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SetLedLight] Setting {color} LED to {(on ? "ON" : "OFF")} (code: {code})");
+
      byte[] value = BitConverter.GetBytes(on ? 1 : 0);
     int result = zkfp2.SetParameters(_deviceHandle, code, value, value.Length);
+        
+        if (result == zkfp.ZKFP_ERR_OK)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SetLedLight] ✅ Command successful - {color} LED is now {(on ? "ON" : "OFF")}");
+        }
+        else
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SetLedLight] ❌ Command failed with error code: {result}");
+        }
+        
   return result == zkfp.ZKFP_ERR_OK;
    }
    catch (Exception ex)
 {
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SetLedLight] ❌ Exception: {ex.Message}");
      _logger.LogError(ex, $"Exception while setting LED light: {color}");
     return false;
     }
         }
 
         /// <summary>
-        /// ✅ NEW: Turn OFF all LED lights on the physical scanner hardware
-        /// This prevents the default green LED behavior after fingerprint capture
+        /// ✅ NEW APPROACH #1: Activate SUCCESS LED (GREEN) with comprehensive diagnostic logging
+        /// Matches the pattern that's already working correctly
+        /// </summary>
+        public void ActivateSuccessLED()
+        {
+            int duration = TESTING_MODE ? 10000 : 3000;
+            
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateSuccessLED] ✅ Called");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Mode] {(TESTING_MODE ? "TESTING (10 seconds)" : "NORMAL (3 seconds)")}");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+
+            try
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SDK] Calling SetLedLight('green', true)");
+                SetLedLight("green", true);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Hardware] 🟢 GREEN LED should be visible on physical scanner NOW");
+                
+                if (TESTING_MODE)
+                {
+                    Console.WriteLine("┌──────────────────────────────────────────────────────────┐");
+                    Console.WriteLine("│  TESTING MODE: GREEN LED ACTIVE FOR 10 SECONDS           │");
+                    Console.WriteLine("│  PLEASE VISUALLY CONFIRM LED ON HARDWARE SCANNER        │");
+                    Console.WriteLine("└──────────────────────────────────────────────────────────┘");
+                }
+
+                // Also activate beep for audio feedback
+                Beep(true);
+                
+                // Schedule LED turn-off after duration
+                _ = Task.Run(async () =>
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Timer] Started {duration}ms countdown");
+                    await Task.Delay(duration);
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Timer] {duration}ms elapsed, turning off LED");
+                    SetLedLight("green", false);
+                    Beep(false);
+                    
+                    if (TESTING_MODE)
+                    {
+                        Console.WriteLine("┌──────────────────────────────────────────────────────────┐");
+                        Console.WriteLine("│  TESTING MODE: GREEN LED SHOULD NOW BE OFF              │");
+                        Console.WriteLine("└──────────────────────────────────────────────────────────┘");
+                    }
+                    
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateSuccessLED] ✅ Complete");
+                });
+                
+                _logger.LogInformation("🟢 LED GREEN activated successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateSuccessLED] ❌ Exception: {ex.Message}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateSuccessLED] ❌ Stack trace: {ex.StackTrace}");
+                _logger.LogError(ex, "Error activating success LED");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ✅ NEW APPROACH #2: Dedicated method to activate ERROR LED (RED) with comprehensive diagnostic logging
+        /// This mirrors the ActivateSuccessLED pattern to ensure identical behavior
+        /// </summary>
+        public void ActivateErrorLED()
+        {
+            int duration = TESTING_MODE ? 10000 : 3000;
+            
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateErrorLED] 🔴 Called");
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Mode] {(TESTING_MODE ? "TESTING (10 seconds)" : "NORMAL (3 seconds)")}");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+
+            try
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [SDK] Calling SetLedLight('red', true)");
+                SetLedLight("red", true);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Hardware] 🔴 RED LED should be visible on physical scanner NOW");
+                
+                if (TESTING_MODE)
+                {
+                    Console.WriteLine("┌──────────────────────────────────────────────────────────┐");
+                    Console.WriteLine("│  TESTING MODE: RED LED ACTIVE FOR 10 SECONDS            │");
+                    Console.WriteLine("│  PLEASE VISUALLY CONFIRM LED ON HARDWARE SCANNER        │");
+                    Console.WriteLine("└──────────────────────────────────────────────────────────┘");
+                }
+
+                // Also activate beep for audio feedback
+                Beep(true);
+                
+                // Schedule LED turn-off after duration
+                _ = Task.Run(async () =>
+                {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Timer] Started {duration}ms countdown");
+                    await Task.Delay(duration);
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Timer] {duration}ms elapsed, turning off LED");
+                    SetLedLight("red", false);
+                    Beep(false);
+                    
+                    if (TESTING_MODE)
+                    {
+                        Console.WriteLine("┌──────────────────────────────────────────────────────────┐");
+                        Console.WriteLine("│  TESTING MODE: RED LED SHOULD NOW BE OFF                │");
+                        Console.WriteLine("└──────────────────────────────────────────────────────────┘");
+                    }
+                    
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateErrorLED] ✅ Complete");
+                });
+                
+                _logger.LogInformation("🔴 LED RED activated successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateErrorLED] ❌ Exception: {ex.Message}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [ActivateErrorLED] ❌ Stack trace: {ex.StackTrace}");
+                _logger.LogError(ex, "Error activating error LED");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ✅ Turn OFF all LED lights on the physical scanner hardware
         /// </summary>
         public void TurnOffAllLeds()
         {
@@ -775,21 +914,24 @@ return score;
             {
                 if (!_isDeviceOpen)
                 {
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [TurnOffAllLeds] ❌ Device is not open");
                     _logger.LogWarning("Cannot turn off LEDs: Device is not open");
                     return;
                 }
 
-                _logger.LogInformation("Turning off all scanner LEDs...");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [TurnOffAllLeds] Turning off all scanner LEDs...");
                 
                 // Turn off all three LEDs (white, green, red)
                 SetLedLight("white", false);
                 SetLedLight("green", false);
                 SetLedLight("red", false);
                 
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [TurnOffAllLeds] ✅ All scanner LEDs turned off successfully");
                 _logger.LogInformation("All scanner LEDs turned off successfully");
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [TurnOffAllLeds] ❌ Exception: {ex.Message}");
                 _logger.LogError(ex, "Exception while turning off LEDs");
             }
         }
@@ -800,20 +942,24 @@ return score;
  {
    if (!_isDeviceOpen)
 {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Beep] ❌ Device is not open");
   _logger.LogWarning("Cannot beep: Device is not open");
    return false;
    }
 
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Beep] Setting beep: {(on ? "ON" : "OFF")}");
    _logger.LogInformation($"Setting beep: {(on ? "ON" : "OFF")}");
         byte[] value = BitConverter.GetBytes(on ? 1 : 0);
      int result = zkfp2.SetParameters(_deviceHandle, 104, value, value.Length);
      
     if (result == zkfp.ZKFP_ERR_OK)
 {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Beep] ✅ Beep command successful");
   _logger.LogInformation($"Beep command successful: {(on ? "ON" : "OFF")}");
  }
 else
      {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Beep] ❌ Beep command failed with error code: {result}");
 _logger.LogWarning($"Beep command failed with error code: {result}");
    }
      
@@ -821,6 +967,7 @@ _logger.LogWarning($"Beep command failed with error code: {result}");
    }
       catch (Exception ex)
 {
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Beep] ❌ Exception: {ex.Message}");
  _logger.LogError(ex, "Exception while controlling buzzer");
       return false;
  }

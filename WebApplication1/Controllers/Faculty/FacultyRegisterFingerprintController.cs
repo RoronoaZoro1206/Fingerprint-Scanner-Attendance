@@ -174,18 +174,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 {
                     _logger.LogWarning($"Failed to capture fingerprint - {errorMessage} (Error code: {errorCode})");
 
-                    // ✅ Error case: Activate RED LED immediately (error feedback is immediate)
-                    _logger.LogInformation("🔴 LED RED - Capture failed, activating error feedback");
-                    _fingerprintService.SetLedLight("red", true);
-                    _fingerprintService.Beep(true);
-                    
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(3000);
-                        _fingerprintService.SetLedLight("red", false);
-                        _fingerprintService.Beep(false);
-                        _logger.LogInformation("🔴 LED OFF - Error feedback complete after 3 seconds");
-                    });
+                    // ✅ FIX: DO NOT activate RED LED here - let frontend control timing after UI updates
+                    _logger.LogInformation("⏸️ Error LED control deferred to frontend for synchronized timing");
 
                     return Json(new {
                         success = false,
@@ -194,7 +184,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                         : errorMessage,
                         errorCode = errorCode,
                         shouldRefreshStatus = true,
-                        ledDuration = 3000
+                        ledControlDeferred = true // ✅ Signal frontend to activate RED LED after error UI updates
                     });
                 }
 
@@ -222,24 +212,14 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             {
                 _logger.LogError(ex, "Error capturing fingerprint");
 
-                // Error feedback: red LED immediately
-                _logger.LogInformation("🔴 LED RED - Exception occurred, activating error feedback");
-                _fingerprintService.SetLedLight("red", true);
-                _fingerprintService.Beep(true);
-                
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(3000);
-                    _fingerprintService.SetLedLight("red", false);
-                    _fingerprintService.Beep(false);
-                    _logger.LogInformation("🔴 LED OFF - Error feedback complete after exception");
-                });
+                // ✅ FIX: Even for exceptions, let frontend control LED timing
+                _logger.LogInformation("⏸️ Exception error LED control deferred to frontend");
 
                 return Json(new { 
                     success = false, 
                     message = "Error: " + ex.Message,
                     shouldRefreshStatus = true,
-                    ledDuration = 3000
+                    ledControlDeferred = true // ✅ Frontend will activate RED LED after error UI
                 });
             }
         }
@@ -248,26 +228,49 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         [HttpPost("ActivateLED")]
         public IActionResult ActivateLED()
         {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Controller] ActivateSuccessLED endpoint called");
+            
             try
             {
                 _logger.LogInformation("🟢 LED GREEN - Frontend requested activation after UI updates (synchronized)");
-                _fingerprintService.SetLedLight("green", true);
-                _fingerprintService.Beep(true);
+                _fingerprintService.ActivateSuccessLED();
                 
-                // Schedule LED turn-off after 3 seconds
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(3000);
-                    _fingerprintService.SetLedLight("green", false);
-                    _fingerprintService.Beep(false);
-                    _logger.LogInformation("🟢 LED OFF - Success feedback complete after 3 seconds");
+                return Ok(new { 
+                    success = true, 
+                    message = "GREEN LED activated",
+                    timestamp = DateTime.Now.ToString("HH:mm:ss.fff")
                 });
-
-                return Ok(new { success = true, message = "LED activated" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error activating LED");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Controller] ActivateSuccessLED error: {ex.Message}");
+                _logger.LogError(ex, "Error activating success LED");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ✅ NEW APPROACH #2: Dedicated endpoint for frontend to activate ERROR LED (RED) after UI updates
+        // This mirrors the ActivateLED endpoint pattern for consistency
+        [HttpPost("ActivateErrorLED")]
+        public IActionResult ActivateErrorLED()
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Controller] ActivateErrorLED endpoint called");
+            
+            try
+            {
+                _logger.LogInformation("🔴 LED RED - Frontend requested activation after error UI updates (synchronized)");
+                _fingerprintService.ActivateErrorLED();
+                
+                return Ok(new { 
+                    success = true, 
+                    message = "RED LED activated",
+                    timestamp = DateTime.Now.ToString("HH:mm:ss.fff")
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Controller] ActivateErrorLED error: {ex.Message}");
+                _logger.LogError(ex, "Error activating error LED");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
