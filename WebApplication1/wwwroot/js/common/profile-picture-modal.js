@@ -134,66 +134,53 @@ class ProfilePictureModal {
             self.switchTab(tab);
         });
 
-        // ✅ FIX: Multiple event handlers for upload area click to ensure compatibility
-        // Method 1: jQuery click handler
+        // ✅ FIX BUG #1: Single unified click handler to prevent double file dialog
+        // Use ONLY jQuery click handler with proper event prevention
         $(`#${this.modalId}-upload-area`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('[Click Method 1] Upload area clicked via jQuery');
+            e.stopImmediatePropagation(); // ✅ Prevent any other handlers from firing
+            console.log('[Upload Area Click] User clicked upload area');
             self.triggerFileInput();
+            return false; // ✅ Extra safety to prevent default behavior
         });
 
-        // ✅ FIX: Method 2: Native DOM click handler (backup)
-        const uploadArea = document.getElementById(`${this.modalId}-upload-area`);
-        if (uploadArea) {
-            uploadArea.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[Click Method 2] Upload area clicked via native DOM');
-                self.triggerFileInput();
-            }, { passive: false });
+        // ✅ FIX BUG #1: Single file input change handler with one-time execution
+        const fileInput = document.getElementById(`${this.modalId}-file-input`);
+        if (fileInput) {
+            // Remove any existing event listeners first
+            const newFileInput = fileInput.cloneNode(true);
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            
+            // Attach single change event listener
+            $(`#${this.modalId}-file-input`).on('change', function(e) {
+                console.log('[File Input Change] Event triggered');
+                console.log('[File Input Change] Files count:', e.target.files?.length || 0);
+                
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    console.log('[File Input Change] Processing file:', file.name);
+                    self.handleFileSelect(file);
+                } else {
+                    console.log('[File Input Change] No files selected (user cancelled)');
+                }
+            });
         }
 
-        // ✅ FIX: Method 3: Keyboard accessibility (Enter/Space)
-        $(`#${this.modalId}-upload-area`).on('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[Keyboard] Upload area activated via keyboard');
-                self.triggerFileInput();
-            }
-        });
-
-        // ✅ FIX: File input change handler with comprehensive logging
-        $(`#${this.modalId}-file-input`).on('change', function(e) {
-            console.log('[File Input] Change event triggered');
-            console.log('[File Input] Files selected:', e.target.files.length);
-            
-            if (e.target.files && e.target.files.length > 0) {
-                const file = e.target.files[0];
-                console.log('[File Input] File details:', {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    lastModified: new Date(file.lastModified).toISOString()
-                });
-                self.handleFileSelect(file);
-            } else {
-                console.warn('[File Input] No files selected or file selection cancelled');
-            }
-        });
-
-        // ✅ FIX: Change file button with enhanced functionality
+        // ✅ FIX: Change file button
         $(`#${this.modalId}-change-file`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('[Change File] Button clicked');
+            e.stopImmediatePropagation();
+            console.log('[Change File Button] Clicked');
             self.triggerFileInput();
+            return false;
         });
 
         // ✅ FIX: Improved drag and drop handlers
+        const uploadArea = document.getElementById(`${this.modalId}-upload-area`);
         if (uploadArea) {
-            // Prevent default drag behaviors on the entire modal
+            // Prevent default drag behaviors
             uploadArea.addEventListener('dragenter', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -210,7 +197,6 @@ class ProfilePictureModal {
             uploadArea.addEventListener('dragleave', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // Only remove dragging class if leaving the upload area itself (not child elements)
                 if (e.target === uploadArea) {
                     $(uploadArea).removeClass('dragging');
                     console.log('[Drag] Leave event');
@@ -264,25 +250,26 @@ class ProfilePictureModal {
     }
 
     /**
-     * ✅ NEW: Centralized function to trigger file input
-     * This ensures consistent behavior across all trigger methods
+     * ✅ FIX BUG #1: Centralized function to trigger file input
+     * This ensures consistent behavior and prevents multiple dialogs
      */
     triggerFileInput() {
-        console.log('[Trigger] Attempting to open file input dialog');
+        console.log('[Trigger] Opening file dialog');
         
         const fileInput = document.getElementById(`${this.modalId}-file-input`);
         
         if (!fileInput) {
             console.error('[Trigger] File input element not found!');
+            Toast.error('File selector not found. Please refresh the page.');
             return;
         }
 
         try {
-            // Reset the file input value to allow selecting the same file again
+            // ✅ Reset the file input value to allow selecting the same file again
             fileInput.value = '';
             
-            // Trigger the click event
-            console.log('[Trigger] Triggering click on file input element');
+            // ✅ Trigger the click event ONCE
+            console.log('[Trigger] Triggering file input click');
             fileInput.click();
             
             console.log('[Trigger] File input click triggered successfully');

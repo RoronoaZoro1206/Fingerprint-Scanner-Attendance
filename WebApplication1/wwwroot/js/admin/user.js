@@ -123,10 +123,19 @@ function handleAddUserProfileSelected(selection) {
         const reader = new FileReader();
         reader.onload = function (e) {
             $('#addUserProfilePreview').attr('src', e.target.result);
+            console.log('[Add User] Profile picture preview loaded from file');
+        };
+        reader.onerror = function() {
+            console.error('[Add User] FileReader error');
+            Toast.error('Failed to load image preview');
+            // ✅ FIX BUG #2: Fallback to default on error
+            $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
-        $('#addUserProfilePreview').attr('src', `/images/profile/${selection.imageName}`);
+        const imagePath = `/images/profile/${selection.imageName}`;
+        $('#addUserProfilePreview').attr('src', imagePath);
+        console.log('[Add User] Profile picture preview loaded from server:', imagePath);
     }
 }
 
@@ -141,10 +150,19 @@ function handleEditUserProfileSelected(selection) {
         const reader = new FileReader();
         reader.onload = function (e) {
             $('#editUserProfilePreview').attr('src', e.target.result);
+            console.log('[Edit User] Profile picture preview loaded from file');
+        };
+        reader.onerror = function() {
+            console.error('[Edit User] FileReader error');
+            Toast.error('Failed to load image preview');
+            // ✅ FIX BUG #2: Fallback to default on error
+            $('#editUserProfilePreview').attr('src', '/images/profile/default_profile.png');
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
-        $('#editUserProfilePreview').attr('src', `/images/profile/${selection.imageName}`);
+        const imagePath = `/images/profile/${selection.imageName}`;
+        $('#editUserProfilePreview').attr('src', imagePath);
+        console.log('[Edit User] Profile picture preview loaded from server:', imagePath);
     }
 }
 
@@ -385,9 +403,14 @@ function showEditModal(userId) {
             $('#editIsActive').val(user.IsActive.toString());
             $('#editUserPassword').val('');
             
-            // Set profile picture
-            const profileImage = user.UserProfileImage || 'default_profile.png';
-            $('#editUserProfilePreview').attr('src', `/images/profile/${profileImage}`);
+            // ✅ FIX BUG #2: Proper fallback to default_profile.png with cache-busting
+            const profileImage = user.UserProfileImage && user.UserProfileImage !== 'default_profile.png'
+                ? `/images/profile/${user.UserProfileImage}?v=${Date.now()}`
+                : '/images/profile/default_profile.png';
+            
+            $('#editUserProfilePreview').attr('src', profileImage);
+            console.log('[Edit User] Setting profile picture:', profileImage);
+            
             editUserProfileSelection = null;
             
             showModal('editUserModal');
