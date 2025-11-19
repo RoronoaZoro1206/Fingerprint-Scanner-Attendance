@@ -228,7 +228,7 @@ user.UserProfileImage = fileName;
     // Update session
    HttpContext.Session.SetString("UserProfileImage", fileName);
          
-           // ? AUDIT LOGGING - Only for Admin users
+           // ✅ AUDIT LOGGING - Only for Admin users
          if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
        {
           await _auditService.LogActionAsync(
@@ -250,6 +250,109 @@ user.UserProfileImage = fileName;
         }
     }
 
+    // GET: UserProfile/GetAvailableProfileImages
+    [HttpGet]
+    public IActionResult GetAvailableProfileImages()
+    {
+        try
+        {
+            var profileImagesPath = Path.Combine(_environment.WebRootPath, "images", "profile");
+            
+            if (!Directory.Exists(profileImagesPath))
+            {
+                return Json(new { success = false, message = "Profile images directory not found" });
+            }
+
+            // Get all image files from profile directory
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var imageFiles = Directory.GetFiles(profileImagesPath)
+                .Select(Path.GetFileName)
+                .Where(fileName => 
+                    !string.IsNullOrEmpty(fileName) && 
+                    allowedExtensions.Contains(Path.GetExtension(fileName).ToLowerInvariant()) &&
+                    fileName != "default_profile.png" // Exclude default profile picture
+                )
+                .OrderBy(fileName => fileName)
+                .ToList();
+
+            _logger.LogInformation($"Found {imageFiles.Count} available profile images");
+            
+            return Json(new { success = true, images = imageFiles });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting available profile images: {ex.Message}");
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
+    // POST: UserProfile/SetProfileImageFromServer
+    [HttpPost]
+    public async Task<IActionResult> SetProfileImageFromServer([FromBody] ServerImageRequest request)
+    {
+        try
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            _logger.LogInformation($"SetProfileImageFromServer - UserId from session: {userId}");
+
+            if (!userId.HasValue)
+            {
+                return Json(new { success = false, message = "User not authenticated" });
+            }
+
+            if (string.IsNullOrEmpty(request.ImageName))
+            {
+                return Json(new { success = false, message = "No image name provided" });
+            }
+
+            // Validate that the image exists in server directory
+            var profileImagesPath = Path.Combine(_environment.WebRootPath, "images", "profile");
+            var imagePath = Path.Combine(profileImagesPath, request.ImageName);
+
+            if (!System.IO.File.Exists(imagePath))
+            {
+                return Json(new { success = false, message = "Selected image not found on server" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId.Value);
+            if (user == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            // Update user record with server image name
+            user.UserProfileImage = request.ImageName;
+            user.UserUpdatedAt = DateTime.Now;
+            
+            var result = await _userRepository.UpdateAsync(user);
+
+            if (result)
+            {
+                // Update session
+                HttpContext.Session.SetString("UserProfileImage", request.ImageName);
+                
+                // ✅ AUDIT LOGGING - Only for Admin users
+                if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
+                {
+                    await _auditService.LogActionAsync(
+                        "Profile Picture Update",
+                        $"Updated profile picture from server (File: {request.ImageName})"
+                    );
+                }
+                
+                _logger.LogInformation($"SetProfileImageFromServer - Successfully set for user: {user.UserId}");
+                return Json(new { success = true, message = "Profile picture updated successfully", fileName = request.ImageName });
+            }
+
+            return Json(new { success = false, message = "Failed to update profile picture" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error setting profile image from server: {ex.Message}");
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
     public class UpdateProfileRequest
     {
         public string FirstName { get; set; } = string.Empty;
@@ -259,6 +362,11 @@ user.UserProfileImage = fileName;
         public string? Phone { get; set; }
         public string? Address { get; set; }
         public string? Birthdate { get; set; }
+    }
+
+    public class ServerImageRequest
+    {
+        public string ImageName { get; set; } = string.Empty;
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

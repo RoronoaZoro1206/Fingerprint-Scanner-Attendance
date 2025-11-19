@@ -430,6 +430,70 @@ await _auditService.LogActionAsync(
         }
     }
 
+    // POST: AdminUser/SetUserProfileImageFromServer
+    [HttpPost]
+    public async Task<IActionResult> SetUserProfileImageFromServer([FromBody] ServerImageRequest request)
+    {
+        try
+        {
+            if (request.UserId <= 0)
+            {
+                return Json(new { success = false, message = "Invalid user ID" });
+            }
+
+            if (string.IsNullOrEmpty(request.ImageName))
+            {
+                return Json(new { success = false, message = "No image name provided" });
+            }
+
+            // Validate that the image exists in server directory
+            var profileImagesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "profile");
+            var imagePath = Path.Combine(profileImagesPath, request.ImageName);
+
+            if (!System.IO.File.Exists(imagePath))
+            {
+                return Json(new { success = false, message = "Selected image not found on server" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(request.UserId);
+            if (user == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            // Update user record with server image name
+            user.UserProfileImage = request.ImageName;
+            user.UserUpdatedAt = DateTime.Now;
+            
+            var result = await _userRepository.UpdateAsync(user);
+
+            if (result)
+            {
+                // ✅ LOG AUDIT: Profile picture updated by admin from server
+                await _auditService.LogActionAsync(
+                    "Profile Picture Updated",
+                    $"Admin set profile picture from server for user: {user.UserEmail} (ID: {user.UserId}, File: {request.ImageName})"
+                );
+                
+                _logger.LogInformation($"Profile picture set from server for user: {user.UserId}");
+                return Json(new { success = true, message = "Profile picture updated successfully", fileName = request.ImageName, userId = user.UserId });
+            }
+
+            return Json(new { success = false, message = "Failed to update profile picture" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting profile image from server");
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
+    public class ServerImageRequest
+    {
+        public int UserId { get; set; }
+        public string ImageName { get; set; } = string.Empty;
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
   {

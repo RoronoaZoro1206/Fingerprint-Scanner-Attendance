@@ -1,0 +1,474 @@
+/**
+ * Profile Picture Upload Modal - Dual Option
+ * Common styles for profile picture upload with local upload and server selection
+ */
+
+/* Image Selection Modal */
+.image-selection-modal .modal-dialog {
+    max-width: 800px;
+}
+
+.image-source-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.image-source-tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6b7280;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.image-source-tab:hover {
+    color: #374151;
+    background-color: #f9fafb;
+}
+
+.image-source-tab.active {
+    color: #1a1a1a;
+    border-bottom-color: #1a1a1a;
+    background-color: transparent;
+}
+
+.image-source-tab i,
+.image-source-tab svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Tab Content Sections */
+.tab-content-section {
+    display: none;
+}
+
+.tab-content-section.active {
+    display: block;
+}
+
+/* Upload Section */
+.upload-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background-color: #f9fafb;
+    cursor: pointer !important; /* ✅ FIX: Force pointer cursor */
+    transition: all 0.2s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    position: relative; /* ✅ FIX: Ensure proper stacking context */
+    display: block;
+    width: 100%;
+}
+
+.upload-area:hover {
+    border-color: #1a1a1a;
+    background-color: #f3f4f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.upload-area:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    background-color: #e5e7eb; /* ✅ FIX: Darker background on click */
+}
+
+.upload-area.dragging {
+    border-color: #1a1a1a;
+    background-color: #eff6ff; /* Blue tint for drag state */
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* ✅ FIX: Ensure focus state is visible for keyboard navigation */
+.upload-area:focus {
+    outline: 2px solid #1a1a1a;
+    outline-offset: 2px;
+}
+
+.upload-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    color: #6b7280;
+    pointer-events: none; /* ✅ FIX: Prevent icon from blocking clicks */
+    display: block; /* ✅ FIX: Ensure proper layout */
+}
+
+.upload-area h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 0.5rem;
+    pointer-events: none; /* ✅ FIX: Prevent text from blocking clicks */
+    display: block; /* ✅ FIX: Ensure proper layout */
+}
+
+.upload-area p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+    pointer-events: none; /* ✅ FIX: Prevent text from blocking clicks */
+    display: block; /* ✅ FIX: Ensure proper layout */
+}
+
+/* ✅ FIX: Ensure all children of upload-area don't capture events */
+.upload-area * {
+    pointer-events: none !important;
+}
+
+/* ✅ FIX: But allow the upload-area itself to be clickable */
+.upload-area {
+    pointer-events: all !important;
+}
+
+.file-requirements {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.file-requirements h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.file-requirements ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.file-requirements li {
+    margin-bottom: 0.25rem;
+}
+
+/* Image Preview on Upload */
+.upload-preview {
+    display: none;
+    margin-top: 1.5rem;
+    text-align: center;
+    /* ✅ FIX: Add smooth transition when showing preview */
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.upload-preview.show {
+    display: block;
+}
+
+.upload-preview img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    object-fit: cover;
+    /* ✅ FIX: Add shadow to preview image */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.upload-preview-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* ✅ FIX: Add fade-in animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Server Images Gallery */
+.server-images-search {
+    margin-bottom: 1.5rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    padding-left: 2.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.search-icon-wrapper {
+    position: relative;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+.server-images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    /* ✅ FIX: Smooth scrolling */
+    scroll-behavior: smooth;
+}
+
+.server-image-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    /* ✅ FIX: Add subtle shadow */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.server-image-item:hover {
+    border-color: #d1d5db;
+    transform: scale(1.05);
+    /* ✅ FIX: Enhance shadow on hover */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.server-image-item.selected {
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+    transform: scale(1.05);
+}
+
+.server-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.server-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.server-image-item:hover .server-image-overlay {
+    opacity: 1;
+}
+
+.server-image-item.selected .server-image-overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.overlay-checkmark {
+    width: 32px;
+    height: 32px;
+    color: white;
+    /* ✅ FIX: Add animation to checkmark */
+    animation: scaleIn 0.2s ease-out;
+}
+
+/* ✅ FIX: Add checkmark animation */
+@keyframes scaleIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.no-images-message {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6b7280;
+}
+
+.no-images-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    color: #d1d5db;
+}
+
+/* Loading State */
+.loading-images {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6b7280;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 3px solid #f3f4f6;
+    border-top-color: #1a1a1a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Modal Footer Actions */
+.modal-footer-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* ✅ FIX: Improve button states */
+.modal-footer-actions .btn {
+    min-width: 120px;
+}
+
+.modal-footer-actions .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Scrollbar Styling for Gallery */
+.server-images-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.server-images-grid::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+}
+
+.server-images-grid::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.server-images-grid::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .image-selection-modal .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .server-images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 0.75rem;
+        max-height: 300px;
+    }
+
+    .upload-area {
+        padding: 2rem 1rem;
+    }
+
+    .upload-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .image-source-tab {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .image-source-tab span {
+        /* ✅ FIX: Hide text on mobile, show only icons */
+        display: none;
+    }
+
+    .modal-footer-actions .btn {
+        min-width: 100px;
+        font-size: 0.875rem;
+    }
+}
+
+/* Helper Text */
+.helper-text {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+.selected-image-name {
+    font-size: 0.875rem;
+    color: #1a1a1a;
+    font-weight: 500;
+    text-align: center;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background-color: #f3f4f6;
+    border-radius: 8px;
+}
+
+/* ✅ FIX: Ensure clickable elements have proper cursor */
+.btn,
+button,
+.upload-area,
+.server-image-item,
+.image-source-tab {
+    cursor: pointer !important;
+}
+
+/* ✅ FIX: Add focus states for accessibility */
+.upload-area:focus,
+.server-image-item:focus {
+    outline: 2px solid #1a1a1a;
+    outline-offset: 2px;
+}
+
+/* ✅ FIX: Improve modal backdrop */
+.image-selection-modal .modal-content {
+    border: none;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}

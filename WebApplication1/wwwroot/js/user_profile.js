@@ -3,6 +3,7 @@
  */
 
 let originalData = {};
+let profilePictureModal;
 
 $(document).ready(function () {
     // Initialize Lucide icons
@@ -10,15 +11,21 @@ $(document).ready(function () {
         lucide.createIcons();
     }
 
+    // Initialize profile picture modal
+    profilePictureModal = createProfilePictureModal(
+        'userProfilePictureModal',
+        'profilePicturePreview',
+        handleProfilePictureSelected
+    );
+
     // Load profile data
     loadProfileData();
 
     // Event handlers
     $('#btnChangePicture').on('click', function () {
-        $('#profilePictureInput').click();
+        profilePictureModal.show();
     });
 
-    $('#profilePictureInput').on('change', handleProfilePictureChange);
     $('#profileForm').on('submit', handleProfileSubmit);
     $('#btnCancel').on('click', handleCancel);
 });
@@ -58,10 +65,13 @@ function populateForm(data) {
     $('#birthdate').val(data.birthdate || '');
     $('#email').val(data.email || '');
 
-    // Update profile picture
-    if (data.profileImage) {
-        $('#profilePicturePreview').attr('src', `/images/profile/${data.profileImage}`);
-    }
+    // ✅ FIX: Update profile picture with proper fallback to default_profile.png
+    const profileImagePath = data.profileImage && data.profileImage !== 'default_profile.png' 
+        ? `/images/profile/${data.profileImage}?v=${Date.now()}` 
+        : '/images/profile/default_profile.png';
+    
+    $('#profilePicturePreview').attr('src', profileImagePath);
+    console.log('[Profile] Setting profile picture:', profileImagePath);
 
     // Update header display
     const fullName = `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim();
@@ -70,39 +80,20 @@ function populateForm(data) {
 }
 
 /**
- * Handle profile picture change
+ * Handle profile picture selection from modal
  */
-function handleProfilePictureChange(e) {
-    const file = e.target.files[0];
-    
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-        Toast.error('Invalid file type. Only JPG, PNG, and GIF are allowed.');
-        return;
+function handleProfilePictureSelected(selection) {
+    if (selection.type === 'file') {
+        // Upload from local device
+        uploadProfilePicture(selection.file);
+    } else if (selection.type === 'server') {
+        // Set from server image
+        setProfilePictureFromServer(selection.imageName);
     }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        Toast.error('File size must be less than 5MB');
-        return;
-    }
-
-    // Preview image
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        $('#profilePicturePreview').attr('src', e.target.result);
-    };
-    reader.readAsDataURL(file);
-
-    // Upload image
-    uploadProfilePicture(file);
 }
 
 /**
- * Upload profile picture
+ * Upload profile picture from file
  */
 function uploadProfilePicture(file) {
     const formData = new FormData();
@@ -121,24 +112,76 @@ function uploadProfilePicture(file) {
         success: function (response) {
             if (response.success) {
                 Toast.success(response.message);
+                // Update profile picture preview
+                $('#profilePicturePreview').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
                 // Update sidebar profile image (both desktop and mobile)
-                $('.sidebar .profile-image').attr('src', `/images/profile/${response.fileName}`);
-                $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}`);
+                $('.sidebar .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
+                $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
             } else {
                 Toast.error(response.message);
-                // Revert preview
-                if (originalData.profileImage) {
-                    $('#profilePicturePreview').attr('src', `/images/profile/${originalData.profileImage}`);
-                }
+                // ✅ FIX: Revert to original image or default_profile.png
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                    ? `/images/profile/${originalData.profileImage}`
+                    : '/images/profile/default_profile.png';
+                $('#profilePicturePreview').attr('src', fallbackImage);
             }
         },
         error: function (xhr, status, error) {
             console.error('Error uploading profile picture:', error);
             Toast.error('Failed to upload profile picture');
-            // Revert preview
-            if (originalData.profileImage) {
-                $('#profilePicturePreview').attr('src', `/images/profile/${originalData.profileImage}`);
+            // ✅ FIX: Revert to original image or default_profile.png
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                ? `/images/profile/${originalData.profileImage}`
+                : '/images/profile/default_profile.png';
+            $('#profilePicturePreview').attr('src', fallbackImage);
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html(originalHtml);
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
+        }
+    });
+}
+
+/**
+ * Set profile picture from server image
+ */
+function setProfilePictureFromServer(imageName) {
+    const $btn = $('#btnChangePicture');
+    const originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+
+    $.ajax({
+        url: '/UserProfile/SetProfileImageFromServer',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ imageName: imageName }),
+        success: function (response) {
+            if (response.success) {
+                Toast.success(response.message);
+                // Update profile picture preview
+                $('#profilePicturePreview').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
+                // Update sidebar profile image (both desktop and mobile)
+                $('.sidebar .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
+                $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
+            } else {
+                Toast.error(response.message);
+                // ✅ FIX: Revert to original image or default_profile.png
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                    ? `/images/profile/${originalData.profileImage}`
+                    : '/images/profile/default_profile.png';
+                $('#profilePicturePreview').attr('src', fallbackImage);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error('Error setting profile picture from server:', error);
+            Toast.error('Failed to update profile picture');
+            // ✅ FIX: Revert to original image or default_profile.png
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                ? `/images/profile/${originalData.profileImage}`
+                : '/images/profile/default_profile.png';
+            $('#profilePicturePreview').attr('src', fallbackImage);
         },
         complete: function () {
             $btn.prop('disabled', false).html(originalHtml);

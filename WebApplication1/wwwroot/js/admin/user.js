@@ -5,12 +5,27 @@
 
 let usersTable;
 let rolesData = [];
-let addUserProfileFile = null;
-let editUserProfileFile = null;
+let addUserProfileModal;
+let editUserProfileModal;
+let addUserProfileSelection = null;
+let editUserProfileSelection = null;
 
 $(document).ready(function () {
     // Initialize icons
     initializeLucideIcons();
+
+    // Initialize profile picture modals
+    addUserProfileModal = createProfilePictureModal(
+        'addUserProfilePictureModal',
+        'addUserProfilePreview',
+        handleAddUserProfileSelected
+    );
+
+    editUserProfileModal = createProfilePictureModal(
+        'editUserProfilePictureModal',
+        'editUserProfilePreview',
+        handleEditUserProfileSelected
+    );
 
     // Load roles first, then initialize DataTable
     loadRoles().then(() => {
@@ -23,7 +38,7 @@ $(document).ready(function () {
     $('#btnUpdateUser').on('click', updateUser);
     $('#btnConfirmDelete').on('click', confirmDeleteUser);
 
-    // ? FIX: Use event delegation with data attributes
+    // ✅ FIX: Use event delegation with data attributes
     // This ensures edit buttons work even after DataTable reloads
     $('#usersTable tbody').on('click', '.btn-edit', function(e) {
         e.preventDefault();
@@ -35,7 +50,7 @@ $(document).ready(function () {
         }
     });
 
-    // ? FIX: Use event delegation for delete buttons too
+    // ✅ FIX: Use event delegation for delete buttons too
     $('#usersTable tbody').on('click', '.btn-delete', function(e) {
         e.preventDefault();
         const userId = $(this).data('user-id');
@@ -46,17 +61,15 @@ $(document).ready(function () {
         }
     });
 
-    // Profile picture handlers for Add User modal
+    // Profile picture handlers for Add User modal - use dual-option modal
     $('#btnAddUserChangePicture').on('click', function () {
-        $('#addUserProfileInput').click();
+        addUserProfileModal.show();
     });
-    $('#addUserProfileInput').on('change', handleAddUserProfilePictureChange);
 
-    // Profile picture handlers for Edit User modal
+    // Profile picture handlers for Edit User modal - use dual-option modal
     $('#btnEditUserChangePicture').on('click', function () {
-        $('#editUserProfileInput').click();
+        editUserProfileModal.show();
     });
-    $('#editUserProfileInput').on('change', handleEditUserProfilePictureChange);
 
     // Export button handlers
     $('#btnPrint').on('click', function (e) {
@@ -88,87 +101,55 @@ $(document).ready(function () {
     // Clear form when modal is hidden
     setupFormClearOnHide('addUserModal', 'addUserForm');
     
-    // Reset profile pictures when modals are hidden
+    // Reset profile selections when modals are hidden
     $('#addUserModal').on('hidden.bs.modal', function () {
-        addUserProfileFile = null;
+        addUserProfileSelection = null;
         $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
     });
     
     $('#editUserModal').on('hidden.bs.modal', function () {
-        editUserProfileFile = null;
+        editUserProfileSelection = null;
     });
 });
 
 /**
- * Handle profile picture change for Add User modal
+ * Handle profile picture selection for Add User modal
  */
-function handleAddUserProfilePictureChange(e) {
-    const file = e.target.files[0];
+function handleAddUserProfileSelected(selection) {
+    addUserProfileSelection = selection;
     
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-        Toast.error('Invalid file type. Only JPG, PNG, and GIF are allowed.');
-        $('#addUserProfileInput').val('');
-        return;
+    // Update preview immediately
+    if (selection.type === 'file') {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            $('#addUserProfilePreview').attr('src', e.target.result);
+        };
+        reader.readAsDataURL(selection.file);
+    } else if (selection.type === 'server') {
+        $('#addUserProfilePreview').attr('src', `/images/profile/${selection.imageName}`);
     }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        Toast.error('File size must be less than 5MB');
-        $('#addUserProfileInput').val('');
-        return;
-    }
-
-    // Store file for upload
-    addUserProfileFile = file;
-
-    // Preview image
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        $('#addUserProfilePreview').attr('src', e.target.result);
-    };
-    reader.readAsDataURL(file);
 }
 
 /**
- * Handle profile picture change for Edit User modal
+ * Handle profile picture selection for Edit User modal
  */
-function handleEditUserProfilePictureChange(e) {
-    const file = e.target.files[0];
+function handleEditUserProfileSelected(selection) {
+    editUserProfileSelection = selection;
     
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-        Toast.error('Invalid file type. Only JPG, PNG, and GIF are allowed.');
-        $('#editUserProfileInput').val('');
-        return;
+    // Update preview immediately
+    if (selection.type === 'file') {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            $('#editUserProfilePreview').attr('src', e.target.result);
+        };
+        reader.readAsDataURL(selection.file);
+    } else if (selection.type === 'server') {
+        $('#editUserProfilePreview').attr('src', `/images/profile/${selection.imageName}`);
     }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        Toast.error('File size must be less than 5MB');
-        $('#editUserProfileInput').val('');
-        return;
-    }
-
-    // Store file for upload
-    editUserProfileFile = file;
-
-    // Preview image
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        $('#editUserProfilePreview').attr('src', e.target.result);
-    };
-    reader.readAsDataURL(file);
 }
 
 /**
- * Upload profile picture for a user
+ * Upload profile picture for a user (file)
  */
 function uploadUserProfilePicture(userId, file) {
     return new Promise((resolve, reject) => {
@@ -198,6 +179,31 @@ function uploadUserProfilePicture(userId, file) {
 }
 
 /**
+ * Set profile picture for a user (server image)
+ */
+function setUserProfilePictureFromServer(userId, imageName) {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            url: '/AdminUser/SetUserProfileImageFromServer',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ userId: userId, imageName: imageName }),
+            success: function (response) {
+                if (response.success) {
+                    resolve(response);
+                } else {
+                    reject(response.message || 'Failed to set profile picture');
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Error setting profile picture from server:', error);
+                reject('Failed to set profile picture');
+            }
+        });
+    });
+}
+
+/**
  * Load Roles for dropdown
  */
 async function loadRoles() {
@@ -219,7 +225,7 @@ async function loadRoles() {
 
 /**
  * Populate role dropdowns
- * ? FIX: Using correct C# property names (RoleId, RoleName)
+ * ✅ FIX: Using correct C# property names (RoleId, RoleName)
  */
 function populateRoleDropdowns() {
     const addSelect = $('#addRoleId');
@@ -229,7 +235,7 @@ function populateRoleDropdowns() {
     editSelect.find('option:not(:first)').remove();
 
     rolesData.forEach(role => {
-        // ? FIX: Changed role.roleId to role.RoleId and role.roleName to role.RoleName
+        // ✅ FIX: Changed role.roleId to role.RoleId and role.roleName to role.RoleName
         const option = `<option value="${role.RoleId}">${role.RoleName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
@@ -324,7 +330,7 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    // ? FIX: Store UserId as data attribute on buttons
+                    // ✅ FIX: Store UserId as data attribute on buttons
                     return `
                         <div class="action-buttons">
                             <button class="btn-action btn-edit" data-user-id="${row.UserId}" title="Edit">
@@ -341,7 +347,7 @@ function initializeDataTable() {
         order: [[0, 'asc']],
         ...commonDataTableConfig,
         language: getDataTableLanguage('users', 'user'),
-        // ? FIX: Reinitialize icons after each draw
+        // ✅ FIX: Reinitialize icons after each draw
         drawCallback: function() {
             initializeLucideIcons();
         }
@@ -353,7 +359,7 @@ function initializeDataTable() {
  */
 function showAddModal() {
     $('#addUserForm')[0].reset();
-    addUserProfileFile = null;
+    addUserProfileSelection = null;
     $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
     showModal('addUserModal');
 }
@@ -365,7 +371,7 @@ function showEditModal(userId) {
     ajaxGet(`/AdminUser/GetById/${userId}`,
         function (response) {
             const user = response.data;
-            // ? FIX: Use PascalCase property names (matches API response)
+            // ✅ FIX: Use PascalCase property names (matches API response)
             $('#editUserId').val(user.UserId);
             $('#editUserFirstName').val(user.UserFirstName);
             $('#editUserMiddleName').val(user.UserMiddleName || '');
@@ -382,7 +388,7 @@ function showEditModal(userId) {
             // Set profile picture
             const profileImage = user.UserProfileImage || 'default_profile.png';
             $('#editUserProfilePreview').attr('src', `/images/profile/${profileImage}`);
-            editUserProfileFile = null;
+            editUserProfileSelection = null;
             
             showModal('editUserModal');
         },
@@ -427,18 +433,25 @@ function saveUser() {
 
     ajaxPost('/AdminUser/Create', userData,
         async function (response) {
-            // If profile picture selected, upload it
-            if (addUserProfileFile && response.userId) {
+            let message = 'User created successfully';
+            
+            // If profile picture selected, upload or set it
+            if (addUserProfileSelection && response.userId) {
                 try {
-                    await uploadUserProfilePicture(response.userId, addUserProfileFile);
-                    Toast.created('User with profile picture');
+                    if (addUserProfileSelection.type === 'file') {
+                        await uploadUserProfilePicture(response.userId, addUserProfileSelection.file);
+                        message = 'User created with profile picture uploaded';
+                    } else if (addUserProfileSelection.type === 'server') {
+                        await setUserProfilePictureFromServer(response.userId, addUserProfileSelection.imageName);
+                        message = 'User created with profile picture selected';
+                    }
                 } catch (error) {
-                    Toast.warning('User created but profile picture upload failed');
+                    console.error('Profile picture error:', error);
+                    Toast.warning('User created but profile picture failed to set');
                 }
-            } else {
-                Toast.created('User');
             }
             
+            Toast.success(message);
             hideModal('addUserModal');
             usersTable.ajax.reload(null, false);
         },
@@ -486,26 +499,31 @@ function updateUser() {
 
     ajaxPut('/AdminUser/Update', userData,
         async function () {
-            let profilePictureUpdated = false;
             let newProfilePicture = null;
+            let message = 'User updated successfully';
             
-            // If new profile picture selected, upload it
-            if (editUserProfileFile) {
+            // If new profile picture selected, upload or set it
+            if (editUserProfileSelection) {
                 try {
-                    const uploadResponse = await uploadUserProfilePicture(userData.UserId, editUserProfileFile);
-                    profilePictureUpdated = true;
-                    newProfilePicture = uploadResponse.fileName;
-                    Toast.updated('User with profile picture');
+                    if (editUserProfileSelection.type === 'file') {
+                        const uploadResponse = await uploadUserProfilePicture(userData.UserId, editUserProfileSelection.file);
+                        newProfilePicture = uploadResponse.fileName;
+                        message = 'User updated with new profile picture uploaded';
+                    } else if (editUserProfileSelection.type === 'server') {
+                        const setResponse = await setUserProfilePictureFromServer(userData.UserId, editUserProfileSelection.imageName);
+                        newProfilePicture = setResponse.fileName;
+                        message = 'User updated with new profile picture selected';
+                    }
                 } catch (error) {
-                    Toast.warning('User updated but profile picture upload failed');
+                    console.error('Profile picture error:', error);
+                    Toast.warning('User updated but profile picture failed to set');
                 }
-            } else {
-                Toast.updated('User');
             }
             
             // Update sidebar if editing current logged-in user
             updateSidebarIfCurrentUser(userData.UserId, userData.UserFirstName, userData.UserLastName, newProfilePicture);
             
+            Toast.success(message);
             hideModal('editUserModal');
             usersTable.ajax.reload(null, false);
         },
@@ -536,9 +554,9 @@ function updateSidebarIfCurrentUser(editedUserId, firstName, lastName, newProfil
         $('.sidebar .user-name').text(fullName);
         $('#sidebarOffcanvas .user-name').text(fullName);
         
-        // Update profile picture if a new one was uploaded
+        // Update profile picture if a new one was set
         if (newProfilePicture) {
-            const newImagePath = `/images/profile/${newProfilePicture}`;
+            const newImagePath = `/images/profile/${newProfilePicture}?v=${Date.now()}`;
             $('.sidebar .profile-image').attr('src', newImagePath);
             $('#sidebarOffcanvas .profile-image').attr('src', newImagePath);
         }
