@@ -9,11 +9,11 @@
             <div class="profile-picture-container">
                 <div class="profile-picture-wrapper">
                     <!-- ✅ FIX: Added onerror handler to fallback to default_profile.png -->
-                    <img src="~/images/profile/default_profile.png" 
+                    <img src="~/images/profile/templates/default_profile.png" 
                          alt="Profile Picture" 
                          id="profilePicturePreview" 
                          class="profile-picture" 
-                         onerror="this.onerror=null; this.src='/images/profile/default_profile.png';" />
+                         onerror="this.onerror=null; this.src='/images/profile/templates/default_profile.png';" />
                     <button type="button" class="btn-change-photo" id="btnChangePicture">
                         <i data-lucide="camera"></i>
                     </button>

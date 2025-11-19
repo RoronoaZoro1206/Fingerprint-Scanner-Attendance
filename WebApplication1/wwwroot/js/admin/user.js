@@ -126,7 +126,7 @@ $(document).ready(function () {
     // Reset profile selections when modals are hidden
     $('#addUserModal').on('hidden.bs.modal', function () {
         addUserProfileSelection = null;
-        $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
+        $('#addUserProfilePreview').attr('src', '/images/profile/templates/default_profile.png');
     });
     
     $('#editUserModal').on('hidden.bs.modal', function () {
@@ -137,7 +137,7 @@ $(document).ready(function () {
 /**
  * Handle profile picture selection for Add User modal
  */
-function handleAddUserProfileSelected(selection) {
+function handleAddUserProfileSelected(selection = {}) {
     addUserProfileSelection = selection;
     
     // Update preview immediately
@@ -151,7 +151,7 @@ function handleAddUserProfileSelected(selection) {
             console.error('[Add User] FileReader error');
             Toast.error('Failed to load image preview');
             // ✅ FIX BUG #2: Fallback to default on error
-            $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
+            $('#addUserProfilePreview').attr('src', '/images/profile/templates/default_profile.png');
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
@@ -164,7 +164,7 @@ function handleAddUserProfileSelected(selection) {
 /**
  * Handle profile picture selection for Edit User modal
  */
-function handleEditUserProfileSelected(selection) {
+function handleEditUserProfileSelected(selection = {}) {
     editUserProfileSelection = selection;
     
     // Update preview immediately
@@ -178,7 +178,7 @@ function handleEditUserProfileSelected(selection) {
             console.error('[Edit User] FileReader error');
             Toast.error('Failed to load image preview');
             // ✅ FIX BUG #2: Fallback to default on error
-            $('#editUserProfilePreview').attr('src', '/images/profile/default_profile.png');
+            $('#editUserProfilePreview').attr('src', '/images/profile/templates/default_profile.png');
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
@@ -320,12 +320,12 @@ function initializeDataTable() {
                 width: '30%',
                 render: function (data, type, row) {
                     if (type === 'display') {
-                        const profileImage = row.UserProfileImage || 'default_profile.png';
+                        const profileImage = row.UserProfileImage || 'templates/default_profile.png';
                         const imagePath = `/images/profile/${profileImage}`;
                         return `
                             <div class="d-flex align-items-center">
                                 <img src="${imagePath}" alt="${data}" class="user-avatar me-2" 
-                                     onerror="this.src='/images/profile/default_profile.png'">
+                                     onerror="this.src='/images/profile/templates/default_profile.png'">
                                 <span>${data}</span>
                             </div>
                         `;
@@ -400,7 +400,7 @@ function initializeDataTable() {
 function showAddModal() {
     $('#addUserForm')[0].reset();
     addUserProfileSelection = null;
-    $('#addUserProfilePreview').attr('src', '/images/profile/default_profile.png');
+    $('#addUserProfilePreview').attr('src', '/images/profile/templates/default_profile.png');
     showModal('addUserModal');
 }
 
@@ -425,10 +425,10 @@ function showEditModal(userId) {
             $('#editIsActive').val(user.IsActive.toString());
             $('#editUserPassword').val('');
             
-            // ✅ FIX BUG #2: Proper fallback to default_profile.png with cache-busting
-            const profileImage = user.UserProfileImage && user.UserProfileImage !== 'default_profile.png'
+            // ✅ FIX BUG #2: Proper fallback to templates/default_profile.png with cache-busting
+            const profileImage = user.UserProfileImage && user.UserProfileImage !== 'templates/default_profile.png'
                 ? `/images/profile/${user.UserProfileImage}?v=${Date.now()}`
-                : '/images/profile/default_profile.png';
+                : '/images/profile/templates/default_profile.png';
             
             $('#editUserProfilePreview').attr('src', profileImage);
             console.log('[Edit User] Setting profile picture:', profileImage);

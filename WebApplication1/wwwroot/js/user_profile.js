@@ -75,10 +75,10 @@ function populateForm(data) {
     $('#birthdate').val(data.birthdate || '');
     $('#email').val(data.email || '');
 
-    // ✅ FIX: Update profile picture with proper fallback to default_profile.png
-    const profileImagePath = data.profileImage && data.profileImage !== 'default_profile.png' 
+    // ✅ FIX: Update profile picture with proper fallback to templates/default_profile.png
+    const profileImagePath = data.profileImage && data.profileImage !== 'templates/default_profile.png' 
         ? `/images/profile/${data.profileImage}?v=${Date.now()}` 
-        : '/images/profile/default_profile.png';
+        : '/images/profile/templates/default_profile.png';
     
     $('#profilePicturePreview').attr('src', profileImagePath);
     console.log('[Profile] Setting profile picture:', profileImagePath);
@@ -129,20 +129,20 @@ function uploadProfilePicture(file) {
                 $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
             } else {
                 Toast.error(response.message);
-                // ✅ FIX: Revert to original image or default_profile.png
-                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                // ✅ FIX: Revert to original image or templates/default_profile.png
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
                     ? `/images/profile/${originalData.profileImage}`
-                    : '/images/profile/default_profile.png';
+                    : '/images/profile/templates/default_profile.png';
                 $('#profilePicturePreview').attr('src', fallbackImage);
             }
         },
         error: function (xhr, status, error) {
             console.error('Error uploading profile picture:', error);
             Toast.error('Failed to upload profile picture');
-            // ✅ FIX: Revert to original image or default_profile.png
-            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+            // ✅ FIX: Revert to original image or templates/default_profile.png
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
                 ? `/images/profile/${originalData.profileImage}`
-                : '/images/profile/default_profile.png';
+                : '/images/profile/templates/default_profile.png';
             $('#profilePicturePreview').attr('src', fallbackImage);
         },
         complete: function () {
@@ -177,20 +177,20 @@ function setProfilePictureFromServer(imageName) {
                 $('#sidebarOffcanvas .profile-image').attr('src', `/images/profile/${response.fileName}?v=${Date.now()}`);
             } else {
                 Toast.error(response.message);
-                // ✅ FIX: Revert to original image or default_profile.png
-                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+                // ✅ FIX: Revert to original image or templates/default_profile.png
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
                     ? `/images/profile/${originalData.profileImage}`
-                    : '/images/profile/default_profile.png';
+                    : '/images/profile/templates/default_profile.png';
                 $('#profilePicturePreview').attr('src', fallbackImage);
             }
         },
         error: function (xhr, status, error) {
             console.error('Error setting profile picture from server:', error);
             Toast.error('Failed to update profile picture');
-            // ✅ FIX: Revert to original image or default_profile.png
-            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'default_profile.png'
+            // ✅ FIX: Revert to original image or templates/default_profile.png
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
                 ? `/images/profile/${originalData.profileImage}`
-                : '/images/profile/default_profile.png';
+                : '/images/profile/templates/default_profile.png';
             $('#profilePicturePreview').attr('src', fallbackImage);
         },
         complete: function () {

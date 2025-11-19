@@ -76,7 +76,7 @@ body {
 
 .profile-image[src=""],
 .profile-image:not([src]) {
-    content: url('/images/profile/default_profile.png');
+    content: url('/images/profile/templates/default_profile.png');
 }
 
 .avatar-hash {
