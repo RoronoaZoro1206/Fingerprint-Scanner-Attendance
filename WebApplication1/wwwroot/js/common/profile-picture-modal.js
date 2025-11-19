@@ -1,6 +1,7 @@
 /**
  * Profile Picture Upload Modal - Dual Option
- * Handles both local file upload and server image selection
+ * Handles both local file upload and server template selection
+ * ✅ ENHANCED: Supports templates/users folder structure
  */
 
 class ProfilePictureModal {
@@ -12,6 +13,7 @@ class ProfilePictureModal {
         this.selectedFile = null;
         this.selectedServerImage = null;
         this.serverImages = [];
+        this.templatesFolder = 'templates'; // ✅ NEW: Templates folder name
         
         this.initModal();
     }
@@ -372,11 +374,11 @@ class ProfilePictureModal {
     }
 
     /**
-     * Load available images from server
+     * Load available template images from server
      */
     async loadServerImages() {
         const self = this;
-        console.log('[Server Images] Loading from server...');
+        console.log('[Server Images] Loading templates from server...');
         
         $(`#${this.modalId}-loading`).show();
         $(`#${this.modalId}-server-images`).hide();
@@ -392,23 +394,24 @@ class ProfilePictureModal {
 
             if (response.success && response.images) {
                 self.serverImages = response.images;
-                console.log(`[Server Images] Loaded ${self.serverImages.length} images`);
+                self.templatesFolder = response.folder || 'templates'; // ✅ Get folder name from server
+                console.log(`[Server Images] Loaded ${self.serverImages.length} template images from ${self.templatesFolder}`);
                 self.renderServerImages(response.images);
             } else {
-                console.warn('[Server Images] No images found or request unsuccessful');
+                console.warn('[Server Images] No templates found or request unsuccessful');
                 self.showNoImages();
             }
         } catch (error) {
             console.error('[Server Images] Error loading:', error);
-            Toast.error('Failed to load available images');
+            Toast.error('Failed to load template images');
             self.showNoImages();
         } finally {
-            $(`#${this.modalId}-loading`).hide();
+            $(`#${self.modalId}-loading`).hide();
         }
     }
 
     /**
-     * Render server images grid
+     * Render server template images grid
      */
     renderServerImages(images) {
         const gridContainer = $(`#${this.modalId}-server-images`);
@@ -419,31 +422,29 @@ class ProfilePictureModal {
             return;
         }
 
-        console.log('[Server Images] Rendering', images.length, 'images');
+        console.log('[Server Images] Rendering', images.length, 'template images');
 
         images.forEach(imageName => {
+            // ✅ ENHANCED: Template images are in templates folder
             const imageItem = $(`
                 <div class="server-image-item" data-image="${imageName}">
-                    <img src="/images/profile/${imageName}" alt="${imageName}" loading="lazy" 
-                         onerror="this.onerror=null; this.src='/images/profile/default_profile.png';">
+                    <img src="/images/profile/${this.templatesFolder}/${imageName}" alt="${imageName}" loading="lazy" 
+                         onerror="this.onerror=null; this.src='/images/profile/${this.templatesFolder}/default_profile.png';">
                     <div class="server-image-overlay">
                         <i data-lucide="check-circle" class="overlay-checkmark"></i>
                     </div>
-                    <button type="button" class="btn-delete-gallery-image" data-image="${imageName}" title="Delete image">
+                    <button type="button" class="btn-delete-gallery-image" data-image="${imageName}" title="Delete template">
                         <i data-lucide="trash-2"></i>
                     </button>
                 </div>
             `);
 
-            // Click to select image
             imageItem.on('click', (e) => {
-                // Don't select if clicking delete button
                 if (!$(e.target).closest('.btn-delete-gallery-image').length) {
                     this.selectServerImage(imageName);
                 }
             });
 
-            // Delete button click handler
             imageItem.find('.btn-delete-gallery-image').on('click', (e) => {
                 e.stopPropagation();
                 this.confirmDeleteImage(imageName);
@@ -461,26 +462,30 @@ class ProfilePictureModal {
     }
 
     /**
-     * Confirm image deletion with SweetAlert2
+     * Confirm template deletion with SweetAlert2
      */
     confirmDeleteImage(imageName) {
         const self = this;
         
         Swal.fire({
-            title: 'Delete Image?',
+            title: 'Delete Template?',
             html: `
                 <div style="text-align: left; margin-top: 1rem;">
-                    <p style="color: #6b7280; margin-bottom: 0.5rem;">Are you sure you want to delete this image?</p>
+                    <p style="color: #6b7280; margin-bottom: 0.5rem;">Are you sure you want to delete this template?</p>
                     <p style="font-weight: 600; color: #1a1a1a; margin-bottom: 0.5rem;">${imageName}</p>
-                    <p style="color: #dc2626; font-size: 0.875rem; margin-top: 1rem;">
+                    <p style="color: #3b82f6; font-size: 0.875rem; margin-top: 1rem; background: #eff6ff; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #3b82f6;">
+                        <i data-lucide="info" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
+                        Users who selected this template have their own copies and will not be affected.
+                    </p>
+                    <p style="color: #dc2626; font-size: 0.875rem; margin-top: 0.75rem;">
                         <i data-lucide="alert-triangle" style="width: 16px; height: 16px; vertical-align: middle;"></i>
                         This action cannot be undone.
                     </p>
                 </div>
             `,
-            icon: 'warning',
+            icon: 'question',
             showCancelButton: true,
-            confirmButtonText: '<i data-lucide="trash-2" style="width: 16px; height: 16px; margin-right: 4px;"></i> Delete',
+            confirmButtonText: '<i data-lucide="trash-2" style="width: 16px; height: 16px; margin-right: 4px;"></i> Delete Template',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6b7280',
@@ -491,7 +496,6 @@ class ProfilePictureModal {
                 cancelButton: 'swal2-cancel'
             },
             didOpen: () => {
-                // Reinitialize Lucide icons in SweetAlert2
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
@@ -504,17 +508,16 @@ class ProfilePictureModal {
     }
 
     /**
-     * Delete image from server
+     * Delete template image from server
      */
     async deleteImage(imageName) {
         const self = this;
-        console.log('[Delete Image] Deleting:', imageName);
+        console.log('[Delete Template] Deleting:', imageName);
 
         try {
-            // Show loading state
             Swal.fire({
-                title: 'Deleting...',
-                html: 'Please wait while the image is being deleted.',
+                title: 'Deleting Template...',
+                html: 'Please wait while the template is being deleted.',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 didOpen: () => {
@@ -530,66 +533,66 @@ class ProfilePictureModal {
             });
 
             if (response.success) {
-                // Remove from local array
                 self.serverImages = self.serverImages.filter(img => img !== imageName);
                 
-                // Remove from DOM
                 $(`#${self.modalId} .server-image-item[data-image="${imageName}"]`).fadeOut(300, function() {
                     $(this).remove();
                     
-                    // Check if gallery is now empty
                     if (self.serverImages.length === 0) {
                         self.showNoImages();
                     }
                 });
 
-                // Deselect if this was the selected image
                 if (self.selectedServerImage === imageName) {
                     self.selectedServerImage = null;
                     self.updateConfirmButton();
                     $(`#${self.modalId}-selected-name`).hide();
                 }
 
-                // Show success message
                 Swal.fire({
                     icon: 'success',
-                    title: 'Deleted!',
-                    text: 'Image has been deleted successfully.',
-                    timer: 2000,
+                    title: 'Template Deleted!',
+                    html: `
+                        <div style="text-align: center; padding: 0.5rem;">
+                            <p style="color: #6b7280; margin-bottom: 0;">Template has been deleted successfully.</p>
+                            <p style="color: #3b82f6; font-size: 0.875rem; margin-top: 0.75rem; background: #eff6ff; padding: 0.5rem; border-radius: 0.375rem;">
+                                Users with copies of this template are not affected.
+                            </p>
+                        </div>
+                    `,
+                    timer: 3000,
                     showConfirmButton: false
                 });
 
-                console.log('[Delete Image] ✅ Image deleted successfully');
+                console.log('[Delete Template] ✅ Template deleted successfully');
             } else {
-                throw new Error(response.message || 'Failed to delete image');
+                throw new Error(response.message || 'Failed to delete template');
             }
         } catch (error) {
-            console.error('[Delete Image] Error:', error);
+            console.error('[Delete Template] Error:', error);
             
             Swal.fire({
                 icon: 'error',
                 title: 'Deletion Failed',
-                text: error.message || 'Failed to delete image. Please try again.',
+                text: error.message || 'Failed to delete template. Please try again.',
                 confirmButtonColor: '#dc2626'
             });
         }
     }
 
     /**
-     * Select server image
+     * Select server template image
      */
     selectServerImage(imageName) {
-        console.log('[Select Server Image]', imageName);
+        console.log('[Select Template]', imageName);
         
         this.selectedServerImage = imageName;
         this.selectedFile = null;
 
-        // Update UI
         $(`#${this.modalId} .server-image-item`).removeClass('selected');
         $(`#${this.modalId} .server-image-item[data-image="${imageName}"]`).addClass('selected');
 
-        // Show selected image name
-        $(`#${this.modalId}-selected-name`).text(`Selected: ${imageName}`).show();
+        $(`#${this.modalId}-selected-name`).text(`Selected template: ${imageName}`).show();
 
         this.updateConfirmButton();
     }
@@ -610,7 +613,7 @@ class ProfilePictureModal {
             }
             this.hideModal();
         } else if (this.currentTab === 'server' && this.selectedServerImage) {
-            console.log('[Confirm] Using server image:', this.selectedServerImage);
+            console.log('[Confirm] Using server template:', this.selectedServerImage);
             if (this.onImageSelected) {
                 this.onImageSelected({
                     type: 'server',
@@ -620,7 +623,7 @@ class ProfilePictureModal {
             this.hideModal();
         } else {
             console.warn('[Confirm] No selection made');
-            Toast.warning('Please select an image first');
+            Toast.warning('Please select a template or upload an image');
         }
     }
 

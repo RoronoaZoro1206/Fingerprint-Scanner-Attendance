@@ -16,22 +16,30 @@ public class AdminUserController : Controller
     private readonly IUserRoleRepository _userRoleRepository;
     private readonly IAdministrationRepository _administrationRepository;
     private readonly AdminAuditService _auditService;
+    private readonly IWebHostEnvironment _environment;
 
     // BCrypt work factor constant (recommended: 12 for 2024)
     private const int BCRYPT_WORK_FACTOR = 12;
+    
+    // ✅ Folder paths for new structure
+    private const string TEMPLATES_FOLDER = "templates";
+    private const string USERS_FOLDER = "users";
+    private const string DEFAULT_PROFILE = "default_profile.png";
 
     public AdminUserController(
         ILogger<AdminUserController> logger,
         IUserRepository userRepository,
         IUserRoleRepository userRoleRepository,
         IAdministrationRepository administrationRepository,
-        AdminAuditService auditService)
+        AdminAuditService auditService,
+        IWebHostEnvironment environment)
     {
-      _logger = logger;
-  _userRepository = userRepository;
-     _userRoleRepository = userRoleRepository;
+        _logger = logger;
+        _userRepository = userRepository;
+        _userRoleRepository = userRoleRepository;
         _administrationRepository = administrationRepository;
         _auditService = auditService;
+        _environment = environment;
     }
 
  // GET: User/Index
@@ -134,7 +142,8 @@ return Json(new { success = false, message = "Failed to fetch user" });
             user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
             user.UserCreatedAt = DateTime.Now;
             user.UserUpdatedAt = DateTime.Now;
-            user.UserProfileImage = user.UserProfileImage ?? "default_profile.png";
+            // ✅ Set default profile to templates folder
+            user.UserProfileImage = user.UserProfileImage ?? $"{TEMPLATES_FOLDER}/{DEFAULT_PROFILE}";
 
             _logger.LogInformation("Creating user {Email} with BCrypt work factor: {WorkFactor}",
                 user.UserEmail, BCRYPT_WORK_FACTOR);
@@ -247,6 +256,12 @@ var wasAdmin = existingUser.RoleId == 1;
 
             user.UserUpdatedAt = DateTime.Now;
    user.UserCreatedAt = existingUser.UserCreatedAt;
+            
+            // ✅ Preserve profile image if not changed
+            if (string.IsNullOrEmpty(user.UserProfileImage))
+            {
+                user.UserProfileImage = existingUser.UserProfileImage;
+            }
 
         var result = await _userRepository.UpdateAsync(user);
 
@@ -322,7 +337,10 @@ await _auditService.LogActionAsync(
        return Json(new { success = false, message = "User not found" });
           }
 
-     var result = await _userRepository.DeleteAsync(id);
+     // ✅ Delete user's profile picture when deleting user
+            await DeleteUserProfilePicture(user.UserProfileImage);
+
+       var result = await _userRepository.DeleteAsync(id);
 
        if (result)
 {
@@ -343,7 +361,7 @@ await _auditService.LogActionAsync(
     }
     }
 
-    // POST: AdminUser/UploadUserProfilePicture
+    // ✅ ENHANCED: Upload with user-specific naming and old image cleanup
     [HttpPost]
     public async Task<IActionResult> UploadUserProfilePicture(IFormFile profilePicture, int userId)
     {
@@ -375,50 +393,42 @@ await _auditService.LogActionAsync(
                 return Json(new { success = false, message = "User not found" });
             }
 
-            // Generate unique filename
-            var fileName = $"user_{userId}_{Guid.NewGuid()}{extension}";
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "profile");
+            // ✅ DELETE OLD PROFILE PICTURE (if not default)
+            await DeleteOldProfilePicture(user.UserProfileImage);
+
+            // ✅ CREATE USER-SPECIFIC FILENAME: user_{userId}_{timestamp}.{ext}
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var fileName = $"user_{userId}_{timestamp}{extension}";
             
-            // Create directory if it doesn't exist
-            if (!Directory.Exists(uploadsFolder))
+            var usersFolder = Path.Combine(_environment.WebRootPath, "images", "profile", USERS_FOLDER);
+            
+            if (!Directory.Exists(usersFolder))
             {
-                Directory.CreateDirectory(uploadsFolder);
+                Directory.CreateDirectory(usersFolder);
             }
 
-            var filePath = Path.Combine(uploadsFolder, fileName);
+            var filePath = Path.Combine(usersFolder, fileName);
 
-            // Delete old profile picture if it exists and is not default
-            if (!string.IsNullOrEmpty(user.UserProfileImage) && user.UserProfileImage != "default_profile.png")
-            {
-                var oldFilePath = Path.Combine(uploadsFolder, user.UserProfileImage);
-                if (System.IO.File.Exists(oldFilePath))
-                {
-                    System.IO.File.Delete(oldFilePath);
-                }
-            }
-
-            // Save new file
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await profilePicture.CopyToAsync(stream);
             }
 
-            // Update user record
-            user.UserProfileImage = fileName;
+            // ✅ Update user record with new path format: users/user_{userId}_{timestamp}.ext
+            user.UserProfileImage = $"{USERS_FOLDER}/{fileName}";
             user.UserUpdatedAt = DateTime.Now;
             
             var result = await _userRepository.UpdateAsync(user);
 
             if (result)
             {
-                // ? LOG AUDIT: Profile picture updated by admin
                 await _auditService.LogActionAsync(
                     "Profile Picture Updated",
-                    $"Admin updated profile picture for user: {user.UserEmail} (ID: {user.UserId}, File: {fileName})"
+                    $"Admin uploaded profile picture for user: {user.UserEmail} (ID: {user.UserId}, File: {fileName})"
                 );
                 
-                _logger.LogInformation($"Profile picture updated for user: {user.UserId}");
-                return Json(new { success = true, message = "Profile picture updated successfully", fileName = fileName, userId = userId });
+                _logger.LogInformation($"Profile picture uploaded for user: {user.UserId}");
+                return Json(new { success = true, message = "Profile picture updated successfully", fileName = user.UserProfileImage, userId = userId });
             }
 
             return Json(new { success = false, message = "Failed to update profile picture" });
@@ -430,7 +440,7 @@ await _auditService.LogActionAsync(
         }
     }
 
-    // POST: AdminUser/SetUserProfileImageFromServer
+    // ✅ ENHANCED: Copy template to user-specific image
     [HttpPost]
     public async Task<IActionResult> SetUserProfileImageFromServer([FromBody] ServerImageRequest request)
     {
@@ -446,37 +456,55 @@ await _auditService.LogActionAsync(
                 return Json(new { success = false, message = "No image name provided" });
             }
 
-            // Validate that the image exists in server directory
-            var profileImagesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "profile");
-            var imagePath = Path.Combine(profileImagesPath, request.ImageName);
-
-            if (!System.IO.File.Exists(imagePath))
-            {
-                return Json(new { success = false, message = "Selected image not found on server" });
-            }
-
             var user = await _userRepository.GetByIdAsync(request.UserId);
             if (user == null)
             {
                 return Json(new { success = false, message = "User not found" });
             }
 
-            // Update user record with server image name
-            user.UserProfileImage = request.ImageName;
+            // ✅ DELETE OLD PROFILE PICTURE (if not default)
+            await DeleteOldProfilePicture(user.UserProfileImage);
+
+            // ✅ CREATE COPY OF TEMPLATE with user-specific filename
+            var templatesPath = Path.Combine(_environment.WebRootPath, "images", "profile", TEMPLATES_FOLDER);
+            var templateFilePath = Path.Combine(templatesPath, request.ImageName);
+
+            if (!System.IO.File.Exists(templateFilePath))
+            {
+                return Json(new { success = false, message = "Selected template not found on server" });
+            }
+
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var extension = Path.GetExtension(request.ImageName);
+            var newFileName = $"user_{request.UserId}_{timestamp}{extension}";
+            
+            var usersFolder = Path.Combine(_environment.WebRootPath, "images", "profile", USERS_FOLDER);
+            
+            if (!Directory.Exists(usersFolder))
+            {
+                Directory.CreateDirectory(usersFolder);
+            }
+
+            var userFilePath = Path.Combine(usersFolder, newFileName);
+
+            // Copy template to user-specific file
+            System.IO.File.Copy(templateFilePath, userFilePath);
+
+            // Update user record
+            user.UserProfileImage = $"{USERS_FOLDER}/{newFileName}";
             user.UserUpdatedAt = DateTime.Now;
             
             var result = await _userRepository.UpdateAsync(user);
 
             if (result)
             {
-                // ✅ LOG AUDIT: Profile picture updated by admin from server
                 await _auditService.LogActionAsync(
                     "Profile Picture Updated",
-                    $"Admin set profile picture from server for user: {user.UserEmail} (ID: {user.UserId}, File: {request.ImageName})"
+                    $"Admin set profile picture from template for user: {user.UserEmail} (ID: {user.UserId}, Template: {request.ImageName}, File: {newFileName})"
                 );
                 
-                _logger.LogInformation($"Profile picture set from server for user: {user.UserId}");
-                return Json(new { success = true, message = "Profile picture updated successfully", fileName = request.ImageName, userId = user.UserId });
+                _logger.LogInformation($"Profile picture set from template for user: {user.UserId}");
+                return Json(new { success = true, message = "Profile picture updated successfully", fileName = user.UserProfileImage, userId = user.UserId });
             }
 
             return Json(new { success = false, message = "Failed to update profile picture" });
@@ -485,6 +513,63 @@ await _auditService.LogActionAsync(
         {
             _logger.LogError(ex, "Error setting profile image from server");
             return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Helper method to delete old profile picture when user uploads/selects new one
+    /// </summary>
+    private async Task DeleteOldProfilePicture(string? profileImagePath)
+    {
+        if (string.IsNullOrEmpty(profileImagePath))
+            return;
+
+        // Don't delete if it's a template or default
+        if (profileImagePath.StartsWith(TEMPLATES_FOLDER) || profileImagePath == DEFAULT_PROFILE)
+            return;
+
+        try
+        {
+            var oldFilePath = Path.Combine(_environment.WebRootPath, "images", "profile", profileImagePath);
+            
+            if (System.IO.File.Exists(oldFilePath))
+            {
+                System.IO.File.Delete(oldFilePath);
+                _logger.LogInformation($"Deleted old profile picture: {profileImagePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Failed to delete old profile picture: {profileImagePath}");
+            // Don't throw - this is a cleanup operation
+        }
+    }
+
+    /// <summary>
+    /// Helper method to delete user's profile picture when user is deleted
+    /// </summary>
+    private async Task DeleteUserProfilePicture(string? profileImagePath)
+    {
+        if (string.IsNullOrEmpty(profileImagePath))
+            return;
+
+        // Don't delete if it's a template or default
+        if (profileImagePath.StartsWith(TEMPLATES_FOLDER) || profileImagePath == DEFAULT_PROFILE)
+            return;
+
+        try
+        {
+            var filePath = Path.Combine(_environment.WebRootPath, "images", "profile", profileImagePath);
+            
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+                _logger.LogInformation($"Deleted user profile picture: {profileImagePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Failed to delete user profile picture: {profileImagePath}");
         }
     }
 

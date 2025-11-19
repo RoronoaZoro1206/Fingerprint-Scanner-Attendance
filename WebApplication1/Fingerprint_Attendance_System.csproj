@@ -58,7 +58,6 @@
 
     <ItemGroup>
         <Folder Include="Schema\migrations\" />
-        <Folder Include="wwwroot\images\profile\" />
     </ItemGroup>
 
 </Project>

@@ -88,6 +88,9 @@ builder.Services.AddScoped<AcademicTermService>();
 // Add DailyAttendanceService for Time In/Time Out toggle logic
 builder.Services.AddScoped<DailyAttendanceService>();
 
+// ✅ NEW: Profile Picture Migration Service
+builder.Services.AddScoped<ProfilePictureMigrationService>();
+
 // ? NEW: Phase 4 - Schedule Integration Services
 builder.Services.AddScoped<LateDetectionService>();
 builder.Services.AddScoped<AbsenceDetectionService>();

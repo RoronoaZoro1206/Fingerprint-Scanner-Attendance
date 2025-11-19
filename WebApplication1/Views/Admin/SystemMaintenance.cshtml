@@ -1,0 +1,217 @@
+@{
+    ViewData["Title"] = "System Maintenance";
+}
+
+<div class="page-header">
+    <h1 class="page-title">System Maintenance</h1>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Profile Picture Migration</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <h6 class="alert-heading">
+                <i data-lucide="info" class="icon-sm"></i>
+                One Profile Picture Per User Migration
+            </h6>
+            <p class="mb-2">This migration tool will:</p>
+            <ul class="mb-0">
+                <li>Create user-specific copies of profile pictures for each user</li>
+                <li>Move shared images to the <code>templates/</code> folder</li>
+                <li>Organize images into <code>templates/</code> and <code>users/</code> folders</li>
+                <li>Set default profile picture for users without images</li>
+            </ul>
+        </div>
+
+        <div class="alert alert-warning">
+            <h6 class="alert-heading">
+                <i data-lucide="alert-triangle" class="icon-sm"></i>
+                Important Notes
+            </h6>
+            <ul class="mb-0">
+                <li><strong>Run this ONCE</strong> when upgrading to the new profile picture system</li>
+                <li>Original images will be preserved in the <code>templates/</code> folder</li>
+                <li>Users will each get their own copy of their selected image</li>
+                <li>Backup your <code>wwwroot/images/profile</code> folder before running</li>
+            </ul>
+        </div>
+
+        <div id="migrationResults" style="display: none;" class="alert mb-3"></div>
+
+        <button type="button" class="btn btn-primary" id="btnRunMigration">
+            <i data-lucide="play-circle" class="icon-sm"></i>
+            Run Migration
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">New Folder Structure</h5>
+    </div>
+    <div class="card-body">
+        <p>After migration, your profile images will be organized as follows:</p>
+        <pre class="bg-light p-3 rounded"><code>wwwroot/images/profile/
+├── templates/                          (Template images - selectable gallery)
+│   ├── default_profile.png            (System default)
+│   ├── template_formal_01.jpg         (Shared templates)
+│   ├── template_casual_01.jpg
+│   └── ...
+│
+└── users/                              (User-specific profile pictures)
+    ├── user_1_20251119132757.jpg      (User ID 1's picture)
+    ├── user_2_20251119133045.png      (User ID 2's picture)
+    ├── user_3_20251119134521.jpg      (User ID 3's picture)
+    └── ...</code></pre>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            $('#btnRunMigration').on('click', function () {
+                const $btn = $(this);
+                const originalHtml = $btn.html();
+
+                Swal.fire({
+                    title: 'Run Profile Picture Migration?',
+                    html: `
+                        <div style="text-align: left;">
+                            <p style="margin-bottom: 0.75rem;">This will migrate all user profile pictures to the new folder structure.</p>
+                            <p style="color: #dc2626; background: #fee2e2; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #dc2626;">
+                                <i data-lucide="alert-triangle" style="width: 16px; height: 16px; vertical-align: middle;"></i>
+                                <strong>Important:</strong> Make sure you have backed up your <code>wwwroot/images/profile</code> folder before proceeding.
+                            </p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: '<i data-lucide="play-circle" style="width: 16px; height: 16px; margin-right: 4px;"></i> Run Migration',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#6b7280',
+                    didOpen: () => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        runMigration($btn, originalHtml);
+                    }
+                });
+            });
+
+            function runMigration($btn, originalHtml) {
+                $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Running Migration...');
+                $('#migrationResults').hide();
+
+                $.ajax({
+                    url: '/SystemMaintenance/MigrateProfilePictures',
+                    type: 'POST',
+                    success: function (response) {
+                        $btn.prop('disabled', false).html(originalHtml);
+                        
+                        if (response.success) {
+                            const data = response.data;
+                            const resultHtml = `
+                                <h6 class="alert-heading">
+                                    <i data-lucide="check-circle" class="icon-sm"></i>
+                                    Migration Completed Successfully!
+                                </h6>
+                                <hr>
+                                <p><strong>Migration Statistics:</strong></p>
+                                <ul class="mb-0">
+                                    <li>Total Users: ${data.totalUsers}</li>
+                                    <li>Migrated: ${data.migrated}</li>
+                                    <li>Already Migrated: ${data.alreadyMigrated}</li>
+                                    <li>Set to Default: ${data.setToDefault}</li>
+                                    <li>Failed: ${data.failed}</li>
+                                </ul>
+                                ${data.failedUsers && data.failedUsers.length > 0 ? `
+                                    <hr>
+                                    <p class="mb-1"><strong style="color: #dc2626;">Failed Users:</strong></p>
+                                    <ul class="mb-0">
+                                        ${data.failedUsers.map(user => `<li>${user}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            `;
+                            
+                            $('#migrationResults')
+                                .removeClass('alert-danger')
+                                .addClass('alert-success')
+                                .html(resultHtml)
+                                .show();
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Migration Complete!',
+                                html: `
+                                    <p>Successfully migrated ${data.migrated} users.</p>
+                                    <p class="text-muted">See details below.</p>
+                                `,
+                                confirmButtonColor: '#10b981'
+                            });
+                        } else {
+                            $('#migrationResults')
+                                .removeClass('alert-success')
+                                .addClass('alert-danger')
+                                .html(`
+                                    <h6 class="alert-heading">
+                                        <i data-lucide="x-circle" class="icon-sm"></i>
+                                        Migration Failed
+                                    </h6>
+                                    <p class="mb-0">${response.message}</p>
+                                `)
+                                .show();
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Migration Failed',
+                                text: response.message,
+                                confirmButtonColor: '#dc2626'
+                            });
+                        }
+
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $btn.prop('disabled', false).html(originalHtml);
+                        
+                        $('#migrationResults')
+                            .removeClass('alert-success')
+                            .addClass('alert-danger')
+                            .html(`
+                                <h6 class="alert-heading">
+                                    <i data-lucide="x-circle" class="icon-sm"></i>
+                                    Migration Error
+                                </h6>
+                                <p class="mb-0">An error occurred while running the migration.</p>
+                            `)
+                            .show();
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Migration Error',
+                            text: 'An error occurred while running the migration. Please check the logs.',
+                            confirmButtonColor: '#dc2626'
+                        });
+
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+}
