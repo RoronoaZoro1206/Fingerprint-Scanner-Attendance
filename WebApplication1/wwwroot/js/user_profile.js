@@ -21,11 +21,21 @@ $(document).ready(function () {
     // Load profile data
     loadProfileData();
 
-    // Event handlers
-    $('#btnChangePicture').on('click', function () {
-        profilePictureModal.show();
+    // ✅ FIX CAMERA ICON BUG: Remove existing handler first to prevent duplicate attachments
+    $(document).off('click', '#btnChangePicture').on('click', '#btnChangePicture', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('[Camera Icon] User Profile camera icon clicked');
+        if (profilePictureModal) {
+            profilePictureModal.show();
+        } else {
+            console.error('[Camera Icon] Profile picture modal not initialized');
+        }
+        return false;
     });
 
+    // Event handlers
     $('#profileForm').on('submit', handleProfileSubmit);
     $('#btnCancel').on('click', handleCancel);
 });

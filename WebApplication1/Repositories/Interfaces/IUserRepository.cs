@@ -16,4 +16,6 @@ public interface IUserRepository
     Task<bool> EmailExistsAsync(string email);
     Task<IEnumerable<UserListDto>> GetUsersWithRolesAsync();
     Task<bool> UpdateLastLoginAsync(int userId);
+    Task<IEnumerable<User>> GetUsersByProfileImageAsync(string imageName);
+    Task<IEnumerable<User>> GetAllStudentsAsync();
 }

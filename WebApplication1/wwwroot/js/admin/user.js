@@ -61,14 +61,36 @@ $(document).ready(function () {
         }
     });
 
-    // Profile picture handlers for Add User modal - use dual-option modal
-    $('#btnAddUserChangePicture').on('click', function () {
-        addUserProfileModal.show();
+    // ✅ FIX CAMERA ICON BUG: Use event delegation on document for BOTH modals
+    // This ensures they work for both Add User modal AND Edit User modal (dynamically created)
+    // ✅ CRITICAL: Remove any existing handlers first to prevent duplicate attachments
+    
+    // Camera icon handler for Add User modal
+    $(document).off('click', '#btnAddUserChangePicture').on('click', '#btnAddUserChangePicture', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('[Camera Icon] Add User camera icon clicked');
+        if (addUserProfileModal) {
+            addUserProfileModal.show();
+        } else {
+            console.error('[Camera Icon] Add User profile modal not initialized');
+        }
+        return false;
     });
 
-    // Profile picture handlers for Edit User modal - use dual-option modal
-    $('#btnEditUserChangePicture').on('click', function () {
-        editUserProfileModal.show();
+    // Camera icon handler for Edit User modal (dynamically created)
+    $(document).off('click', '#btnEditUserChangePicture').on('click', '#btnEditUserChangePicture', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('[Camera Icon] Edit User camera icon clicked');
+        if (editUserProfileModal) {
+            editUserProfileModal.show();
+        } else {
+            console.error('[Camera Icon] Edit User profile modal not initialized');
+        }
+        return false;
     });
 
     // Export button handlers

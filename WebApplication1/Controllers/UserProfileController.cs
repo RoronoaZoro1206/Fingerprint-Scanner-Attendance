@@ -353,6 +353,90 @@ user.UserProfileImage = fileName;
         }
     }
 
+    // POST: UserProfile/DeleteGalleryImage
+    [HttpPost]
+    public async Task<IActionResult> DeleteGalleryImage([FromBody] DeleteImageRequest request)
+    {
+        try
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            _logger.LogInformation($"DeleteGalleryImage - UserId from session: {userId}");
+
+            if (!userId.HasValue)
+            {
+                return Json(new { success = false, message = "User not authenticated" });
+            }
+
+            if (string.IsNullOrEmpty(request.ImageName))
+            {
+                return Json(new { success = false, message = "No image name provided" });
+            }
+
+            // ✅ SECURITY: Prevent deletion of default profile picture
+            if (request.ImageName == "default_profile.png")
+            {
+                return Json(new { success = false, message = "Cannot delete the default profile picture" });
+            }
+
+            // ✅ SECURITY: Validate filename doesn't contain path traversal characters
+            if (request.ImageName.Contains("..") || request.ImageName.Contains("/") || request.ImageName.Contains("\\"))
+            {
+                _logger.LogWarning($"Attempted path traversal: {request.ImageName}");
+                return Json(new { success = false, message = "Invalid image name" });
+            }
+
+            var profileImagesPath = Path.Combine(_environment.WebRootPath, "images", "profile");
+            var imagePath = Path.Combine(profileImagesPath, request.ImageName);
+
+            // ✅ SECURITY: Ensure the file is within the profile directory
+            var fullImagePath = Path.GetFullPath(imagePath);
+            var fullProfilePath = Path.GetFullPath(profileImagesPath);
+            if (!fullImagePath.StartsWith(fullProfilePath))
+            {
+                _logger.LogWarning($"Attempted to delete file outside profile directory: {request.ImageName}");
+                return Json(new { success = false, message = "Invalid image path" });
+            }
+
+            if (!System.IO.File.Exists(imagePath))
+            {
+                return Json(new { success = false, message = "Image not found" });
+            }
+
+            // ⚠️ OPTIONAL: Check if image is currently in use by any user
+            var usersWithThisImage = await _userRepository.GetUsersByProfileImageAsync(request.ImageName);
+            var userList = usersWithThisImage.ToList();
+            if (userList.Any())
+            {
+                var userNames = string.Join(", ", userList.Select(u => u.UserEmail));
+                _logger.LogWarning($"Attempted to delete image in use by: {userNames}");
+                return Json(new { 
+                    success = false, 
+                    message = $"This image is currently in use by {userList.Count()} user(s). Please change their profile pictures first." 
+                });
+            }
+
+            // Delete the file
+            System.IO.File.Delete(imagePath);
+
+            // ✅ AUDIT LOGGING - Only for Admin users
+            if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
+            {
+                await _auditService.LogActionAsync(
+                    "Gallery Image Deleted",
+                    $"Deleted gallery image: {request.ImageName}"
+                );
+            }
+
+            _logger.LogInformation($"DeleteGalleryImage - Successfully deleted: {request.ImageName}");
+            return Json(new { success = true, message = "Image deleted successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting gallery image: {ex.Message}");
+            return Json(new { success = false, message = $"Error: {ex.Message}" });
+        }
+    }
+
     public class UpdateProfileRequest
     {
         public string FirstName { get; set; } = string.Empty;
@@ -365,6 +449,11 @@ user.UserProfileImage = fileName;
     }
 
     public class ServerImageRequest
+    {
+        public string ImageName { get; set; } = string.Empty;
+    }
+
+    public class DeleteImageRequest
     {
         public string ImageName { get; set; } = string.Empty;
     }

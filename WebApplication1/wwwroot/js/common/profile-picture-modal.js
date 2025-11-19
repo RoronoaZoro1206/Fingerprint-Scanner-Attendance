@@ -429,11 +429,24 @@ class ProfilePictureModal {
                     <div class="server-image-overlay">
                         <i data-lucide="check-circle" class="overlay-checkmark"></i>
                     </div>
+                    <button type="button" class="btn-delete-gallery-image" data-image="${imageName}" title="Delete image">
+                        <i data-lucide="trash-2"></i>
+                    </button>
                 </div>
             `);
 
-            imageItem.on('click', () => {
-                this.selectServerImage(imageName);
+            // Click to select image
+            imageItem.on('click', (e) => {
+                // Don't select if clicking delete button
+                if (!$(e.target).closest('.btn-delete-gallery-image').length) {
+                    this.selectServerImage(imageName);
+                }
+            });
+
+            // Delete button click handler
+            imageItem.find('.btn-delete-gallery-image').on('click', (e) => {
+                e.stopPropagation();
+                this.confirmDeleteImage(imageName);
             });
 
             gridContainer.append(imageItem);
@@ -448,27 +461,130 @@ class ProfilePictureModal {
     }
 
     /**
-     * Show no images message
+     * Confirm image deletion with SweetAlert2
      */
-    showNoImages() {
-        console.log('[Server Images] Showing no images message');
-        $(`#${this.modalId}-server-images`).hide();
-        $(`#${this.modalId}-no-images`).show();
+    confirmDeleteImage(imageName) {
+        const self = this;
         
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
+        Swal.fire({
+            title: 'Delete Image?',
+            html: `
+                <div style="text-align: left; margin-top: 1rem;">
+                    <p style="color: #6b7280; margin-bottom: 0.5rem;">Are you sure you want to delete this image?</p>
+                    <p style="font-weight: 600; color: #1a1a1a; margin-bottom: 0.5rem;">${imageName}</p>
+                    <p style="color: #dc2626; font-size: 0.875rem; margin-top: 1rem;">
+                        <i data-lucide="alert-triangle" style="width: 16px; height: 16px; vertical-align: middle;"></i>
+                        This action cannot be undone.
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '<i data-lucide="trash-2" style="width: 16px; height: 16px; margin-right: 4px;"></i> Delete',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280',
+            focusCancel: true,
+            customClass: {
+                popup: 'swal2-delete-confirmation',
+                confirmButton: 'swal2-confirm-delete',
+                cancelButton: 'swal2-cancel'
+            },
+            didOpen: () => {
+                // Reinitialize Lucide icons in SweetAlert2
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                self.deleteImage(imageName);
+            }
+        });
+    }
+
+    /**
+     * Delete image from server
+     */
+    async deleteImage(imageName) {
+        const self = this;
+        console.log('[Delete Image] Deleting:', imageName);
+
+        try {
+            // Show loading state
+            Swal.fire({
+                title: 'Deleting...',
+                html: 'Please wait while the image is being deleted.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const response = await $.ajax({
+                url: '/UserProfile/DeleteGalleryImage',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ imageName: imageName })
+            });
+
+            if (response.success) {
+                // Remove from local array
+                self.serverImages = self.serverImages.filter(img => img !== imageName);
+                
+                // Remove from DOM
+                $(`#${self.modalId} .server-image-item[data-image="${imageName}"]`).fadeOut(300, function() {
+                    $(this).remove();
+                    
+                    // Check if gallery is now empty
+                    if (self.serverImages.length === 0) {
+                        self.showNoImages();
+                    }
+                });
+
+                // Deselect if this was the selected image
+                if (self.selectedServerImage === imageName) {
+                    self.selectedServerImage = null;
+                    self.updateConfirmButton();
+                    $(`#${self.modalId}-selected-name`).hide();
+                }
+
+                // Show success message
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Deleted!',
+                    text: 'Image has been deleted successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                console.log('[Delete Image] ✅ Image deleted successfully');
+            } else {
+                throw new Error(response.message || 'Failed to delete image');
+            }
+        } catch (error) {
+            console.error('[Delete Image] Error:', error);
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Deletion Failed',
+                text: error.message || 'Failed to delete image. Please try again.',
+                confirmButtonColor: '#dc2626'
+            });
         }
     }
 
     /**
-     * Select a server image
+     * Select server image
      */
     selectServerImage(imageName) {
-        console.log('[Server Images] Selected:', imageName);
+        console.log('[Select Server Image]', imageName);
+        
         this.selectedServerImage = imageName;
         this.selectedFile = null;
 
-        // Update visual selection
+        // Update UI
         $(`#${this.modalId} .server-image-item`).removeClass('selected');
         $(`#${this.modalId} .server-image-item[data-image="${imageName}"]`).addClass('selected');
 
@@ -479,62 +595,71 @@ class ProfilePictureModal {
     }
 
     /**
-     * Filter server images based on search query
+     * Confirm selection
      */
-    filterServerImages(query) {
-        console.log('[Server Images] Filtering with query:', query);
-        const filteredImages = this.serverImages.filter(imageName =>
-            imageName.toLowerCase().includes(query.toLowerCase())
-        );
-        console.log('[Server Images] Filtered results:', filteredImages.length, 'images');
-        this.renderServerImages(filteredImages);
+    confirmSelection() {
+        console.log('[Confirm Selection]');
+
+        if (this.currentTab === 'upload' && this.selectedFile) {
+            console.log('[Confirm] Uploading file:', this.selectedFile.name);
+            if (this.onImageSelected) {
+                this.onImageSelected({
+                    type: 'file',
+                    file: this.selectedFile
+                });
+            }
+            this.hideModal();
+        } else if (this.currentTab === 'server' && this.selectedServerImage) {
+            console.log('[Confirm] Using server image:', this.selectedServerImage);
+            if (this.onImageSelected) {
+                this.onImageSelected({
+                    type: 'server',
+                    imageName: this.selectedServerImage
+                });
+            }
+            this.hideModal();
+        } else {
+            console.warn('[Confirm] No selection made');
+            Toast.warning('Please select an image first');
+        }
+    }
+
+    /**
+     * Filter server images
+     */
+    filterServerImages(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        console.log('[Filter] Search term:', term);
+
+        if (!term) {
+            // Show all images
+            $(`#${this.modalId} .server-image-item`).show();
+            return;
+        }
+
+        // Filter images
+        $(`#${this.modalId} .server-image-item`).each(function() {
+            const imageName = $(this).data('image').toLowerCase();
+            if (imageName.includes(term)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
     }
 
     /**
      * Update confirm button state
      */
     updateConfirmButton() {
-        const hasSelection = (this.currentTab === 'upload' && this.selectedFile) ||
-                            (this.currentTab === 'server' && this.selectedServerImage);
-        
-        console.log('[Confirm Button] Updating state:', {
-            hasSelection,
-            currentTab: this.currentTab,
-            selectedFile: !!this.selectedFile,
-            selectedServerImage: !!this.selectedServerImage
-        });
-        
-        $(`#${this.modalId}-confirm-btn`).prop('disabled', !hasSelection);
-    }
+        const $btn = $(`#${this.modalId}-confirm-btn`);
 
-    /**
-     * Confirm and apply selection
-     */
-    confirmSelection() {
-        console.log('[Confirm] Confirming selection. Tab:', this.currentTab);
-        
-        if (this.currentTab === 'upload' && this.selectedFile) {
-            console.log('[Confirm] File upload:', this.selectedFile.name);
-            // Return file object for upload
-            this.onImageSelected({
-                type: 'file',
-                file: this.selectedFile
-            });
-        } else if (this.currentTab === 'server' && this.selectedServerImage) {
-            console.log('[Confirm] Server image:', this.selectedServerImage);
-            // Return server image name
-            this.onImageSelected({
-                type: 'server',
-                imageName: this.selectedServerImage
-            });
+        if ((this.currentTab === 'upload' && this.selectedFile) ||
+            (this.currentTab === 'server' && this.selectedServerImage)) {
+            $btn.prop('disabled', false);
         } else {
-            console.warn('[Confirm] No selection to confirm');
-            Toast.warning('Please select an image first');
-            return;
+            $btn.prop('disabled', true);
         }
-
-        // Close modal
-        $(`#${this.modalId}`).modal('hide');
     }
 
     /**
@@ -542,42 +667,53 @@ class ProfilePictureModal {
      */
     resetModal() {
         console.log('[Reset] Resetting modal state');
+
         this.selectedFile = null;
         this.selectedServerImage = null;
-        
+
         // Reset upload tab
         $(`#${this.modalId}-upload-area`).show();
         $(`#${this.modalId}-upload-preview`).removeClass('show');
         $(`#${this.modalId}-preview-img`).attr('src', '');
-        $(`#${this.modalId}-file-input`).val('');
 
         // Reset server tab
         $(`#${this.modalId} .server-image-item`).removeClass('selected');
         $(`#${this.modalId}-selected-name`).hide();
         $(`#${this.modalId}-search-input`).val('');
 
-        // Switch back to upload tab
-        this.switchTab('upload');
+        // Reset confirm button
+        this.updateConfirmButton();
     }
 
     /**
-     * Show the modal
+     * Show no images message
+     */
+    showNoImages() {
+        $(`#${this.modalId}-server-images`).hide();
+        $(`#${this.modalId}-no-images`).show();
+    }
+
+    /**
+     * Show modal
      */
     show() {
-        console.log('[Modal] Showing modal:', this.modalId);
-        $(`#${this.modalId}`).modal('show');
+        console.log('[Show Modal]', this.modalId);
+        const modal = new bootstrap.Modal(document.getElementById(this.modalId));
+        modal.show();
     }
 
     /**
-     * Hide the modal
+     * Hide modal
      */
-    hide() {
-        console.log('[Modal] Hiding modal:', this.modalId);
+    hideModal() {
+        console.log('[Hide Modal]', this.modalId);
         $(`#${this.modalId}`).modal('hide');
     }
 }
 
-// Global helper function to create profile picture modal
+/**
+ * Global helper function to create profile picture modal
+ */
 function createProfilePictureModal(modalId, previewElementId, onImageSelected) {
     console.log('[Factory] Creating profile picture modal:', modalId);
     return new ProfilePictureModal(modalId, previewElementId, onImageSelected);

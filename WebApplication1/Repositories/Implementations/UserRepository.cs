@@ -307,4 +307,65 @@ public class UserRepository : IUserRepository
 
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
     }
+
+    /// <summary>
+    /// Get all users that are currently using a specific profile image
+    /// Used to check before deleting an image from gallery
+    /// </summary>
+    public async Task<IEnumerable<User>> GetUsersByProfileImageAsync(string imageName)
+    {
+        string query = @"
+            SELECT * FROM users 
+            WHERE user_profile_image = @imageName
+            ORDER BY user_id;";
+        
+        var parameters = new Dictionary<string, object> { { "@imageName", imageName } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new User
+        {
+            UserId = Convert.ToInt32(row["user_id"]),
+            UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
+            UserFirstName = row["user_first_name"].ToString() ?? "",
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
+            UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
+            UserEmail = row["user_email"].ToString() ?? "",
+            UserPassword = row["user_password"].ToString() ?? "",
+            RoleId = Convert.ToInt32(row["role_id"]),
+            UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
+            UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
+            IsActive = Convert.ToBoolean(row["is_active"])
+        });
+    }
+
+    public async Task<IEnumerable<User>> GetAllStudentsAsync()
+    {
+        string query = "SELECT * FROM users WHERE role_id = 3 ORDER BY user_id;";
+        var dt = await _db.ExecuteQueryAsync(query);
+
+        return dt.AsEnumerable().Select(row => new User
+        {
+            UserId = Convert.ToInt32(row["user_id"]),
+            UserProfileImage = row["user_profile_image"].ToString() ?? "default_profile.png",
+            UserFirstName = row["user_first_name"].ToString() ?? "",
+            UserMiddleName = row["user_middle_name"] == DBNull.Value ? null : row["user_middle_name"].ToString(),
+            UserLastName = row["user_last_name"].ToString() ?? "",
+            UserGender = row["user_gender"] == DBNull.Value ? null : row["user_gender"].ToString(),
+            UserPhone = row["user_phone"] == DBNull.Value ? null : row["user_phone"].ToString(),
+            UserAddress = row["user_address"] == DBNull.Value ? null : row["user_address"].ToString(),
+            UserBirthdate = row["user_birthdate"] == DBNull.Value ? null : Convert.ToDateTime(row["user_birthdate"]),
+            UserEmail = row["user_email"].ToString() ?? "",
+            UserPassword = row["user_password"].ToString() ?? "",
+            RoleId = Convert.ToInt32(row["role_id"]),
+            UserCreatedAt = Convert.ToDateTime(row["user_created_at"]),
+            UserUpdatedAt = Convert.ToDateTime(row["user_updated_at"]),
+            UserLastLogin = row["user_last_login"] == DBNull.Value ? null : Convert.ToDateTime(row["user_last_login"]),
+            IsActive = Convert.ToBoolean(row["is_active"])
+        });
+    }
 }

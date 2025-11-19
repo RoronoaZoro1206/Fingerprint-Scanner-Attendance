@@ -311,6 +311,72 @@
     animation: scaleIn 0.2s ease-out;
 }
 
+/* ✅ NEW: Delete button on gallery images */
+.btn-delete-gallery-image {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background-color: rgba(220, 38, 38, 0.9);
+    border: 2px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+    cursor: pointer;
+    z-index: 10;
+    padding: 0;
+}
+
+.btn-delete-gallery-image:hover {
+    background-color: #dc2626;
+    transform: scale(1.1);
+    box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.4);
+}
+
+.btn-delete-gallery-image:active {
+    transform: scale(0.95);
+}
+
+.btn-delete-gallery-image i,
+.btn-delete-gallery-image svg {
+    width: 14px !important;
+    height: 14px !important;
+    color: white;
+    stroke-width: 2.5;
+}
+
+/* Show delete button on hover */
+.server-image-item:hover .btn-delete-gallery-image {
+    opacity: 1;
+}
+
+/* ✅ NEW: Prevent delete button from interfering with image selection */
+.server-image-item .btn-delete-gallery-image {
+    pointer-events: all;
+}
+
+/* ✅ NEW: Delete confirmation dialog customization */
+.swal2-delete-confirmation {
+    border-radius: 16px !important;
+}
+
+.swal2-confirm-delete {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.swal2-confirm-delete i,
+.swal2-confirm-delete svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
 /* ✅ FIX: Add checkmark animation */
 @keyframes scaleIn {
     from {
@@ -321,19 +387,6 @@
         transform: scale(1);
         opacity: 1;
     }
-}
-
-.no-images-message {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #6b7280;
-}
-
-.no-images-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 1rem;
-    color: #d1d5db;
 }
 
 /* Loading State */
