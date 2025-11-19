@@ -470,6 +470,7 @@ EXECUTE FUNCTION mark_student_id_used();
 
 -- ✅ NEW TRIGGER: Automatically mark student IDs as used when students are created
 -- This provides a database-level guarantee that pool status stays synchronized
+-- NOTE: Remarks are managed by application code to distinguish manual vs auto assignment
 CREATE OR REPLACE FUNCTION auto_mark_student_id_used()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -477,8 +478,7 @@ BEGIN
     UPDATE student_id_pool
     SET 
         is_used = TRUE,
-        used_at = NOW(),
-        remarks = COALESCE(remarks, '') || ' | Auto-assigned to student on ' || NOW()::TEXT
+        used_at = NOW()
     WHERE student_id_code = NEW.stud_number
       AND is_used = FALSE;
     
@@ -499,6 +499,7 @@ CREATE TRIGGER trg_mark_student_id_used
 EXECUTE FUNCTION auto_mark_student_id_used();
 
 -- ✅ NEW TRIGGER: Automatically release student IDs back to pool when students are deleted
+-- NOTE: Remarks are managed by application code to provide context for the release
 CREATE OR REPLACE FUNCTION auto_release_student_id()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -506,8 +507,7 @@ BEGIN
     UPDATE student_id_pool
     SET 
         is_used = FALSE,
-        used_at = NULL,
-        remarks = COALESCE(remarks, '') || ' | Released from deleted student on ' || NOW()::TEXT
+        used_at = NULL
     WHERE student_id_code = OLD.stud_number
       AND is_used = TRUE;
     
@@ -526,6 +526,7 @@ CREATE TRIGGER trg_release_student_id
 EXECUTE FUNCTION auto_release_student_id();
 
 -- ✅ NEW TRIGGER: Handle student number changes (release old, mark new)
+-- NOTE: Remarks are managed by application code to provide context for the reassignment
 CREATE OR REPLACE FUNCTION auto_handle_student_id_change()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -535,8 +536,7 @@ BEGIN
         UPDATE student_id_pool
         SET 
             is_used = FALSE,
-            used_at = NULL,
-            remarks = COALESCE(remarks, '') || ' | Released due to student reassignment on ' || NOW()::TEXT
+            used_at = NULL
         WHERE student_id_code = OLD.stud_number
           AND is_used = TRUE;
         
@@ -544,8 +544,7 @@ BEGIN
         UPDATE student_id_pool
         SET 
             is_used = TRUE,
-            used_at = NOW(),
-            remarks = COALESCE(remarks, '') || ' | Reassigned from ' || OLD.stud_number || ' on ' || NOW()::TEXT
+            used_at = NOW()
         WHERE student_id_code = NEW.stud_number
           AND is_used = FALSE;
         
