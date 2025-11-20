@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let activeToast = null;
     let toastQueue = [];
 
+    // ✅ SYNCHRONIZED TIMING CONSTANT: All error state elements fade out together
+    const ERROR_STATE_DURATION = 3000; // 3 seconds - matches LED backend timing
+
     // Detect user role from URL
     const path = window.location.pathname;
     let baseUrl = '';
@@ -135,24 +138,26 @@ document.addEventListener('DOMContentLoaded', function () {
                         await checkDeviceStatus();
                     }
                 } else {
-                    // ✅ ERROR PATH (NEW: Frontend-controlled RED LED activation)
+                    // ✅ ERROR PATH (NEW: Frontend-controlled RED LED activation with SYNCHRONIZED timing)
                     console.log(`[${new Date().toISOString()}] [Frontend] ❌ ERROR - Capture failed`);
                     console.log(`[${new Date().toISOString()}] [Frontend] Error type: ${result.errorType}`);
                     console.log(`[${new Date().toISOString()}] [Frontend] Error message: ${result.message}`);
                     
-                    // Display error toast
-                    showToast(result.message || 'Failed to capture fingerprint', 'error', 3000);
+                    // ✅ STEP 1: Display error UI with synchronized timing
+                    showToast(result.message || 'Failed to capture fingerprint', 'error', ERROR_STATE_DURATION);
                     
                     fingerprintScanner.classList.add('error');
-                    setTimeout(() => fingerprintScanner.classList.remove('error'), 1000);
+                    
+                    // ✅ SYNCHRONIZED FIX: Remove error class after ERROR_STATE_DURATION (3000ms) to match LED/toast timing
+                    setTimeout(() => fingerprintScanner.classList.remove('error'), ERROR_STATE_DURATION);
 
-                    // ✅ STEP 1: Wait for error UI to render
+                    // ✅ STEP 2: Wait for error UI to render
                     await new Promise(resolve => requestAnimationFrame(() => {
                         requestAnimationFrame(resolve);
                     }));
 
-                    // ✅ STEP 2: NOW activate RED LED after error UI is displayed (SYNCHRONIZED!)
-                    console.log(`[${new Date().toISOString()}] [Frontend] 🔴 Activating RED LED after error UI updates (synchronized timing)`);
+                    // ✅ STEP 3: NOW activate RED LED after error UI is displayed (SYNCHRONIZED!)
+                    console.log(`[${new Date().toISOString()}] [Frontend] 🔴 Activating RED LED after error UI updates (synchronized timing - ${ERROR_STATE_DURATION}ms)`);
                     try {
                         const ledResponse = await fetch(`${baseUrl}/ActivateErrorLED`, {
                             method: 'POST',
@@ -162,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.log(`[${new Date().toISOString()}] [Frontend] ✅ RED LED Response:`, ledResult);
                         
                         if (ledResult.success) {
-                            console.log(`[${new Date().toISOString()}] [Frontend] 🔴 RED LED activated successfully on hardware scanner`);
+                            console.log(`[${new Date().toISOString()}] [Frontend] 🔴 RED LED activated successfully on hardware scanner (${ERROR_STATE_DURATION}ms duration)`);
                         } else {
                             console.error(`[${new Date().toISOString()}] [Frontend] ❌ RED LED activation failed:`, ledResult.message);
                         }
@@ -178,8 +183,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } catch (error) {
                 console.error(`[${new Date().toISOString()}] [Frontend] ❌ Exception during capture:`, error);
-                // Show error toast
-                showToast('Error: ' + error.message, 'error', 3000);
+                // Show error toast with synchronized timing
+                showToast('Error: ' + error.message, 'error', ERROR_STATE_DURATION);
             } finally {
                 btnScan.disabled = false;
                 btnScan.textContent = 'Scan Fingerprint';
