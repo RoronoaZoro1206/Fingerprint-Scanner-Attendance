@@ -286,7 +286,7 @@ public class UserProfileController : Controller
         }
     }
 
-    // ✅ ENHANCED: Copy template to user-specific image
+    // ✅ ENHANCED: Reference template directly OR copy based on user choice
     [HttpPost]
     public async Task<IActionResult> SetProfileImageFromServer([FromBody] ServerImageRequest request)
     {
@@ -311,10 +311,10 @@ public class UserProfileController : Controller
                 return Json(new { success = false, message = "User not found" });
             }
 
-            // ✅ DELETE OLD PROFILE PICTURE (if not default)
+            // ✅ DELETE OLD PROFILE PICTURE ONLY if it's a user-uploaded image (not template)
             await DeleteOldProfilePicture(user.UserProfileImage);
 
-            // ✅ CREATE COPY OF TEMPLATE with user-specific filename
+            // ✅ Verify template exists
             var templatesPath = Path.Combine(_environment.WebRootPath, "images", "profile", TEMPLATES_FOLDER);
             var templateFilePath = Path.Combine(templatesPath, request.ImageName);
 
@@ -323,24 +323,9 @@ public class UserProfileController : Controller
                 return Json(new { success = false, message = "Selected template not found on server" });
             }
 
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-            var extension = Path.GetExtension(request.ImageName);
-            var newFileName = $"user_{userId}_{timestamp}{extension}";
-            
-            var usersFolder = Path.Combine(_environment.WebRootPath, "images", "profile", USERS_FOLDER);
-            
-            if (!Directory.Exists(usersFolder))
-            {
-                Directory.CreateDirectory(usersFolder);
-            }
-
-            var userFilePath = Path.Combine(usersFolder, newFileName);
-
-            // Copy template to user-specific file
-            System.IO.File.Copy(templateFilePath, userFilePath);
-
-            // Update user record
-            user.UserProfileImage = $"{USERS_FOLDER}/{newFileName}";
+            // ✅ KEY FIX: Reference template directly instead of copying
+            // Store path as: templates/imageName.ext
+            user.UserProfileImage = $"{TEMPLATES_FOLDER}/{request.ImageName}";
             user.UserUpdatedAt = DateTime.Now;
             
             var result = await _userRepository.UpdateAsync(user);
@@ -353,11 +338,11 @@ public class UserProfileController : Controller
                 {
                     await _auditService.LogActionAsync(
                         "Profile Picture Update",
-                        $"Set profile picture from template (Template: {request.ImageName}, File: {newFileName})"
+                        $"Set profile picture from template (Template: {request.ImageName})"
                     );
                 }
                 
-                _logger.LogInformation($"SetProfileImageFromServer - Successfully set for user: {user.UserId}");
+                _logger.LogInformation($"SetProfileImageFromServer - Successfully set template reference for user: {user.UserId}");
                 return Json(new { success = true, message = "Profile picture updated successfully", fileName = user.UserProfileImage });
             }
 

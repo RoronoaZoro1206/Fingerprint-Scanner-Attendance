@@ -462,10 +462,10 @@ await _auditService.LogActionAsync(
                 return Json(new { success = false, message = "User not found" });
             }
 
-            // ✅ DELETE OLD PROFILE PICTURE (if not default)
+            // ✅ DELETE OLD PROFILE PICTURE ONLY if it's a user-uploaded image (not template)
             await DeleteOldProfilePicture(user.UserProfileImage);
 
-            // ✅ CREATE COPY OF TEMPLATE with user-specific filename
+            // ✅ Verify template exists
             var templatesPath = Path.Combine(_environment.WebRootPath, "images", "profile", TEMPLATES_FOLDER);
             var templateFilePath = Path.Combine(templatesPath, request.ImageName);
 
@@ -474,24 +474,9 @@ await _auditService.LogActionAsync(
                 return Json(new { success = false, message = "Selected template not found on server" });
             }
 
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-            var extension = Path.GetExtension(request.ImageName);
-            var newFileName = $"user_{request.UserId}_{timestamp}{extension}";
-            
-            var usersFolder = Path.Combine(_environment.WebRootPath, "images", "profile", USERS_FOLDER);
-            
-            if (!Directory.Exists(usersFolder))
-            {
-                Directory.CreateDirectory(usersFolder);
-            }
-
-            var userFilePath = Path.Combine(usersFolder, newFileName);
-
-            // Copy template to user-specific file
-            System.IO.File.Copy(templateFilePath, userFilePath);
-
-            // Update user record
-            user.UserProfileImage = $"{USERS_FOLDER}/{newFileName}";
+            // ✅ KEY FIX: Reference template directly instead of copying
+            // Store path as: templates/imageName.ext
+            user.UserProfileImage = $"{TEMPLATES_FOLDER}/{request.ImageName}";
             user.UserUpdatedAt = DateTime.Now;
             
             var result = await _userRepository.UpdateAsync(user);
@@ -500,7 +485,7 @@ await _auditService.LogActionAsync(
             {
                 await _auditService.LogActionAsync(
                     "Profile Picture Updated",
-                    $"Admin set profile picture from template for user: {user.UserEmail} (ID: {user.UserId}, Template: {request.ImageName}, File: {newFileName})"
+                    $"Admin set profile picture from template for user: {user.UserEmail} (ID: {user.UserId}, Template: {request.ImageName})"
                 );
                 
                 _logger.LogInformation($"Profile picture set from template for user: {user.UserId}");
