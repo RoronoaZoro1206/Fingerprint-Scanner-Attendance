@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Claims;
 using Fingerprint_Attendance_System.Models;
+using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -88,17 +89,17 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
 
                     string logType = audit.AudAction == "Biometric Login" ? "Biometric Login" : "Admin Action";
 
-                    return new
+                    return new AuditLogDto
                     {
-                        audId = $"ADM-{audit.AudId}",
-                        adminId = audit.AdminId,
-                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
-                        adminCode = admin?.AdminCode ?? "N/A",
-                        audAction = audit.AudAction,
-                        audDetails = audit.AudDetails ?? "",
-                        audActionTime = audit.AudActionTime,
-                        audActionTimeFormatted = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                        logType = logType
+                        AudId = $"ADM-{audit.AudId}",
+                        AdminId = audit.AdminId,
+                        UserName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",  // ✅ Changed from adminName
+                        UserRole = GetUserRoleName(user),  // ✅ Changed from adminCode
+                        AudAction = audit.AudAction,
+                        AudDetails = audit.AudDetails ?? "",
+                        AudActionTime = audit.AudActionTime,
+                        AudActionTimeFormatted = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        LogType = logType
                     };
                 }).ToList();
 
@@ -118,26 +119,26 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                         _ => "Authentication"
                     };
 
-                    return new
+                    return new AuditLogDto
                     {
-                        audId = $"AUTH-{authAudit.AuthAuditId}",
-                        adminId = admin?.AdminId ?? 0,
-                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
-                        adminCode = admin?.AdminCode ?? "N/A",
-                        audAction = authAudit.AuthAction,
-                        audDetails = authAudit.AuthDetails ?? "",
-                        audActionTime = authAudit.AuthActionTime,
-                        audActionTimeFormatted = authAudit.AuthActionTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                        logType = logType
+                        AudId = $"AUTH-{authAudit.AuthAuditId}",
+                        AdminId = admin?.AdminId ?? 0,
+                        UserName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",  // ✅ Changed from adminName
+                        UserRole = GetUserRoleName(user),  // ✅ Changed from adminCode
+                        AudAction = authAudit.AuthAction,
+                        AudDetails = authAudit.AuthDetails ?? "",
+                        AudActionTime = authAudit.AuthActionTime,
+                        AudActionTimeFormatted = authAudit.AuthActionTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                        LogType = logType
                     };
                 }).ToList();
 
                 // STEP 5: Combine and sort by timestamp (newest first)
                 var combinedData = adminAuditData.Concat(authAuditData)
-                    .OrderByDescending(a => a.audActionTime)
+                    .OrderByDescending(a => a.AudActionTime)
                     .ToList();
 
-                _logger.LogInformation($"? Returning {combinedData.Count} total audit records ({adminAuditData.Count} admin actions + {authAuditData.Count} authentication events)");
+                _logger.LogInformation($"✅ Returning {combinedData.Count} total audit records ({adminAuditData.Count} admin actions + {authAuditData.Count} authentication events)");
                 
                 return Json(new { data = combinedData });
             }
@@ -148,7 +149,7 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
             }
         }
 
-        // ? FIX: Updated to handle both admin and auth audit logs
+        // ✅ FIX: Updated to handle both admin and auth audit logs with new field names
         [HttpGet]
         public async Task<IActionResult> GetById(int id, bool isAuth = false)
         {
@@ -173,8 +174,8 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     {
                         audId = id,
                         adminId = admin?.AdminId ?? 0,
-                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
-                        adminCode = admin?.AdminCode ?? "N/A",
+                        userName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",  // ✅ Changed from adminName
+                        userRole = GetUserRoleName(user),  // ✅ Changed from adminCode
                         audAction = authAudit.AuthAction,
                         audDetails = authAudit.AuthDetails ?? "",
                         audActionTime = authAudit.AuthActionTime.ToString("yyyy-MM-dd HH:mm:ss")
@@ -201,8 +202,8 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                     {
                         audId = audit.AudId,
                         adminId = audit.AdminId,
-                        adminName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",
-                        adminCode = admin?.AdminCode ?? "N/A",
+                        userName = user != null ? $"{user.UserFirstName} {user.UserLastName}" : "Unknown",  // ✅ Changed from adminName
+                        userRole = GetUserRoleName(user),  // ✅ Changed from adminCode
                         audAction = audit.AudAction,
                         audDetails = audit.AudDetails ?? "",
                         audActionTime = audit.AudActionTime.ToString("yyyy-MM-dd HH:mm:ss")
@@ -336,6 +337,23 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
                 _logger.LogError(ex, "Error deleting audit log");
                 return Json(new { success = false, message = "An error occurred while deleting audit log" });
             }
+        }
+
+        /// <summary>
+        /// ✅ NEW HELPER METHOD: Get user role name from User object
+        /// Converts role enum to human-readable string (Admin, Faculty, Student)
+        /// </summary>
+        private string GetUserRoleName(User? user)
+        {
+            if (user == null) return "Unknown";
+            
+            return user.RoleType switch
+            {
+                USER_ROLES.ADMIN => "Admin",
+                USER_ROLES.FACULTY => "Faculty",
+                USER_ROLES.STUDENT => "Student",
+                _ => "Unknown"
+            };
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

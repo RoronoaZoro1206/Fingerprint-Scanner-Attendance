@@ -25,6 +25,7 @@ $(document).ready(function () {
 
 /**
  * Initialize DataTable
+ * ✅ FIX: Updated to use PascalCase property names to match JSON from controller
  */
 function initializeDataTable() {
     auditTable = $('#auditTable').DataTable({
@@ -36,12 +37,12 @@ function initializeDataTable() {
             }
         },
         columns: [
-            { data: 'audId', width: '8%' },
-            { data: 'adminName', width: '13%' },
-            { data: 'adminCode', width: '10%' },
+            { data: 'AudId', width: '8%' },              // ✅ FIX: PascalCase (was audId)
+            { data: 'UserName', width: '13%' },          // ✅ FIX: PascalCase (was userName)
+            { data: 'UserRole', width: '10%' },          // ✅ FIX: PascalCase (was userRole)
             // NEW: Log Type column with badges
             {
-                data: 'logType',
+                data: 'LogType',                         // ✅ FIX: PascalCase (was logType)
                 width: '12%',
                 render: function (data) {
                     const badges = {
@@ -56,14 +57,14 @@ function initializeDataTable() {
                 }
             },
             {
-                data: 'audAction',
+                data: 'AudAction',                       // ✅ FIX: PascalCase (was audAction)
                 width: '13%',
                 render: function (data) {
                     return formatActionBadge(data);
                 }
             },
             {
-                data: 'audDetails',
+                data: 'AudDetails',                      // ✅ FIX: PascalCase (was audDetails)
                 width: '23%',
                 render: function (data) {
                     if (!data || data === '') return '<span class="text-muted">No details</span>';
@@ -71,7 +72,7 @@ function initializeDataTable() {
                 }
             },
             { 
-                data: 'audActionTimeFormatted', 
+                data: 'AudActionTimeFormatted',          // ✅ FIX: PascalCase (was audActionTimeFormatted)
                 width: '13%' 
             },
             {
@@ -80,8 +81,8 @@ function initializeDataTable() {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    // ✅ FIX: Properly escape the ID string and wrap in quotes for onclick
-                    const escapedId = String(row.audId).replace(/'/g, "\\'");
+                    // ✅ FIX: Use row.AudId (PascalCase)
+                    const escapedId = String(row.AudId).replace(/'/g, "\\'");
 
                     return `
                         <div class="action-buttons">
@@ -163,7 +164,7 @@ window.viewAudit = async function(id) {
     try {
         // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, ''); // ✅ FIX: Added missing closing quote
+        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
 
         const response = await fetch(`/AdminAudit/GetById/${numericId}?isAuth=${isAuthLog}`);
         const result = await response.json();
@@ -171,9 +172,9 @@ window.viewAudit = async function(id) {
         if (result.success) {
             const audit = result.data;
             document.getElementById('viewAudId').textContent = id; // Show full ID with prefix
-            document.getElementById('viewAdminName').textContent = audit.adminName;
-            document.getElementById('viewAdminCode').textContent = audit.adminCode;
-            document.getElementById('viewAction').textContent = audit.audAction;
+            document.getElementById('viewUserName').textContent = audit.userName;  // ✅ camelCase from controller
+            document.getElementById('viewUserRole').textContent = audit.userRole;  // ✅ camelCase from controller
+            document.getElementById('viewAction').textContent = audit.audAction;    // ✅ camelCase from controller
             document.getElementById('viewDetails').textContent = audit.audDetails || 'No details provided';
             document.getElementById('viewDateTime').textContent = audit.audActionTime;
 
@@ -222,7 +223,7 @@ async function confirmDeleteAudit() {
     try {
         // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, ''); // ✅ FIX: Added missing closing quote
+        const numericId = id.replace(/^(ADM-|AUTH-)/, '');
 
         // ✅ FIX: Use DELETE method with route parameter
         const response = await fetch(`/AdminAudit/Delete/${numericId}?isAuth=${isAuthLog}`, {
