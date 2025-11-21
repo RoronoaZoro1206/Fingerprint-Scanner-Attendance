@@ -87,9 +87,9 @@
                         <input type="number" class="form-control" id="addCourseUnits" name="CourseUnits" required min="1" max="10" value="3">
                     </div>
                     <div class="mb-3">
-                        <label for="addProgramId" class="form-label">Program</label>
-                        <select class="form-select" id="addProgramId" name="ProgramId">
-                            <option value="">Select Program (Optional)</option>
+                        <label for="addProgramId" class="form-label">Program <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addProgramId" name="ProgramId" required>
+                            <option value="">Select Program</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -133,9 +133,9 @@
                         <input type="number" class="form-control" id="editCourseUnits" name="CourseUnits" required min="1" max="10">
                     </div>
                     <div class="mb-3">
-                        <label for="editProgramId" class="form-label">Program</label>
-                        <select class="form-select" id="editProgramId" name="ProgramId">
-                            <option value="">Select Program (Optional)</option>
+                        <label for="editProgramId" class="form-label">Program <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editProgramId" name="ProgramId" required>
+                            <option value="">Select Program</option>
                         </select>
                     </div>
                     <div class="mb-3">

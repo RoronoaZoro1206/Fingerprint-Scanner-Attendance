@@ -133,6 +133,11 @@ public class AdminCourseController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
+            if (!course.ProgramId.HasValue || course.ProgramId.Value <= 0)
+            {
+                return Json(new { success = false, message = "Program selection is required" });
+            }
+
             course.CourseCreatedAt = DateTime.Now;
             var result = await _courseRepository.AddAsync(course);
 
@@ -161,6 +166,11 @@ public class AdminCourseController : Controller
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
+            }
+
+            if (!course.ProgramId.HasValue || course.ProgramId.Value <= 0)
+            {
+                return Json(new { success = false, message = "Program selection is required" });
             }
 
             var result = await _courseRepository.UpdateAsync(course);

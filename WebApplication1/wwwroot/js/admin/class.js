@@ -116,13 +116,26 @@ async function loadFaculties() {
             type: 'GET'
         });
 
+        console.log('[Faculty Dropdown] Response:', response);
+
         if (response.success) {
             facultiesData = response.data;
-            console.log('Loaded faculties:', facultiesData); // Debug log
+            console.log('[Faculty Dropdown] Loaded faculties:', facultiesData);
+            
+            if (!facultiesData || facultiesData.length === 0) {
+                console.warn('[Faculty Dropdown] No users with Faculty role found in the system.');
+                Toast.warning('No faculty members found. Please create users with Faculty role first.');
+            } else {
+                console.log(`[Faculty Dropdown] Successfully loaded ${facultiesData.length} faculty member(s)`);
+            }
+            
             populateFacultyDropdowns();
+        } else {
+            console.error('[Faculty Dropdown] API returned success=false:', response.message);
+            Toast.error('Failed to load faculties: ' + (response.message || 'Unknown error'));
         }
     } catch (error) {
-        console.error('Error loading faculties:', error);
+        console.error('[Faculty Dropdown] Error loading faculties:', error);
         Toast.error('Failed to load faculties.');
     }
 }
@@ -199,12 +212,24 @@ function populateFacultyDropdowns() {
     addSelect.find('option:not(:first)').remove();
     editSelect.find('option:not(:first)').remove();
 
+    if (!facultiesData || facultiesData.length === 0) {
+        console.warn('[Faculty Dropdown] No faculty data to populate');
+        // Add a visual indicator in the dropdown
+        const noDataOption = `<option value="" disabled>No faculty members available</option>`;
+        addSelect.append(noDataOption);
+        editSelect.append(noDataOption);
+        return;
+    }
+
     facultiesData.forEach(faculty => {
         // ✅ FIX: Using camelCase (facId, facName) as returned by GetFaculties endpoint
         const option = `<option value="${faculty.facId}">${faculty.facName}</option>`;
         addSelect.append(option);
         editSelect.append(option);
+        console.log('[Faculty Dropdown] Added option:', faculty);
     });
+    
+    console.log('[Faculty Dropdown] Successfully populated', facultiesData.length, 'faculty members');
 }
 
 /**
@@ -286,6 +311,13 @@ function initializeDataTable() {
  */
 function showAddModal() {
     $('#addClassForm')[0].reset();
+    
+    // Check if there are faculty members available
+    if (!facultiesData || facultiesData.length === 0) {
+        Toast.warning('No faculty members found. Please create users with Faculty role in the User Management page first.');
+        return;
+    }
+    
     showModal('addClassModal');
 }
 

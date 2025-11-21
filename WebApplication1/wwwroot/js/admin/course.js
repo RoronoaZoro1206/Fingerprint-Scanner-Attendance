@@ -196,6 +196,7 @@ function saveCourse() {
 
     const courseCode = $('#addCourseCode').val().trim();
     const courseUnits = parseInt($('#addCourseUnits').val());
+    const programId = $('#addProgramId').val();
 
     if (courseCode.length < 2) {
         Toast.warning('Course code must be at least 2 characters.');
@@ -207,11 +208,16 @@ function saveCourse() {
         return;
     }
 
+    if (!programId) {
+        Toast.warning('Please select a program.');
+        return;
+    }
+
     const courseData = {
         CourseCode: courseCode.toUpperCase(),
         CourseName: $('#addCourseName').val().trim(),
         CourseUnits: courseUnits,
-        ProgramId: $('#addProgramId').val() ? parseInt($('#addProgramId').val()) : null,
+        ProgramId: parseInt(programId),
         CourseDesc: $('#addCourseDesc').val().trim() || null
     };
 
@@ -245,6 +251,7 @@ function updateCourse() {
 
     const courseCode = $('#editCourseCode').val().trim();
     const courseUnits = parseInt($('#editCourseUnits').val());
+    const programId = $('#editProgramId').val();
 
     if (courseCode.length < 2) {
         Toast.warning('Course code must be at least 2 characters.');
@@ -256,12 +263,17 @@ function updateCourse() {
         return;
     }
 
+    if (!programId) {
+        Toast.warning('Please select a program.');
+        return;
+    }
+
     const courseData = {
         CourseId: parseInt($('#editCourseId').val()),
         CourseCode: courseCode.toUpperCase(),
         CourseName: $('#editCourseName').val().trim(),
         CourseUnits: courseUnits,
-        ProgramId: $('#editProgramId').val() ? parseInt($('#editProgramId').val()) : null,
+        ProgramId: parseInt(programId),
         CourseDesc: $('#editCourseDesc').val().trim() || null
     };
 

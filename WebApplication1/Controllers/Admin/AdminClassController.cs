@@ -132,13 +132,27 @@ public class AdminClassController : Controller
     {
         try
         {
+            _logger.LogInformation("GetFaculties endpoint called");
+            
             var faculties = await _facultyRepository.GetAllSimpleAsync();
+            
+            var facultyCount = faculties.Count();
+            _logger.LogInformation($"Retrieved {facultyCount} faculty records from database");
 
             var facultyList = faculties.Select(f => new
             {
                 facId = f.FacId,
                 facName = f.FacName
-            });
+            }).ToList();
+
+            if (facultyCount == 0)
+            {
+                _logger.LogWarning("No faculty records found. This may indicate that users with faculty role do not have corresponding faculty records in the faculty table.");
+            }
+            else
+            {
+                _logger.LogInformation($"Returning {facultyCount} faculty members: {string.Join(", ", facultyList.Select(f => f.facName))}");
+            }
 
             return Json(new { success = true, data = facultyList });
         }
@@ -176,6 +190,53 @@ public class AdminClassController : Controller
                 return Json(new { success = false, message = "Invalid data provided" });
             }
 
+            // ✅ FIX: Auto-create faculty record if user has Faculty role but no faculty record
+            if (cls.FacId.HasValue)
+            {
+                // Check if this is a user_id (not fac_id) by checking if faculty record exists
+                var facultyExists = await _facultyRepository.ExistsAsync(cls.FacId.Value);
+                
+                if (!facultyExists)
+                {
+                    // This is a user_id, not a fac_id - check if user has Faculty role
+                    var faculty = await _facultyRepository.GetByUserIdAsync(cls.FacId.Value);
+                    
+                    if (faculty == null)
+                    {
+                        // User doesn't have a faculty record - create one automatically
+                        var newFaculty = new Models.Faculty
+                        {
+                            UserId = cls.FacId.Value,
+                            DeptId = null,
+                            FacRank = null,
+                            FacCreatedAt = DateTime.Now
+                        };
+                        
+                        var facultyCreated = await _facultyRepository.AddAsync(newFaculty);
+                        
+                        if (facultyCreated)
+                        {
+                            // Get the newly created faculty record to get the correct fac_id
+                            faculty = await _facultyRepository.GetByUserIdAsync(cls.FacId.Value);
+                            if (faculty != null)
+                            {
+                                cls.FacId = faculty.FacId;
+                                _logger.LogInformation($"Auto-created faculty record (fac_id: {faculty.FacId}) for user_id: {newFaculty.UserId}");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Failed to auto-create faculty record for user_id: {cls.FacId.Value}");
+                        }
+                    }
+                    else
+                    {
+                        // Faculty record exists, use the correct fac_id
+                        cls.FacId = faculty.FacId;
+                    }
+                }
+            }
+
             cls.ClassCreatedAt = DateTime.Now;
             cls.ClassUpdatedAt = DateTime.Now;
             var result = await _classRepository.AddAsync(cls);
@@ -206,6 +267,53 @@ public class AdminClassController : Controller
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
+            }
+
+            // ✅ FIX: Auto-create faculty record if user has Faculty role but no faculty record
+            if (cls.FacId.HasValue)
+            {
+                // Check if this is a user_id (not fac_id) by checking if faculty record exists
+                var facultyExists = await _facultyRepository.ExistsAsync(cls.FacId.Value);
+                
+                if (!facultyExists)
+                {
+                    // This is a user_id, not a fac_id - check if user has Faculty role
+                    var faculty = await _facultyRepository.GetByUserIdAsync(cls.FacId.Value);
+                    
+                    if (faculty == null)
+                    {
+                        // User doesn't have a faculty record - create one automatically
+                        var newFaculty = new Models.Faculty
+                        {
+                            UserId = cls.FacId.Value,
+                            DeptId = null,
+                            FacRank = null,
+                            FacCreatedAt = DateTime.Now
+                        };
+                        
+                        var facultyCreated = await _facultyRepository.AddAsync(newFaculty);
+                        
+                        if (facultyCreated)
+                        {
+                            // Get the newly created faculty record to get the correct fac_id
+                            faculty = await _facultyRepository.GetByUserIdAsync(cls.FacId.Value);
+                            if (faculty != null)
+                            {
+                                cls.FacId = faculty.FacId;
+                                _logger.LogInformation($"Auto-created faculty record (fac_id: {faculty.FacId}) for user_id: {newFaculty.UserId}");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Failed to auto-create faculty record for user_id: {cls.FacId.Value}");
+                        }
+                    }
+                    else
+                    {
+                        // Faculty record exists, use the correct fac_id
+                        cls.FacId = faculty.FacId;
+                    }
+                }
             }
 
             cls.ClassUpdatedAt = DateTime.Now;

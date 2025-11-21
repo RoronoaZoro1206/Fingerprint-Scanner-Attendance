@@ -236,12 +236,15 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<IEnumerable<FacultySimpleDto>> GetAllSimpleAsync()
         {
+            // ✅ FIX: Query users by role_id = 2 (Faculty) instead of requiring faculty table records
+            // This ensures all users with Faculty role appear in dropdowns, even without faculty records
             string query = @"
                 SELECT 
-                    f.fac_id,
+                    COALESCE(f.fac_id, u.user_id) AS fac_id,
                     CONCAT(u.user_first_name, ' ', u.user_last_name) AS fac_name
-                FROM faculty f
-                INNER JOIN users u ON f.user_id = u.user_id
+                FROM users u
+                LEFT JOIN faculty f ON u.user_id = f.user_id
+                WHERE u.role_id = 2
                 ORDER BY u.user_first_name, u.user_last_name;";
 
             var dt = await _db.ExecuteQueryAsync(query);
