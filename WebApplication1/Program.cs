@@ -34,7 +34,15 @@ builder.Services.AddControllersWithViews()
     });
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    // ✅ FIX: Increased session timeout to 24 hours to prevent inactivity-based logout
+    // Users should only be logged out when they:
+    // 1. Click the logout button (manual logout)
+    // 2. Close the browser/tab (auto logout detection)
+    // NOT when they:
+    // - Are inactive/AFK
+    // - Have been logged in for a long time
+    // - Navigate between pages
+    options.IdleTimeout = TimeSpan.FromHours(24);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });

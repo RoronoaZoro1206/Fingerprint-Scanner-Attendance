@@ -248,15 +248,18 @@ public class AuthController : Controller
     /// <summary>
     /// Auto Logout - Called when user closes browser/tab without clicking logout
     /// Uses Beacon API from JavaScript to reliably log logout even during page unload
-    /// ? ENHANCED: Now includes session duration, last activity, and device info
+    /// ✅ ENHANCED: Now includes session duration, last activity, and device info
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> AutoLogout([FromBody] AutoLogoutRequest request)
     {
         try
         {
-            _logger.LogInformation($"Auto logout triggered - UserId: {request.UserId}, Email: {request.UserEmail}, Reason: {request.Reason}");
-            _logger.LogInformation($"Session Info - Duration: {request.SessionDuration}, Last Activity: {request.LastActivityTime}, Browser: {request.BrowserInfo}");
+            _logger.LogInformation("🚨 ===== AUTO LOGOUT ENDPOINT HIT =====");
+            _logger.LogInformation($"📥 Request received - UserId: {request.UserId}, Email: {request.UserEmail}");
+            _logger.LogInformation($"📊 Session Info - Duration: {request.SessionDuration}, Last Activity: {request.LastActivityTime}");
+            _logger.LogInformation($"🖥️ Browser: {request.BrowserInfo}");
+            _logger.LogInformation($"📝 Reason: {request.Reason}");
             
             if (request.UserId > 0 && !string.IsNullOrEmpty(request.UserEmail))
             {
@@ -267,38 +270,44 @@ public class AuthController : Controller
                 if (user != null)
                 {
                     roleName = user.RoleType.ToString().ToUpper();
-                    _logger.LogInformation($"Auto logout for user {request.UserEmail} role: {roleName}");
+                    _logger.LogInformation($"✅ User found in database - Role: {roleName}");
+                }
+                else
+                {
+                    _logger.LogWarning($"⚠️ User ID {request.UserId} not found in database");
                 }
                 
-                // ? ENHANCED: Build detailed logout message with all context
+                // Build detailed logout message with all context
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
                 
                 string enhancedDetails = $"User {request.UserEmail} (ID: {request.UserId}, Role: {roleName}) automatically logged out after {request.SessionDuration} session - {request.Reason} (Last activity: {request.LastActivityTime}, IP: {ipAddress}, {request.BrowserInfo})";
                 
-                _logger.LogInformation($"Enhanced details: {enhancedDetails}");
+                _logger.LogInformation($"📝 Enhanced details: {enhancedDetails}");
                 
                 // Log as "Auto Logout" instead of "User Logout" to distinguish
                 await _authAuditService.LogAutoLogoutAsync(
                     request.UserId, 
                     request.UserEmail, 
                     roleName, 
-                    enhancedDetails // ? Pass enhanced details instead of just reason
+                    enhancedDetails
                 );
                 
-                _logger.LogInformation($"Auto logout logged for user {request.UserEmail} ({roleName})");
+                _logger.LogInformation($"✅ Auto logout logged successfully for user {request.UserEmail} ({roleName})");
+                _logger.LogInformation("🚨 ===== AUTO LOGOUT COMPLETE =====");
                 
                 // Return 200 OK (Beacon API doesn't care about response, but for logging)
                 return Ok(new { success = true, message = "Auto logout logged successfully" });
             }
             else
             {
-                _logger.LogWarning("Auto logout called but no valid user data provided");
+                _logger.LogWarning("❌ Auto logout called but no valid user data provided");
+                _logger.LogWarning($"   UserId: {request.UserId}, UserEmail: '{request.UserEmail}'");
                 return BadRequest(new { success = false, message = "Invalid user data" });
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during auto logout");
+            _logger.LogError(ex, "❌ ERROR during auto logout");
             // Return 200 OK even on error (Beacon API doesn't retry on error responses)
             return Ok(new { success = false, message = "Error logged" });
         }

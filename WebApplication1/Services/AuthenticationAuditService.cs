@@ -76,11 +76,23 @@ namespace Fingerprint_Attendance_System.Services
         /// </summary>
         public async Task LogAutoLogoutAsync(int userId, string userEmail, string role, string reason)
         {
-            await LogAuthenticationEventAsync(
-                userId,
-                "Auto Logout",
-                $"User {userEmail} (ID: {userId}, Role: {role}) automatically logged out - {reason}"
-            );
+            _logger.LogInformation($"🚨 LogAutoLogoutAsync called - UserId: {userId}, Email: {userEmail}, Role: {role}");
+            
+            try
+            {
+                await LogAuthenticationEventAsync(
+                    userId,
+                    "Auto Logout",
+                    reason
+                );
+                
+                _logger.LogInformation($"✅ Auto logout event logged successfully for user {userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Failed to log auto logout for user {userId}");
+                throw; // Re-throw to ensure error is visible
+            }
         }
 
         /// <summary>
@@ -90,9 +102,13 @@ namespace Fingerprint_Attendance_System.Services
         {
             try
             {
+                _logger.LogInformation($"📝 LogAuthenticationEventAsync - Action: {action}, UserId: {userId}");
+                
                 var httpContext = _httpContextAccessor.HttpContext;
                 var ipAddress = httpContext?.Connection?.RemoteIpAddress?.ToString();
                 var userAgent = httpContext?.Request?.Headers["User-Agent"].ToString();
+
+                _logger.LogInformation($"   IP: {ipAddress}, UserAgent: {userAgent?.Substring(0, Math.Min(50, userAgent?.Length ?? 0))}...");
 
                 var audit = new AuthenticationAudit
                 {
@@ -104,20 +120,21 @@ namespace Fingerprint_Attendance_System.Services
                     AuthUserAgent = userAgent
                 };
 
+                _logger.LogInformation($"📦 Audit object created, calling repository...");
                 var result = await _authAuditRepo.AddAsync(audit);
 
                 if (result)
                 {
-                    _logger.LogInformation($"? Authentication audit logged: {action} for user ID {userId}");
+                    _logger.LogInformation($"✅ Authentication audit logged successfully: {action} for user ID {userId}");
                 }
                 else
                 {
-                    _logger.LogError($"? Failed to log authentication audit: {action} for user ID {userId}");
+                    _logger.LogError($"❌ Failed to log authentication audit: {action} for user ID {userId}");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error logging authentication event: {action} for user ID {userId}");
+                _logger.LogError(ex, $"💥 Exception in LogAuthenticationEventAsync: {action} for user ID {userId}");
                 // Silently fail to not disrupt the main authentication flow
             }
         }

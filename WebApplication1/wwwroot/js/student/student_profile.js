@@ -71,8 +71,16 @@ function displayProfile(data) {
         $('#profileStudentNumber').hide();
     }
 
-    if (data.userProfileImage && data.userProfileImage !== 'default_profile.png') {
-        $('#profileImage').attr('src', `/images/profile/${data.userProfileImage}`);
+    // ✅ FIX: Properly handle profile image with correct default path
+    if (data.userProfileImage) {
+        // Check if it's a user-specific image or template
+        const imagePath = data.userProfileImage.includes('/') 
+            ? `/images/profile/${data.userProfileImage}?v=${Date.now()}` 
+            : `/images/profile/${data.userProfileImage}?v=${Date.now()}`;
+        $('#profileImage').attr('src', imagePath);
+    } else {
+        // No profile image - use default from templates folder
+        $('#profileImage').attr('src', '/images/profile/templates/default_profile.png');
     }
 
     // Fill form fields

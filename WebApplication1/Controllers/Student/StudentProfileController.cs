@@ -68,13 +68,21 @@ public class StudentProfileController : Controller
 
             _logger.LogInformation($"GetProfile - Successfully retrieved profile for userId: {userId.Value}, StudId: {profile.StudId}");
 
+            // ✅ FIX: Ensure proper profile image path
+            var profileImagePath = profile.UserProfileImage;
+            if (string.IsNullOrEmpty(profileImagePath) || profileImagePath == "default_profile.png")
+            {
+                // Use default from templates folder
+                profileImagePath = "templates/default_profile.png";
+            }
+
             return Json(new
             {
                 success = true,
                 data = new
                 {
                     userId = profile.UserId,
-                    userProfileImage = profile.UserProfileImage,
+                    userProfileImage = profileImagePath, // ✅ Returns proper path
                     userFirstName = profile.UserFirstName,
                     userMiddleName = profile.UserMiddleName,
                     userLastName = profile.UserLastName,

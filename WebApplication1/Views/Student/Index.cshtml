@@ -13,7 +13,9 @@
         <div class="profile-header">
    <div class="profile-avatar-section">
   <div class="profile-avatar">
- <img id="profileImage" src="/images/profile/default_profile.png" alt="Profile Picture">
+ <!-- ✅ FIX: Use templates/default_profile.png as default and add error handler -->
+ <img id="profileImage" src="/images/profile/templates/default_profile.png" alt="Profile Picture" 
+      onerror="this.onerror=null; this.src='/images/profile/templates/default_profile.png';">
     </div>
            <div class="profile-basic-info">
            <h2 id="profileName" class="profile-name">Loading...</h2>
