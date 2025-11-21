@@ -370,16 +370,18 @@ public class UserProfileController : Controller
         }
     }
 
-    // ✅ SIMPLIFIED: Delete gallery image (templates only, no user assignment check needed)
+    // ✅ COMPREHENSIVE RULE: Delete gallery image with FULL PROTECTION
     [HttpPost]
     public async Task<IActionResult> DeleteGalleryImage([FromBody] DeleteImageRequest request)
     {
         try
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            _logger.LogInformation($"DeleteGalleryImage - UserId from session: {userId}");
+            var roleId = HttpContext.Session.GetInt32("RoleId");
+            
+            _logger.LogInformation($"DeleteGalleryImage - UserId: {userId}, RoleId: {roleId}, ImageName: {request.ImageName}");
 
-            if (!userId.HasValue)
+            if (!userId.HasValue || !roleId.HasValue)
             {
                 return Json(new { success = false, message = "User not authenticated" });
             }
@@ -389,50 +391,130 @@ public class UserProfileController : Controller
                 return Json(new { success = false, message = "No image name provided" });
             }
 
-            // ✅ SECURITY: Prevent deletion of default profile picture
-            if (request.ImageName == DEFAULT_PROFILE)
+            // ✅ RULE 3: Role-Based Permissions - Only Admin (RoleId = 1) can delete
+            if (roleId.Value != 1) // Not Admin
             {
-                return Json(new { success = false, message = "Cannot delete the default profile picture" });
+                _logger.LogWarning($"Non-admin user (RoleId: {roleId.Value}) attempted to delete image: {request.ImageName}");
+                return Json(new { 
+                    success = false, 
+                    message = "Only administrators can delete profile pictures from the gallery",
+                    permissionDenied = true 
+                });
             }
 
-            // ✅ SECURITY: Validate filename
+            // ✅ SECURITY: Validate filename (prevent path traversal)
             if (request.ImageName.Contains("..") || request.ImageName.Contains("/") || request.ImageName.Contains("\\"))
             {
                 _logger.LogWarning($"Attempted path traversal: {request.ImageName}");
                 return Json(new { success = false, message = "Invalid image name" });
             }
 
+            // ✅ Determine which folder the image is in
             var templatesPath = Path.Combine(_environment.WebRootPath, "images", "profile", TEMPLATES_FOLDER);
-            var imagePath = Path.Combine(templatesPath, request.ImageName);
+            var usersPath = Path.Combine(_environment.WebRootPath, "images", "profile", USERS_FOLDER);
+            
+            var templateFilePath = Path.Combine(templatesPath, request.ImageName);
+            var userFilePath = Path.Combine(usersPath, request.ImageName);
+            
+            bool isTemplate = System.IO.File.Exists(templateFilePath);
+            bool isUserImage = System.IO.File.Exists(userFilePath);
+            
+            string imagePath;
+            string imageFolder;
+            
+            if (isTemplate)
+            {
+                imagePath = templateFilePath;
+                imageFolder = "templates";
+            }
+            else if (isUserImage)
+            {
+                imagePath = userFilePath;
+                imageFolder = "users";
+            }
+            else
+            {
+                return Json(new { success = false, message = "Image not found" });
+            }
 
-            // ✅ SECURITY: Ensure file is within templates directory
+            // ✅ RULE 1: Template Protection - NO images in templates/ folder can EVER be deleted
+            if (imageFolder == "templates")
+            {
+                _logger.LogWarning($"Attempted to delete template image: {request.ImageName}");
+                return Json(new { 
+                    success = false, 
+                    message = "Cannot delete template images. Templates are shared resources used by multiple users.",
+                    isTemplate = true
+                });
+            }
+
+            // ✅ RULE 2: Users Folder Deletion Rules - Check if image is in use
+            if (imageFolder == "users")
+            {
+                // Construct the relative path format used in database (e.g., "users/user_1_timestamp.jpg")
+                var relativePath = $"{USERS_FOLDER}/{request.ImageName}";
+                
+                // Check if ANY user is using this image
+                var usersUsingImage = await _userRepository.GetUsersByProfileImageAsync(relativePath);
+                var usersList = usersUsingImage.ToList();
+                
+                if (usersList.Any())
+                {
+                    // Build user list for error message
+                    var userDetails = usersList.Select(u => new
+                    {
+                        Name = $"{u.UserFirstName} {u.UserLastName}",
+                        Role = u.RoleId switch
+                        {
+                            1 => "Admin",
+                            2 => "Faculty",
+                            3 => "Student",
+                            _ => "Unknown"
+                        }
+                    }).ToList();
+                    
+                    var userNames = string.Join(", ", userDetails.Select(u => $"{u.Name} ({u.Role})"));
+                    
+                    _logger.LogWarning($"Attempted to delete in-use image: {request.ImageName}. Used by {usersList.Count} user(s)");
+                    
+                    return Json(new { 
+                        success = false, 
+                        message = $"Cannot delete: Image is currently used by {usersList.Count} user(s): {userNames}",
+                        inUse = true,
+                        usersCount = usersList.Count,
+                        users = userDetails
+                    });
+                }
+            }
+
+            // ✅ SECURITY: Ensure file is within allowed directories
             var fullImagePath = Path.GetFullPath(imagePath);
             var fullTemplatesPath = Path.GetFullPath(templatesPath);
+            var fullUsersPath = Path.GetFullPath(usersPath);
             
-            if (!fullImagePath.StartsWith(fullTemplatesPath))
+            if (!fullImagePath.StartsWith(fullTemplatesPath) && !fullImagePath.StartsWith(fullUsersPath))
             {
-                _logger.LogWarning($"Attempted to delete file outside templates directory: {request.ImageName}");
+                _logger.LogWarning($"Attempted to delete file outside allowed directories: {request.ImageName}");
                 return Json(new { success = false, message = "Invalid image path" });
             }
 
-            if (!System.IO.File.Exists(imagePath))
-            {
-                return Json(new { success = false, message = "Template not found" });
-            }
-
-            // ✅ DELETE TEMPLATE (no user assignment check needed - templates are copied, not referenced)
+            // ✅ ALL CHECKS PASSED - Delete the file
             System.IO.File.Delete(imagePath);
 
-            if (_auditService != null && HttpContext.Session.GetString("UserRole") == "Admin")
+            if (_auditService != null)
             {
                 await _auditService.LogActionAsync(
-                    "Template Image Deleted",
-                    $"Deleted template image: {request.ImageName}"
+                    "User Image Deleted",
+                    $"Admin deleted user image: {request.ImageName} from {imageFolder}/ folder"
                 );
             }
 
-            _logger.LogInformation($"DeleteGalleryImage - Successfully deleted template: {request.ImageName}");
-            return Json(new { success = true, message = $"Template '{request.ImageName}' has been deleted successfully" });
+            _logger.LogInformation($"DeleteGalleryImage - Successfully deleted: {request.ImageName} from {imageFolder}/");
+            return Json(new { 
+                success = true, 
+                message = $"Image '{request.ImageName}' has been deleted successfully",
+                folder = imageFolder
+            });
         }
         catch (Exception ex)
         {

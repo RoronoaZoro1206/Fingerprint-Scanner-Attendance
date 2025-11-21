@@ -1,7 +1,8 @@
 /**
  * Profile Picture Upload Modal - Dual Option
  * Handles both local file upload and server template selection
- * ✅ ENHANCED: Supports templates/users folder structure
+ * ✅ ENHANCED: Supports templates/users folder structure with comprehensive deletion rules
+ * ✅ COMPREHENSIVE: Template protection, role-based permissions, and in-use checks
  */
 
 class ProfilePictureModal {
@@ -14,6 +15,7 @@ class ProfilePictureModal {
         this.selectedServerImage = null;
         this.serverImages = [];
         this.templatesFolder = 'templates'; // ✅ NEW: Templates folder name
+        this.userRole = null; // ✅ NEW: User's role
         
         this.initModal();
     }
@@ -137,17 +139,16 @@ class ProfilePictureModal {
         });
 
         // ✅ FIX BUG #1: Single unified click handler to prevent double file dialog
-        // Use ONLY jQuery click handler with proper event prevention
         $(`#${this.modalId}-upload-area`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            e.stopImmediatePropagation(); // ✅ Prevent any other handlers from firing
+            e.stopImmediatePropagation();
             console.log('[Upload Area Click] User clicked upload area');
             self.triggerFileInput();
-            return false; // ✅ Extra safety to prevent default behavior
+            return false;
         });
 
-        // ✅ FIX BUG #1: Single file input change handler with one-time execution
+        // ✅ FIX BUG #1: Single file input change handler
         const fileInput = document.getElementById(`${this.modalId}-file-input`);
         if (fileInput) {
             // Remove any existing event listeners first
@@ -182,7 +183,6 @@ class ProfilePictureModal {
         // ✅ FIX: Improved drag and drop handlers
         const uploadArea = document.getElementById(`${this.modalId}-upload-area`);
         if (uploadArea) {
-            // Prevent default drag behaviors
             uploadArea.addEventListener('dragenter', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -253,7 +253,6 @@ class ProfilePictureModal {
 
     /**
      * ✅ FIX BUG #1: Centralized function to trigger file input
-     * This ensures consistent behavior and prevents multiple dialogs
      */
     triggerFileInput() {
         console.log('[Trigger] Opening file dialog');
@@ -394,7 +393,7 @@ class ProfilePictureModal {
 
             if (response.success && response.images) {
                 self.serverImages = response.images;
-                self.templatesFolder = response.folder || 'templates'; // ✅ Get folder name from server
+                self.templatesFolder = response.folder || 'templates';
                 console.log(`[Server Images] Loaded ${self.serverImages.length} template images from ${self.templatesFolder}`);
                 self.renderServerImages(response.images);
             } else {
@@ -411,7 +410,7 @@ class ProfilePictureModal {
     }
 
     /**
-     * Render server template images grid
+     * ✅ COMPREHENSIVE: Render server template images with role-based delete button visibility
      */
     renderServerImages(images) {
         const gridContainer = $(`#${this.modalId}-server-images`);
@@ -424,8 +423,8 @@ class ProfilePictureModal {
 
         console.log('[Server Images] Rendering', images.length, 'template images');
 
+        // ✅ RULE 1: Templates can NEVER be deleted (no delete button shown for templates)
         images.forEach(imageName => {
-            // ✅ ENHANCED: Template images are in templates folder
             const imageItem = $(`
                 <div class="server-image-item" data-image="${imageName}">
                     <img src="/images/profile/${this.templatesFolder}/${imageName}" alt="${imageName}" loading="lazy" 
@@ -433,9 +432,6 @@ class ProfilePictureModal {
                     <div class="server-image-overlay">
                         <i data-lucide="check-circle" class="overlay-checkmark"></i>
                     </div>
-                    <button type="button" class="btn-delete-gallery-image" data-image="${imageName}" title="Delete template">
-                        <i data-lucide="trash-2"></i>
-                    </button>
                 </div>
             `);
 
@@ -443,11 +439,6 @@ class ProfilePictureModal {
                 if (!$(e.target).closest('.btn-delete-gallery-image').length) {
                     this.selectServerImage(imageName);
                 }
-            });
-
-            imageItem.find('.btn-delete-gallery-image').on('click', (e) => {
-                e.stopPropagation();
-                this.confirmDeleteImage(imageName);
             });
 
             gridContainer.append(imageItem);
@@ -463,6 +454,8 @@ class ProfilePictureModal {
 
     /**
      * Confirm template deletion with SweetAlert2
+     * ✅ NOTE: This function will never be called for templates (delete button hidden)
+     * Kept for consistency, but templates are protected
      */
     confirmDeleteImage(imageName) {
         const self = this;
@@ -471,53 +464,36 @@ class ProfilePictureModal {
             title: 'Delete Template?',
             html: `
                 <div style="text-align: left; margin-top: 1rem;">
-                    <p style="color: #6b7280; margin-bottom: 0.5rem;">Are you sure you want to delete this template?</p>
-                    <p style="font-weight: 600; color: #1a1a1a; margin-bottom: 0.5rem;">${imageName}</p>
-                    <p style="color: #3b82f6; font-size: 0.875rem; margin-top: 1rem; background: #eff6ff; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #3b82f6;">
-                        <i data-lucide="info" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
-                        Users who selected this template have their own copies and will not be affected.
+                    <p style="color: #dc2626; font-size: 0.875rem; margin-bottom: 0.75rem; background: #fee2e2; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #dc2626;">
+                        <i data-lucide="shield" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
+                        <strong>Templates are protected and cannot be deleted.</strong>
                     </p>
-                    <p style="color: #dc2626; font-size: 0.875rem; margin-top: 0.75rem;">
-                        <i data-lucide="alert-triangle" style="width: 16px; height: 16px; vertical-align: middle;"></i>
-                        This action cannot be undone.
-                    </p>
+                    <p style="color: #6b7280; margin-bottom: 0;">Templates are shared resources used by all users and are managed at the system level.</p>
                 </div>
             `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: '<i data-lucide="trash-2" style="width: 16px; height: 16px; margin-right: 4px;"></i> Delete Template',
-            cancelButtonText: 'Cancel',
+            icon: 'error',
+            confirmButtonText: 'OK',
             confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            focusCancel: true,
-            customClass: {
-                popup: 'swal2-delete-confirmation',
-                confirmButton: 'swal2-confirm-delete',
-                cancelButton: 'swal2-cancel'
-            },
             didOpen: () => {
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                self.deleteImage(imageName);
             }
         });
     }
 
     /**
      * Delete template image from server
+     * ✅ COMPREHENSIVE: Role check and template protection
      */
     async deleteImage(imageName) {
         const self = this;
-        console.log('[Delete Template] Deleting:', imageName);
+        console.log('[Delete Image] Attempting to delete:', imageName);
 
         try {
             Swal.fire({
-                title: 'Deleting Template...',
-                html: 'Please wait while the template is being deleted.',
+                title: 'Deleting Image...',
+                html: 'Please wait while the image is being deleted.',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 didOpen: () => {
@@ -551,30 +527,82 @@ class ProfilePictureModal {
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'Template Deleted!',
+                    title: 'Image Deleted!',
                     html: `
                         <div style="text-align: center; padding: 0.5rem;">
-                            <p style="color: #6b7280; margin-bottom: 0;">Template has been deleted successfully.</p>
-                            <p style="color: #3b82f6; font-size: 0.875rem; margin-top: 0.75rem; background: #eff6ff; padding: 0.5rem; border-radius: 0.375rem;">
-                                Users with copies of this template are not affected.
-                            </p>
+                            <p style="color: #6b7280; margin-bottom: 0;">Image has been deleted successfully.</p>
                         </div>
                     `,
                     timer: 3000,
                     showConfirmButton: false
                 });
 
-                console.log('[Delete Template] ✅ Template deleted successfully');
+                console.log('[Delete Image] ✅ Image deleted successfully');
+            } else if (response.permissionDenied) {
+                // ✅ RULE 3: Non-admin attempted deletion
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Permission Denied',
+                    text: response.message || 'Only administrators can delete profile pictures from the gallery',
+                    confirmButtonColor: '#3b82f6'
+                });
+            } else if (response.isTemplate) {
+                // ✅ RULE 1: Template protection
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Cannot Delete Template',
+                    html: `
+                        <div style="text-align: left; margin-top: 1rem;">
+                            <p style="color: #6b7280; margin-bottom: 0.5rem;">${response.message}</p>
+                            <p style="color: #3b82f6; font-size: 0.875rem; margin-top: 0.75rem; background: #eff6ff; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #3b82f6;">
+                                <i data-lucide="info" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
+                                Templates are shared resources used by multiple users.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonColor: '#dc2626',
+                    didOpen: () => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }
+                });
+            } else if (response.inUse) {
+                // ✅ RULE 2: Image is in use
+                const usersList = response.users.map(u => `<li><strong>${u.Name}</strong> (${u.Role})</li>`).join('');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Cannot Delete Image',
+                    html: `
+                        <div style="text-align: left; margin-top: 1rem;">
+                            <p style="color: #6b7280; margin-bottom: 0.75rem;">This image is currently in use by:</p>
+                            <ul style="text-align: left; margin-bottom: 0.75rem; padding-left: 1.5rem;">
+                                ${usersList}
+                            </ul>
+                            <p style="color: #dc2626; font-size: 0.875rem; background: #fee2e2; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #dc2626;">
+                                <i data-lucide="alert-triangle" style="width: 16px; height: 16px; vertical-align: middle;"></i>
+                                Please change their profile pictures first before deleting this image.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonColor: '#dc2626',
+                    didOpen: () => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    }
+                });
             } else {
-                throw new Error(response.message || 'Failed to delete template');
+                throw new Error(response.message || 'Failed to delete image');
             }
         } catch (error) {
-            console.error('[Delete Template] Error:', error);
+            console.error('[Delete Image] Error:', error);
             
             Swal.fire({
                 icon: 'error',
                 title: 'Deletion Failed',
-                text: error.message || 'Failed to delete template. Please try again.',
+                text: error.message || 'Failed to delete image. Please try again.',
                 confirmButtonColor: '#dc2626'
             });
         }
