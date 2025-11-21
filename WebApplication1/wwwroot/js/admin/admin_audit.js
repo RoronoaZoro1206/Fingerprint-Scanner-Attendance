@@ -163,7 +163,7 @@ window.viewAudit = async function(id) {
     try {
         // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, ''}
+        const numericId = id.replace(/^(ADM-|AUTH-)/, ''); // ✅ FIX: Added missing closing quote
 
         const response = await fetch(`/AdminAudit/GetById/${numericId}?isAuth=${isAuthLog}`);
         const result = await response.json();
@@ -222,7 +222,7 @@ async function confirmDeleteAudit() {
     try {
         // ✅ Parse the ID to extract the numeric part and type
         const isAuthLog = id.startsWith('AUTH-');
-        const numericId = id.replace(/^(ADM-|AUTH-)/, ''};
+        const numericId = id.replace(/^(ADM-|AUTH-)/, ''); // ✅ FIX: Added missing closing quote
 
         // ✅ FIX: Use DELETE method with route parameter
         const response = await fetch(`/AdminAudit/Delete/${numericId}?isAuth=${isAuthLog}`, {
