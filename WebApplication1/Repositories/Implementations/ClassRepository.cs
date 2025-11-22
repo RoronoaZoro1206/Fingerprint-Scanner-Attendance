@@ -319,6 +319,7 @@ public class ClassRepository : IClassRepository
 
     public async Task<IEnumerable<FacultyClassDto>> GetFacultyClassesAsync(int facId)
     {
+        // ✅ FIX: Changed from MIN(sched_id) subquery to STRING_AGG to include ALL schedules
         string query = @"
             SELECT 
                 c.class_id,
@@ -327,10 +328,21 @@ public class ClassRepository : IClassRepository
                 COALESCE(r.room_code, 'N/A') AS room_name,
                 COALESCE(t.term_name, 'N/A') AS term_name,
                 COALESCE(
-                    CONCAT(
-                        cs.sched_day_of_week, ' ',
-                        TO_CHAR(cs.sched_start_time, 'HH24:MI'), ' - ',
-                        TO_CHAR(cs.sched_end_time, 'HH24:MI')
+                    STRING_AGG(
+                        cs.sched_day_of_week || ' ' || 
+                        TO_CHAR(cs.sched_start_time, 'HH12:MI') || ' - ' || 
+                        TO_CHAR(cs.sched_end_time, 'HH12:MI'), 
+                        ', ' ORDER BY 
+                            CASE cs.sched_day_of_week
+                                WHEN 'Monday' THEN 1
+                                WHEN 'Tuesday' THEN 2
+                                WHEN 'Wednesday' THEN 3
+                                WHEN 'Thursday' THEN 4
+                                WHEN 'Friday' THEN 5
+                                WHEN 'Saturday' THEN 6
+                                WHEN 'Sunday' THEN 7
+                            END,
+                            cs.sched_start_time
                     ),
                     ''
                 ) AS schedule,
@@ -342,16 +354,9 @@ public class ClassRepository : IClassRepository
             LEFT JOIN courses co ON c.course_id = co.course_id
             LEFT JOIN rooms r ON c.room_id = r.room_id
             LEFT JOIN academic_terms t ON c.term_id = t.term_id
-            LEFT JOIN (
-                SELECT class_id, sched_day_of_week, sched_start_time, sched_end_time
-                FROM class_schedules
-                WHERE (class_id, sched_id) IN (
-                    SELECT class_id, MIN(sched_id)
-                    FROM class_schedules
-                    GROUP BY class_id
-                )
-            ) cs ON c.class_id = cs.class_id
+            LEFT JOIN class_schedules cs ON c.class_id = cs.class_id
             WHERE c.fac_id = @facId
+            GROUP BY c.class_id, co.course_code, co.course_name, r.room_code, t.term_name
             ORDER BY c.class_id;";
 
         var parameters = new Dictionary<string, object> { { "@facId", facId } };
