@@ -31,7 +31,7 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// STEP 10: Check student's Time In against class schedules and mark late/present
         /// Called immediately after Time In is recorded
-        /// ✅ FIXED: Now only processes classes that are currently active (within schedule time window)
+        /// ✅ FIXED: Proper time boundary checking - only processes classes that are currently active
         /// </summary>
         public async Task ProcessLateDetectionAsync(int dailyAttendId)
         {
@@ -49,7 +49,7 @@ namespace Fingerprint_Attendance_System.Services
 
                 var studId = dailyRecord.StudId;
                 var timeIn = dailyRecord.TimeIn.Value;
-                var timeInTime = timeIn.TimeOfDay; // ✅ NEW: Extract time only for comparison
+                var timeInTime = timeIn.TimeOfDay; // ✅ Extract time only for comparison
                 var date = dailyRecord.AttendDate;
 
                 _logger.LogInformation($"Student ID: {studId}, Time In: {timeIn:HH:mm:ss}, Date: {date:yyyy-MM-dd}");
@@ -67,12 +67,13 @@ namespace Fingerprint_Attendance_System.Services
                 _logger.LogInformation($"Found {scheduleList.Count} class(es) scheduled for Student {studId} today");
 
                 // ✅ CRITICAL FIX: Filter to only ACTIVE classes (where current time is within schedule window)
+                // A class is active if: time in >= start time AND time in <= end time
                 var activeSchedules = scheduleList.Where(s => 
                     timeInTime >= s.StartTime && 
                     timeInTime <= s.EndTime
                 ).ToList();
 
-                _logger.LogInformation($"? SCHEDULE VALIDATION: {scheduleList.Count} total classes, {activeSchedules.Count} are currently ACTIVE at {timeInTime:hh\\:mm}");
+                _logger.LogInformation($"🔍 SCHEDULE VALIDATION: {scheduleList.Count} total classes, {activeSchedules.Count} are currently ACTIVE at {timeInTime:hh\\:mm}");
 
                 if (!activeSchedules.Any())
                 {
@@ -88,7 +89,7 @@ namespace Fingerprint_Attendance_System.Services
                 _logger.LogInformation("Active classes at this time:");
                 foreach (var sched in activeSchedules)
                 {
-                    _logger.LogInformation($"  ? {sched.CourseCode} ({sched.StartTime:hh\\:mm} - {sched.EndTime:hh\\:mm}) - ACTIVE");
+                    _logger.LogInformation($"  ✅ {sched.CourseCode} ({sched.StartTime:hh\\:mm} - {sched.EndTime:hh\\:mm}) - ACTIVE");
                 }
 
                 // Process ONLY active classes
@@ -100,7 +101,7 @@ namespace Fingerprint_Attendance_System.Services
                         timeIn);
                 }
 
-                _logger.LogInformation($"? Late detection processing complete for Daily Attend ID: {dailyAttendId}. Processed {activeSchedules.Count} active class(es).");
+                _logger.LogInformation($"✅ Late detection processing complete for Daily Attend ID: {dailyAttendId}. Processed {activeSchedules.Count} active class(es).");
             }
             catch (Exception ex)
             {

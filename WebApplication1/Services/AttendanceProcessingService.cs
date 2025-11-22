@@ -407,25 +407,44 @@ namespace Fingerprint_Attendance_System.Services
         }
 
         /// <summary>
-        /// ✅ NEW: Validate student has a scheduled class at current time
+        /// ✅ FIXED: Validate student has a scheduled class at current time
         /// This ensures students can only time in when they have an actual class
+        /// CRITICAL FIX: Proper time boundary handling for edge cases like 12:03 PM
         /// </summary>
         private async Task<ScheduleStatusDto> ValidateScheduleAsync(int studId)
         {
             try
             {
                 var currentTime = DateTime.Now;
-                var currentDay = currentTime.ToString("dddd"); // e.g., "Monday"
+                var currentDay = currentTime.ToString("dddd"); // e.g., "Monday", "Saturday"
                 var currentTimeOnly = currentTime.TimeOfDay;
 
-                _logger.LogInformation($"Schedule validation: Student={studId}, Day={currentDay}, Time={currentTimeOnly:hh\\:mm}");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] ===== START VALIDATION =====");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Student ID: {studId}");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Current DateTime: {currentTime:yyyy-MM-dd HH:mm:ss}");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Day of Week: '{currentDay}'");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Time Only: {currentTimeOnly:hh\\:mm\\:ss}");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Time (total seconds): {currentTimeOnly.TotalSeconds}");
 
                 // Get all student's enrolled classes
                 var enrollments = await _enrollmentRepo.GetByStudentIdAsync(studId);
+                
+                if (enrollments == null)
+                {
+                    _logger.LogWarning($"[VALIDATE SCHEDULE] GetByStudentIdAsync returned NULL");
+                    return new ScheduleStatusDto
+                    {
+                        HasScheduledClass = false,
+                        Message = "Unable to retrieve enrollments. Please contact support."
+                    };
+                }
+                
                 var classIds = enrollments.Select(e => e.ClassId).ToList();
 
                 if (!classIds.Any())
                 {
+                    _logger.LogWarning($"[VALIDATE SCHEDULE] Student has no enrollments");
+                    _logger.LogInformation($"[VALIDATE SCHEDULE] ===== END VALIDATION (NO ENROLLMENTS) =====");
                     return new ScheduleStatusDto
                     {
                         HasScheduledClass = false,
@@ -433,22 +452,77 @@ namespace Fingerprint_Attendance_System.Services
                     };
                 }
 
-                // Check if any class is scheduled for this day/time
+                _logger.LogInformation($"[VALIDATE SCHEDULE] Found {classIds.Count} enrolled class(es): [{string.Join(", ", classIds)}]");
+
+                // ✅ CRITICAL FIX: Check if any class is scheduled for this day/time
+                // Iterate through ALL classes and ALL schedules
+                int totalSchedulesChecked = 0;
+                int matchingDayCount = 0;
+                int matchingTimeCount = 0;
+                
                 foreach (var classId in classIds)
                 {
+                    _logger.LogInformation($"[VALIDATE SCHEDULE] ----- Checking Class ID {classId} -----");
+                    
                     var schedules = await _scheduleRepo.GetByClassIdAsync(classId);
                     
-                    foreach (var schedule in schedules)
+                    if (schedules == null)
                     {
-                        // Match day of week (case-insensitive, trimmed)
-                        bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(currentDay.Trim(), StringComparison.OrdinalIgnoreCase);
+                        _logger.LogWarning($"[VALIDATE SCHEDULE] GetByClassIdAsync returned NULL for Class ID {classId}");
+                        continue;
+                    }
+                    
+                    var schedulesList = schedules.ToList();
+                    
+                    _logger.LogInformation($"[VALIDATE SCHEDULE] Class ID {classId}: {schedulesList.Count} schedule(s) found");
+                    
+                    foreach (var schedule in schedulesList)
+                    {
+                        if (schedule == null)
+                        {
+                            _logger.LogWarning($"[VALIDATE SCHEDULE] NULL schedule entry in list - SKIPPING");
+                            continue;
+                        }
+                        
+                        totalSchedulesChecked++;
+                        
+                        _logger.LogInformation($"[VALIDATE SCHEDULE] --- Schedule #{totalSchedulesChecked} (SchedId: {schedule.SchedId}) ---");
+                        _logger.LogInformation($"[VALIDATE SCHEDULE]   DB Day: '{schedule.SchedDayOfWeek}' (trimmed: '{schedule.SchedDayOfWeek?.Trim()}')");
+                        _logger.LogInformation($"[VALIDATE SCHEDULE]   DB Start: {schedule.SchedStartTime:hh\\:mm\\:ss}");
+                        _logger.LogInformation($"[VALIDATE SCHEDULE]   DB End: {schedule.SchedEndTime:hh\\:mm\\:ss}");
+                        
+                        // ✅ CRITICAL FIX: Match day of week (case-insensitive, trimmed)
+                        bool dayMatch = schedule.SchedDayOfWeek?.Trim().Equals(currentDay.Trim(), StringComparison.OrdinalIgnoreCase) ?? false;
+                        
+                        _logger.LogInformation($"[VALIDATE SCHEDULE]   Day Match: {dayMatch}");
+                        _logger.LogInformation($"[VALIDATE SCHEDULE]     Comparing: DB='{schedule.SchedDayOfWeek?.Trim()}' vs Current='{currentDay.Trim()}'");
                         
                         if (dayMatch)
                         {
-                            // Check if current time is within class time
-                            if (currentTimeOnly >= schedule.SchedStartTime && currentTimeOnly <= schedule.SchedEndTime)
+                            matchingDayCount++;
+                            
+                            // ✅ CRITICAL FIX: Proper time boundary checking
+                            // A class is active if: current time >= start time AND current time <= end time
+                            // Example: 12:03 PM is WITHIN 12:00 PM - 4:00 PM (active)
+                            // Example: 12:03 PM is NOT WITHIN 10:00 AM - 12:00 PM (class ended 3 minutes ago)
+                            bool afterStart = currentTimeOnly >= schedule.SchedStartTime;
+                            bool beforeEnd = currentTimeOnly <= schedule.SchedEndTime;
+                            bool timeMatch = afterStart && beforeEnd;
+                            
+                            _logger.LogInformation($"[VALIDATE SCHEDULE]   Time Check:");
+                            _logger.LogInformation($"[VALIDATE SCHEDULE]     After Start: {afterStart} ({currentTimeOnly.TotalSeconds}s >= {schedule.SchedStartTime.TotalSeconds}s)");
+                            _logger.LogInformation($"[VALIDATE SCHEDULE]     Before End: {beforeEnd} ({currentTimeOnly.TotalSeconds}s <= {schedule.SchedEndTime.TotalSeconds}s)");
+                            _logger.LogInformation($"[VALIDATE SCHEDULE]     Time Match: {timeMatch}");
+                            
+                            if (timeMatch)
                             {
-                                _logger.LogInformation($"✅ Schedule validated: ClassId={classId}, {currentDay} {schedule.SchedStartTime}-{schedule.SchedEndTime}");
+                                matchingTimeCount++;
+                                
+                                _logger.LogInformation($"[VALIDATE SCHEDULE] ✅✅✅ SCHEDULE VALIDATED! ✅✅✅");
+                                _logger.LogInformation($"[VALIDATE SCHEDULE] ClassId: {classId}, SchedId: {schedule.SchedId}");
+                                _logger.LogInformation($"[VALIDATE SCHEDULE] {currentDay} {schedule.SchedStartTime:hh\\:mm tt}-{schedule.SchedEndTime:hh\\:mm tt}");
+                                _logger.LogInformation($"[VALIDATE SCHEDULE] ===== END VALIDATION (SUCCESS) =====");
+                                
                                 return new ScheduleStatusDto
                                 {
                                     HasScheduledClass = true,
@@ -458,11 +532,26 @@ namespace Fingerprint_Attendance_System.Services
                                     EndTime = schedule.SchedEndTime
                                 };
                             }
+                            else
+                            {
+                                _logger.LogInformation($"[VALIDATE SCHEDULE]   ❌ Day matched but time did NOT match");
+                                _logger.LogInformation($"[VALIDATE SCHEDULE]   Reason: Class is {'<'}{(afterStart ? "AFTER" : "BEFORE")} start time OR {'>'}{(beforeEnd ? "BEFORE" : "AFTER")} end time");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogDebug($"[VALIDATE SCHEDULE]   ❌ Day did NOT match - SKIPPING time check");
                         }
                     }
                 }
 
-                _logger.LogWarning($"❌ No scheduled class: Student={studId}, {currentDay} at {currentTimeOnly:hh\\:mm}");
+                _logger.LogWarning($"[VALIDATE SCHEDULE] ❌ NO SCHEDULED CLASS FOUND");
+                _logger.LogWarning($"[VALIDATE SCHEDULE] Summary:");
+                _logger.LogWarning($"[VALIDATE SCHEDULE]   Total Schedules Checked: {totalSchedulesChecked}");
+                _logger.LogWarning($"[VALIDATE SCHEDULE]   Matching Day: {matchingDayCount}");
+                _logger.LogWarning($"[VALIDATE SCHEDULE]   Matching Day AND Time: {matchingTimeCount}");
+                _logger.LogWarning($"[VALIDATE SCHEDULE]   Current: {currentDay} at {currentTimeOnly:hh\\:mm\\:ss}");
+                _logger.LogInformation($"[VALIDATE SCHEDULE] ===== END VALIDATION (NO MATCH) =====");
                 
                 return new ScheduleStatusDto
                 {
@@ -472,7 +561,7 @@ namespace Fingerprint_Attendance_System.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error validating schedule for student {studId}");
+                _logger.LogError(ex, $"[VALIDATE SCHEDULE] EXCEPTION during validation for student {studId}");
                 return new ScheduleStatusDto
                 {
                     HasScheduledClass = false,

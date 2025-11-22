@@ -59,14 +59,79 @@ public class ClassScheduleRepository : IClassScheduleRepository
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
 
-        return dt.AsEnumerable().Select(row => new ClassSchedule
+        // ✅ CRITICAL DEBUG: Log row count to verify data retrieval
+        Console.WriteLine($"[REPO DEBUG] ===== GetByClassIdAsync({classId}) =====");
+        Console.WriteLine($"[REPO DEBUG] SQL Query: SELECT sched_id, class_id, sched_day_of_week, sched_start_time, sched_end_time FROM class_schedules WHERE class_id = {classId}");
+        Console.WriteLine($"[REPO DEBUG] Retrieved {dt.Rows.Count} row(s) from database");
+        
+        if (dt.Rows.Count == 0)
         {
-            SchedId = Convert.ToInt32(row["sched_id"]),
-            ClassId = Convert.ToInt32(row["class_id"]),
-            SchedDayOfWeek = row["sched_day_of_week"].ToString() ?? "",
-            SchedStartTime = (TimeSpan)row["sched_start_time"],
-            SchedEndTime = (TimeSpan)row["sched_end_time"]
-        });
+            Console.WriteLine($"[REPO DEBUG] ⚠️ WARNING: No schedules found for Class ID {classId}");
+            Console.WriteLine($"[REPO DEBUG] Possible reasons:");
+            Console.WriteLine($"[REPO DEBUG]   1. Class has no schedules assigned");
+            Console.WriteLine($"[REPO DEBUG]   2. Database connection issue");
+            Console.WriteLine($"[REPO DEBUG]   3. Invalid class_id parameter");
+            Console.WriteLine($"[REPO DEBUG] ===== END GetByClassIdAsync({classId}) (EMPTY) =====");
+            return Enumerable.Empty<ClassSchedule>();
+        }
+
+        var schedules = new List<ClassSchedule>();
+        
+        for (int index = 0; index < dt.Rows.Count; index++)
+        {
+            var row = dt.Rows[index];
+            
+            // ✅ CRITICAL FIX: Validate row data before creating object
+            if (row["sched_id"] == DBNull.Value || 
+                row["class_id"] == DBNull.Value || 
+                row["sched_day_of_week"] == DBNull.Value ||
+                row["sched_start_time"] == DBNull.Value ||
+                row["sched_end_time"] == DBNull.Value)
+            {
+                Console.WriteLine($"[REPO DEBUG] ⚠️ Row {index + 1}: Contains NULL values - SKIPPING");
+                Console.WriteLine($"[REPO DEBUG]   sched_id: {row["sched_id"]}");
+                Console.WriteLine($"[REPO DEBUG]   class_id: {row["class_id"]}");
+                Console.WriteLine($"[REPO DEBUG]   sched_day_of_week: {row["sched_day_of_week"]}");
+                Console.WriteLine($"[REPO DEBUG]   sched_start_time: {row["sched_start_time"]}");
+                Console.WriteLine($"[REPO DEBUG]   sched_end_time: {row["sched_end_time"]}");
+                continue;
+            }
+            
+            var schedule = new ClassSchedule
+            {
+                SchedId = Convert.ToInt32(row["sched_id"]),
+                ClassId = Convert.ToInt32(row["class_id"]),
+                SchedDayOfWeek = row["sched_day_of_week"]?.ToString() ?? "",
+                SchedStartTime = (TimeSpan)row["sched_start_time"],
+                SchedEndTime = (TimeSpan)row["sched_end_time"]
+            };
+            
+            // ✅ CRITICAL DEBUG: Log each schedule retrieved with detailed information
+            Console.WriteLine($"[REPO DEBUG] ----- Row {index + 1} -----");
+            Console.WriteLine($"[REPO DEBUG]   sched_id: {schedule.SchedId}");
+            Console.WriteLine($"[REPO DEBUG]   class_id: {schedule.ClassId}");
+            Console.WriteLine($"[REPO DEBUG]   Day: '{schedule.SchedDayOfWeek}' (length: {schedule.SchedDayOfWeek.Length}, bytes: {string.Join(" ", System.Text.Encoding.UTF8.GetBytes(schedule.SchedDayOfWeek).Select(b => b.ToString("X2")))})");
+            Console.WriteLine($"[REPO DEBUG]   Start: {schedule.SchedStartTime:hh\\:mm\\:ss} (total seconds: {schedule.SchedStartTime.TotalSeconds})");
+            Console.WriteLine($"[REPO DEBUG]   End: {schedule.SchedEndTime:hh\\:mm\\:ss} (total seconds: {schedule.SchedEndTime.TotalSeconds})");
+            
+            // ✅ VALIDATE: Check for common data issues
+            if (string.IsNullOrWhiteSpace(schedule.SchedDayOfWeek))
+            {
+                Console.WriteLine($"[REPO DEBUG]   ⚠️ WARNING: Day of week is empty or whitespace!");
+            }
+            
+            if (schedule.SchedStartTime >= schedule.SchedEndTime && schedule.SchedEndTime != TimeSpan.Zero)
+            {
+                Console.WriteLine($"[REPO DEBUG]   ℹ️ INFO: Start time >= End time (possible midnight-crossing schedule)");
+            }
+            
+            schedules.Add(schedule);
+        }
+        
+        Console.WriteLine($"[REPO DEBUG] Successfully converted {schedules.Count} schedule(s) to ClassSchedule objects");
+        Console.WriteLine($"[REPO DEBUG] ===== END GetByClassIdAsync({classId}) (SUCCESS) =====");
+        
+        return schedules;
     }
 
     public async Task<bool> AddAsync(ClassSchedule sched)

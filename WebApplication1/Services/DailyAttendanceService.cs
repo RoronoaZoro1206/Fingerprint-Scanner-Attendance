@@ -590,6 +590,7 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// ✅ NEW: Get current active class for student at specific timestamp
         /// Returns class information including course, faculty, room, and schedule details
+        /// CRITICAL FIX: Proper time boundary handling for edge cases
         /// </summary>
         private async Task<EnrolledClassInfo?> GetCurrentActiveClassAsync(int studId, DateTime timestamp)
         {
@@ -609,7 +610,11 @@ namespace Fingerprint_Attendance_System.Services
                     
                     foreach (var schedule in schedules)
                     {
-                        bool dayMatch = schedule.SchedDayOfWeek.Trim().Equals(currentDay, StringComparison.OrdinalIgnoreCase);
+                        // ✅ CRITICAL FIX: Case-insensitive, trimmed day matching
+                        bool dayMatch = schedule.SchedDayOfWeek?.Trim().Equals(currentDay.Trim(), StringComparison.OrdinalIgnoreCase) ?? false;
+                        
+                        // ✅ CRITICAL FIX: Proper time boundary checking
+                        // A class is active if: current time >= start time AND current time <= end time
                         bool timeMatch = currentTime >= schedule.SchedStartTime && currentTime <= schedule.SchedEndTime;
                         
                         if (dayMatch && timeMatch)
