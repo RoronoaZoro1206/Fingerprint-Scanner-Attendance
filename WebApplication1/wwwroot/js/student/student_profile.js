@@ -13,22 +13,12 @@ $(document).ready(function () {
 
     // Load profile data
     loadProfile();
-    loadPrograms();
-    loadSections();
+    // ✅ SECURITY FIX: Removed loadPrograms() and loadSections() - students cannot edit academic info
 
     // Form submission
     $('#profileForm').on('submit', function (e) {
         e.preventDefault();
         saveProfile();
-    });
-
-    // Filter sections by program and year level
-    $('#program, #yearLevel').on('change', filterSections);
-
-    // Confirm lock button in modal
-    $('#btnConfirmLock').on('click', function () {
-        hideModal('profileLockModal');
-        submitProfileUpdate();
     });
 
     // Setup modal icon reinitialization
@@ -92,136 +82,16 @@ function displayProfile(data) {
     $('#phone').val(data.userPhone || '');
     $('#address').val(data.userAddress || '');
 
-    // Academic information
+    // ✅ SECURITY FIX: Academic information is READ-ONLY for students
+    // Display values but fields remain disabled
     if (data.programId) {
-        $('#program').val(data.programId);
+        $('#program').append(`<option value="${data.programId}" selected>${data.programName || 'Program'}</option>`);
     }
     if (data.studYearLevel) {
         $('#yearLevel').val(data.studYearLevel);
     }
     if (data.sectionId) {
-        $('#section').val(data.sectionId);
-    }
-
-    // Lock program field if profile is submitted (year level and section remain editable)
-    if (data.profileSubmitted) {
-        $('#program').prop('disabled', true);
-        $('#yearLevel').prop('disabled', false);
-        $('#section').prop('disabled', false);
-        
-        // Add visual indicator
-        if (!$('#academicLockNotice').length) {
-            $('.form-section:has(#program)').prepend(`
-                <div id="academicLockNotice" class="alert alert-info" style="margin-bottom: 1rem;">
-                    <i data-lucide="lock" style="width: 16px; height: 16px; vertical-align: middle;"></i>
-                    <strong>Program Locked</strong><br>
-                    Your program was locked on ${new Date(data.profileSubmittedAt).toLocaleString()}.
-                    You can still update your year level and section as you progress.
-                    Contact administration if you need to change your program.
-                </div>
-            `);
-            initializeLucideIcons();
-        }
-    } else {
-        $('#program').prop('disabled', false);
-        $('#yearLevel').prop('disabled', false);
-        $('#section').prop('disabled', false);
-        $('#academicLockNotice').remove();
-    }
-
-    // Filter sections after loading
-    filterSections();
-}
-
-/**
- * Load programs
- */
-function loadPrograms() {
-    $.ajax({
-        url: '/StudentProfile/GetPrograms',
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                programsData = response.data;
-                populateProgramDropdown();
-            }
-        },
-        error: function () {
-            console.error('Failed to load programs');
-        }
-    });
-}
-
-/**
- * Populate program dropdown
- */
-function populateProgramDropdown() {
-    const $select = $('#program');
-    $select.find('option:not(:first)').remove();
-
-    programsData.forEach(program => {
-        $select.append(`<option value="${program.programId}">${program.programName} (${program.programCode})</option>`);
-    });
-
-    // Restore selected value if exists
-    if (profileData && profileData.programId) {
-        $select.val(profileData.programId);
-    }
-}
-
-/**
- * Load sections
- */
-function loadSections() {
-    $.ajax({
-        url: '/StudentProfile/GetSections',
-        type: 'GET',
-        success: function (response) {
-            if (response.success) {
-                sectionsData = response.data;
-                filterSections();
-            }
-        },
-        error: function () {
-            console.error('Failed to load sections');
-        }
-    });
-}
-
-/**
- * Filter sections by program and year level
- */
-function filterSections() {
-    const $select = $('#section');
-    const selectedProgramId = parseInt($('#program').val()) || null;
-    const selectedYearLevel = parseInt($('#yearLevel').val()) || null;
-    const currentSectionId = profileData?.sectionId;
-
-    $select.find('option:not(:first)').remove();
-
-    let filteredSections = sectionsData;
-
-    // Filter by program
-    if (selectedProgramId) {
-        filteredSections = filteredSections.filter(s => s.programId === selectedProgramId);
-    }
-
-    // Filter by year level
-    if (selectedYearLevel) {
-        filteredSections = filteredSections.filter(s => s.yearLevel === selectedYearLevel);
-    }
-
-    // Populate dropdown
-    filteredSections.forEach(section => {
-        $select.append(`<option value="${section.sectionId}">${section.sectionName}</option>`);
-    });
-
-    // Restore selected value if exists and is in filtered list
-    if (currentSectionId) {
-        const sectionExists = filteredSections.some(s => s.sectionId === currentSectionId);
-        if (sectionExists) {
-            $select.val(currentSectionId);
-        }
+        $('#section').append(`<option value="${data.sectionId}" selected>${data.sectionName || 'Section'}</option>`);
     }
 }
 
@@ -235,19 +105,8 @@ function saveProfile() {
         return;
     }
 
-    const programId = $('#program').val();
-    if (!programId) {
-        Toast.warning('Please select a program. This is required for class enrollment.');
-        return;
-    }
-
-    // Show confirmation modal if this is the first submission
-    if (!profileData.profileSubmitted && programId) {
-        showModal('profileLockModal');
-        return;
-    }
-
-    // If already submitted or no modal needed, proceed with save
+    // ✅ SECURITY FIX: Removed program validation - students cannot edit academic info
+    // Just save personal information only
     submitProfileUpdate();
 }
 
@@ -255,6 +114,7 @@ function saveProfile() {
  * Submit profile update to server
  */
 function submitProfileUpdate() {
+    // ✅ SECURITY FIX: Only send personal information - exclude academic fields
     const profileUpdate = {
         UserFirstName: $('#firstName').val().trim(),
         UserMiddleName: $('#middleName').val().trim() || null,
@@ -262,11 +122,8 @@ function submitProfileUpdate() {
         UserPhone: $('#phone').val().trim() || null,
         UserGender: $('#gender').val() || null,
         UserBirthdate: $('#birthdate').val() || null,
-        UserAddress: $('#address').val().trim() || null,
-        StudNumber: profileData?.studNumber || null,
-        ProgramId: $('#program').val() ? parseInt($('#program').val()) : null,
-        StudYearLevel: $('#yearLevel').val() ? parseInt($('#yearLevel').val()) : null,
-        SectionId: $('#section').val() ? parseInt($('#section').val()) : null
+        UserAddress: $('#address').val().trim() || null
+        // ✅ REMOVED: ProgramId, StudYearLevel, SectionId - students cannot edit these
     };
 
     const $btn = $('#btnSaveProfile');
