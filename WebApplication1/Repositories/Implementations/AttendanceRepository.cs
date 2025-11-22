@@ -373,7 +373,8 @@ public class AttendanceRepository : IAttendanceRepository
     /// Gets complete student attendance data with statistics and recent records in a single optimized query
     /// Eliminates N+1 query problem by using JOINs and CTEs
     /// Returns both aggregated statistics and detailed attendance records
-    /// ✅ FIXED: Now includes Time Out from daily_attendance_log table
+    /// ✅ CRITICAL FIX: Changed JOIN logic to match by stud_id, class_id, and attend_date
+    /// This ensures Time In/Time Out are retrieved even when daily_attend_id link is missing
     /// </summary>
     public async Task<StudentAttendanceDataDto> GetStudentAttendanceDataAsync(int studId, int limit = 20)
     {
@@ -395,7 +396,8 @@ public class AttendanceRepository : IAttendanceRepository
                     COUNT(*) as total_sessions
                 FROM attendance_sessions
             ),
-            -- ✅ FIXED: Get recent attendance records WITH Time In and Time Out from daily_attendance_log
+            -- ✅ CRITICAL FIX: Match daily_attendance_log by stud_id, class_id, and date
+            -- This retrieves Time In and Time Out even when daily_attend_id is NULL
             recent_attendance AS (
                 SELECT DISTINCT ON (a.attend_date, a.class_id)
                     a.attend_date,
@@ -408,7 +410,11 @@ public class AttendanceRepository : IAttendanceRepository
                 FROM attendance a
                 INNER JOIN classes c ON a.class_id = c.class_id
                 LEFT JOIN courses co ON c.course_id = co.course_id
-                LEFT JOIN daily_attendance_log dal ON a.daily_attend_id = dal.daily_attend_id
+                -- ✅ FIX: Match by student, date, and class (not by daily_attend_id)
+                LEFT JOIN daily_attendance_log dal 
+                    ON a.stud_id = dal.stud_id 
+                    AND a.attend_date = dal.attend_date
+                    AND (dal.class_id IS NULL OR dal.class_id = a.class_id)
                 WHERE a.stud_id = @studId
                   AND a.attend_date >= CURRENT_DATE - INTERVAL '30 days'
                 ORDER BY a.attend_date DESC, a.class_id, a.attend_scan_time DESC
@@ -475,7 +481,7 @@ public class AttendanceRepository : IAttendanceRepository
             }
             else if (recordType == "RECORD")
             {
-                // ✅ FIXED: Format Time In and Time Out from daily_attendance_log
+                // ✅ Format Time In and Time Out from daily_attendance_log
                 string? timeInFormatted = null;
                 string? timeOutFormatted = null;
                 
@@ -499,7 +505,7 @@ public class AttendanceRepository : IAttendanceRepository
                     CourseCode = row["course_code"]?.ToString() ?? "N/A",
                     Status = row["status"]?.ToString() ?? "pending",
                     TimeIn = timeInFormatted ?? "-",
-                    TimeOut = timeOutFormatted ?? "-"  // ✅ NOW INCLUDES TIME OUT!
+                    TimeOut = timeOutFormatted ?? "-"
                 });
             }
         }
