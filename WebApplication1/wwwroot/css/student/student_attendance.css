@@ -76,6 +76,29 @@
     font-weight: 500;
 }
 
+/* ✅ FIX: Table header alignment - ensure all headers align left */
+#attendanceTable thead th {
+    text-align: left !important;
+}
+
+/* ✅ FIX: Override DataTables sorting arrow positioning */
+#attendanceTable thead th.sorting,
+#attendanceTable thead th.sorting_asc,
+#attendanceTable thead th.sorting_desc {
+    text-align: left !important;
+    padding-left: 0.75rem !important;
+}
+
+/* ✅ NEW FIX: Force table cell data to align left (especially date column) */
+#attendanceTable tbody td {
+    text-align: left !important;
+}
+
+/* ✅ NEW FIX: Specific styling for text-left class */
+#attendanceTable .text-left {
+    text-align: left !important;
+}
+
 /* Status Badge - Page Specific */
 .status-badge {
     display: inline-flex;

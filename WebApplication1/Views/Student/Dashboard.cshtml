@@ -12,13 +12,13 @@
     <div class="chart-card">
         <div class="chart-container" style="position: relative; height: 300px;">
             <canvas id="attendanceOverviewChart"></canvas>
-  </div>
+        </div>
     </div>
 
     <!-- Course-wise Attendance Chart -->
     <div class="chart-card">
-     <div class="chart-container" style="position: relative; height: 300px;">
-    <canvas id="courseAttendanceChart"></canvas>
+        <div class="chart-container" style="position: relative; height: 300px;">
+            <canvas id="courseAttendanceChart"></canvas>
         </div>
     </div>
 </div>
@@ -27,13 +27,14 @@
 <div class="charts-grid" style="margin-bottom: 2rem;">
     <div class="chart-card" style="grid-column: 1 / -1;">
         <div class="chart-container" style="position: relative; height: 350px;">
-<canvas id="punctualityTrendChart"></canvas>
- </div>
+            <canvas id="punctualityTrendChart"></canvas>
+        </div>
     </div>
 </div>
 
 @section Scripts {
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- ✅ FIX: Added Chart.js CDN and student_charts.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="~/js/student/student_charts.js" asp-append-version="true"></script>
 }
 
@@ -41,7 +42,7 @@
     .charts-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1.5rem;
+        gap: 1.5rem;
     }
     
     .chart-card {

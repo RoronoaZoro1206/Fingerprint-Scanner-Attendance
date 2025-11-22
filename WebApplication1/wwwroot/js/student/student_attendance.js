@@ -82,6 +82,7 @@ function initializeDataTable() {
             {
                 data: 'date',
                 width: '15%',
+                className: 'text-left', // Force left alignment for date cells
                 render: function (data) {
                     return formatDate(data);
                 }
