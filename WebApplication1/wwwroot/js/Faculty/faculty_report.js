@@ -82,6 +82,7 @@ function initializeDataTable() {
             {
                 data: 'date',
                 width: '15%',
+                className: 'text-left',  // ✅ FIX: Force left alignment for date column
                 render: function (data) {
                     return formatDate(data);
                 }
@@ -89,6 +90,7 @@ function initializeDataTable() {
             {
                 data: 'courseCode',
                 width: '20%',
+                className: 'text-left',  // ✅ FIX: Force left alignment for class column
                 render: function (data) {
                     return `<strong>${data}</strong>`;
                 }

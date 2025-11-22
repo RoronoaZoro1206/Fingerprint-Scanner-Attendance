@@ -133,8 +133,8 @@ public class AttendanceRepository : IAttendanceRepository
                 FROM classes
                 WHERE class_id = @classId AND fac_id = @facId
             ),
-            -- ✅ CRITICAL FIX: Get all enrolled students with their daily attendance
-            -- Removed class_id filter - old records have NULL class_id
+            -- ✅ CRITICAL FIX: Get all enrolled students with their ACTUAL attendance status
+            -- Priority: attendance.attend_status (class-specific) > daily log status
             student_attendance AS (
                 SELECT 
                     s.stud_id,
@@ -144,17 +144,26 @@ public class AttendanceRepository : IAttendanceRepository
                     dal.time_in,
                     dal.time_out,
                     dal.daily_attend_id,
-                    -- Determine status based on daily attendance log
-                    CASE 
-                        WHEN dal.time_in IS NULL THEN 'absent'
-                        WHEN dal.time_out IS NOT NULL THEN 'present'
-                        WHEN dal.status = 'active' THEN 'present'
-                        ELSE 'absent'
-                    END as status
+                    -- ✅ FIX: Use actual attend_status from attendance table if exists
+                    COALESCE(
+                        a.attend_status::text,  -- Priority 1: Use attendance table status
+                        CASE                     -- Priority 2: Fallback to daily log logic
+                            WHEN dal.time_in IS NULL THEN 'absent'
+                            WHEN dal.status = 'active' THEN 'present'
+                            WHEN dal.status = 'completed' THEN 'present'
+                            ELSE 'absent'
+                        END
+                    ) as status,
+                    a.attend_id
                 FROM enrollment e
                 INNER JOIN students s ON e.stud_id = s.stud_id
                 INNER JOIN users u ON s.user_id = u.user_id
-                -- ✅ CRITICAL FIX: Match on student and date only
+                -- ✅ LEFT JOIN to attendance table to get actual status
+                LEFT JOIN attendance a 
+                    ON e.class_id = a.class_id
+                    AND e.stud_id = a.stud_id
+                    AND a.attend_date = @date
+                -- ✅ LEFT JOIN to daily_attendance_log for time in/out
                 LEFT JOIN daily_attendance_log dal 
                     ON s.stud_id = dal.stud_id 
                     AND dal.attend_date = @date
@@ -173,7 +182,7 @@ public class AttendanceRepository : IAttendanceRepository
                 sa.time_in,
                 sa.time_out,
                 sa.status,
-                sa.daily_attend_id as attend_id
+                sa.attend_id
             FROM class_check cc
             INNER JOIN courses co ON cc.course_id = co.course_id
             CROSS JOIN student_attendance sa;";
@@ -218,7 +227,7 @@ public class AttendanceRepository : IAttendanceRepository
                 ProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
                 TimeIn = timeIn,
                 TimeOut = timeOut,
-                Status = row["status"]?.ToString() ?? "absent",
+                Status = row["status"]?.ToString() ?? "absent",  // ✅ Use actual status from query
                 AttendId = row["attend_id"] != DBNull.Value ? Convert.ToInt32(row["attend_id"]) : null
             });
         }
@@ -229,44 +238,50 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<IEnumerable<FacultyAttendanceRecordDto>> GetFacultyAttendanceRecordsAsync(int facId, int limit = 20)
     {
         string query = @"
-            -- ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
-            -- Match on student and date only
-            WITH faculty_students AS (
-                SELECT DISTINCT e.stud_id, e.class_id, c.course_id
-                FROM enrollment e
-                INNER JOIN classes c ON e.class_id = c.class_id
+            -- ✅ CRITICAL FIX: Use actual attend_status from attendance table
+            -- Count by class-specific status, not daily attendance log
+            WITH faculty_classes AS (
+                SELECT DISTINCT c.class_id, c.course_id
+                FROM classes c
                 WHERE c.fac_id = @facId
+            ),
+            recent_dates AS (
+                SELECT DISTINCT a.attend_date
+                FROM attendance a
+                INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
+                WHERE a.attend_date >= CURRENT_DATE - INTERVAL '30 days'
+                ORDER BY a.attend_date DESC
+                LIMIT @limit
             )
             SELECT 
-                dal.attend_date,
+                rd.attend_date,
                 COALESCE(co.course_code, 'N/A') AS course_code,
+                -- ✅ FIX: Count by actual attend_status from attendance table
                 COUNT(DISTINCT CASE 
-                    WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
-                    THEN dal.stud_id 
+                    WHEN a.attend_status = 'present'::attendance_status 
+                    THEN a.stud_id 
                 END) AS present,
                 COUNT(DISTINCT CASE 
-                    WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL 
-                    THEN dal.stud_id 
+                    WHEN a.attend_status = 'late'::attendance_status 
+                    THEN a.stud_id 
                 END) AS late,
                 COUNT(DISTINCT CASE 
-                    WHEN dal.time_in IS NULL 
-                    THEN fs.stud_id 
+                    WHEN a.attend_status = 'absent'::attendance_status 
+                    THEN a.stud_id 
                 END) AS absent,
-                0 AS excused
-            FROM (
-                SELECT DISTINCT attend_date
-                FROM daily_attendance_log
-                WHERE attend_date >= CURRENT_DATE - INTERVAL '30 days'
-                ORDER BY attend_date DESC
-                LIMIT @limit
-            ) dates
-            CROSS JOIN faculty_students fs
-            LEFT JOIN daily_attendance_log dal 
-                ON fs.stud_id = dal.stud_id 
-                AND dal.attend_date = dates.attend_date
-            LEFT JOIN courses co ON fs.course_id = co.course_id
-            GROUP BY dal.attend_date, co.course_code
-            ORDER BY dal.attend_date DESC
+                COUNT(DISTINCT CASE 
+                    WHEN a.attend_status = 'excused'::attendance_status 
+                    THEN a.stud_id 
+                END) AS excused
+            FROM recent_dates rd
+            CROSS JOIN faculty_classes fc
+            LEFT JOIN courses co ON fc.course_id = co.course_id
+            LEFT JOIN attendance a 
+                ON fc.class_id = a.class_id 
+                AND a.attend_date = rd.attend_date
+            GROUP BY rd.attend_date, co.course_code
+            HAVING COUNT(a.attend_id) > 0  -- Only show dates with actual attendance records
+            ORDER BY rd.attend_date DESC
             LIMIT @limit;";
 
         var parameters = new Dictionary<string, object> 
