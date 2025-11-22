@@ -1,4 +1,4 @@
-﻿using Fingerprint_Attendance_System.Attributes;
+using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -48,23 +48,33 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         {
             try
             {
+                _logger.LogInformation($"✅ GetClassAttendance called - ClassId: {classId}, Date: {date}");
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (userId == null)
                 {
+                    _logger.LogWarning("❌ User not authenticated - no UserId in session");
                     return Json(new { success = false, message = "User not authenticated" });
                 }
+
+                _logger.LogInformation($"✅ User authenticated - UserId: {userId.Value}");
 
                 // Verify faculty owns this class
                 var faculty = await _facultyRepository.GetByUserIdAsync(userId.Value);
                 if (faculty == null)
                 {
+                    _logger.LogWarning($"❌ Faculty record not found for userId: {userId.Value}");
                     return Json(new { success = false, message = "Faculty record not found" });
                 }
+
+                _logger.LogInformation($"✅ Faculty found - FacId: {faculty.FacId}");
 
                 // Parse target date
                 DateTime targetDate = string.IsNullOrEmpty(date) 
                     ? DateTime.Today 
                     : DateTime.TryParse(date, out DateTime parsedDate) ? parsedDate : DateTime.Today;
+
+                _logger.LogInformation($"✅ Target date: {targetDate:yyyy-MM-dd}");
 
                 // Single optimized query with all JOINs and faculty verification
                 var attendanceData = await _attendanceRepository.GetClassAttendanceWithDetailsAsync(
@@ -72,19 +82,43 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
                 if (attendanceData == null)
                 {
+                    _logger.LogWarning($"❌ No attendance data found for classId: {classId}, facId: {faculty.FacId}");
                     return Json(new { success = false, message = "Class not found or access denied" });
                 }
 
-                return Json(new
+                _logger.LogInformation($"✅ Attendance data retrieved - CourseCode: {attendanceData.CourseCode}, Students: {attendanceData.Students?.Count ?? 0}");
+
+                var response = new
                 {
                     success = true,
-                    data = attendanceData
-                });
+                    data = new
+                    {
+                        courseCode = attendanceData.CourseCode,
+                        courseName = attendanceData.CourseName,
+                        date = attendanceData.Date,
+                        students = attendanceData.Students.Select(s => new
+                        {
+                            studId = s.StudId,
+                            studentNumber = s.StudentNumber,
+                            name = s.Name,
+                            profileImage = s.ProfileImage,
+                            timeIn = s.TimeIn,
+                            timeOut = s.TimeOut,
+                            status = s.Status,
+                            attendId = s.AttendId
+                        }).ToList()
+                    }
+                };
+
+                _logger.LogInformation($"✅ Returning response with {response.data.students.Count} students");
+
+                return Json(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching class attendance");
-                return Json(new { success = false, message = "Failed to fetch attendance" });
+                _logger.LogError(ex, $"❌ Error fetching class attendance: {ex.Message}");
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
+                return Json(new { success = false, message = $"Server error: {ex.Message}" });
             }
         }
 

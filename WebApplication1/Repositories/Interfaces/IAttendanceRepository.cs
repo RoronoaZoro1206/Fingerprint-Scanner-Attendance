@@ -17,6 +17,9 @@ public interface IAttendanceRepository
     Task<FacultyReportStatsDto> GetFacultyReportStatsAsync(int facId);
     Task<StudentAttendanceDataDto> GetStudentAttendanceDataAsync(int studId, int limit = 20);
     
-    // ? NEW: Phase 4 - Schedule integration
+    // Phase 4 - Schedule integration
     Task<Attendance?> GetByClassStudentDateAsync(int classId, int studId, DateTime date);
+    
+    // Dual-write synchronization
+    Task<bool> SyncAttendanceFromDailyLogAsync(int dailyAttendId, int classId, int studId, DateTime attendDate, DateTime scanTime, ScanType scanType);
 }

@@ -117,6 +117,10 @@ public class AttendanceRepository : IAttendanceRepository
 
     /// <summary>
     /// Gets class attendance with all student details in a single optimized query
+    /// ✅ CRITICAL FIX: Removed class_id filter from daily_attendance_log JOIN
+    /// - Old records in daily_attendance_log have NULL class_id
+    /// - Query now matches on stud_id and date only
+    /// - Shows ALL enrolled students regardless of attendance status
     /// Eliminates N+1 query problem by using JOINs and aggregation
     /// Verifies faculty ownership of the class
     /// </summary>
@@ -129,35 +133,32 @@ public class AttendanceRepository : IAttendanceRepository
                 FROM classes
                 WHERE class_id = @classId AND fac_id = @facId
             ),
-            -- Get all enrolled students with their attendance for the date
+            -- ✅ CRITICAL FIX: Get all enrolled students with their daily attendance
+            -- Removed class_id filter - old records have NULL class_id
             student_attendance AS (
                 SELECT 
                     s.stud_id,
                     s.stud_number,
                     CONCAT(u.user_first_name, ' ', u.user_last_name) as student_name,
                     COALESCE(u.user_profile_image, 'default_profile.png') as user_profile_image,
-                    MIN(CASE WHEN a.attend_type = 'in' THEN a.attend_scan_time END) as time_in,
-                    MIN(CASE WHEN a.attend_type = 'out' THEN a.attend_scan_time END) as time_out,
-                    COALESCE(
-                        (SELECT attend_status::text FROM attendance 
-                         WHERE class_id = @classId AND stud_id = s.stud_id 
-                           AND attend_date = @date 
-                         ORDER BY attend_scan_time DESC LIMIT 1),
-                        'absent'
-                    ) as status,
-                    (SELECT attend_id FROM attendance 
-                     WHERE class_id = @classId AND stud_id = s.stud_id 
-                       AND attend_date = @date AND attend_type = 'in' 
-                     LIMIT 1) as attend_id
+                    dal.time_in,
+                    dal.time_out,
+                    dal.daily_attend_id,
+                    -- Determine status based on daily attendance log
+                    CASE 
+                        WHEN dal.time_in IS NULL THEN 'absent'
+                        WHEN dal.time_out IS NOT NULL THEN 'present'
+                        WHEN dal.status = 'active' THEN 'present'
+                        ELSE 'absent'
+                    END as status
                 FROM enrollment e
                 INNER JOIN students s ON e.stud_id = s.stud_id
                 INNER JOIN users u ON s.user_id = u.user_id
-                LEFT JOIN attendance a ON e.stud_id = a.stud_id 
-                    AND a.class_id = @classId 
-                    AND a.attend_date = @date
+                -- ✅ CRITICAL FIX: Match on student and date only
+                LEFT JOIN daily_attendance_log dal 
+                    ON s.stud_id = dal.stud_id 
+                    AND dal.attend_date = @date
                 WHERE e.class_id = @classId
-                GROUP BY s.stud_id, s.stud_number, u.user_first_name, 
-                         u.user_last_name, u.user_profile_image
                 ORDER BY s.stud_number
             )
             -- Combine course info with student attendance
@@ -172,7 +173,7 @@ public class AttendanceRepository : IAttendanceRepository
                 sa.time_in,
                 sa.time_out,
                 sa.status,
-                sa.attend_id
+                sa.daily_attend_id as attend_id
             FROM class_check cc
             INNER JOIN courses co ON cc.course_id = co.course_id
             CROSS JOIN student_attendance sa;";
@@ -228,19 +229,44 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<IEnumerable<FacultyAttendanceRecordDto>> GetFacultyAttendanceRecordsAsync(int facId, int limit = 20)
     {
         string query = @"
+            -- ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
+            -- Match on student and date only
+            WITH faculty_students AS (
+                SELECT DISTINCT e.stud_id, e.class_id, c.course_id
+                FROM enrollment e
+                INNER JOIN classes c ON e.class_id = c.class_id
+                WHERE c.fac_id = @facId
+            )
             SELECT 
-                a.attend_date,
+                dal.attend_date,
                 COALESCE(co.course_code, 'N/A') AS course_code,
-                SUM(CASE WHEN a.attend_status = 'present' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS present,
-                SUM(CASE WHEN a.attend_status = 'late' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS late,
-                SUM(CASE WHEN a.attend_status = 'absent' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS absent,
-                SUM(CASE WHEN a.attend_status = 'excused' AND a.attend_type = 'in' THEN 1 ELSE 0 END) AS excused
-            FROM attendance a
-            INNER JOIN classes c ON a.class_id = c.class_id
-            LEFT JOIN courses co ON c.course_id = co.course_id
-            WHERE c.fac_id = @facId
-            GROUP BY a.attend_date, a.class_id, co.course_code
-            ORDER BY a.attend_date DESC
+                COUNT(DISTINCT CASE 
+                    WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                    THEN dal.stud_id 
+                END) AS present,
+                COUNT(DISTINCT CASE 
+                    WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL 
+                    THEN dal.stud_id 
+                END) AS late,
+                COUNT(DISTINCT CASE 
+                    WHEN dal.time_in IS NULL 
+                    THEN fs.stud_id 
+                END) AS absent,
+                0 AS excused
+            FROM (
+                SELECT DISTINCT attend_date
+                FROM daily_attendance_log
+                WHERE attend_date >= CURRENT_DATE - INTERVAL '30 days'
+                ORDER BY attend_date DESC
+                LIMIT @limit
+            ) dates
+            CROSS JOIN faculty_students fs
+            LEFT JOIN daily_attendance_log dal 
+                ON fs.stud_id = dal.stud_id 
+                AND dal.attend_date = dates.attend_date
+            LEFT JOIN courses co ON fs.course_id = co.course_id
+            GROUP BY dal.attend_date, co.course_code
+            ORDER BY dal.attend_date DESC
             LIMIT @limit;";
 
         var parameters = new Dictionary<string, object> 
@@ -253,7 +279,9 @@ public class AttendanceRepository : IAttendanceRepository
 
         return dt.AsEnumerable().Select(row => new FacultyAttendanceRecordDto
         {
-            Date = Convert.ToDateTime(row["attend_date"]).ToString("yyyy-MM-dd"),
+            Date = row["attend_date"] != DBNull.Value 
+                ? Convert.ToDateTime(row["attend_date"]).ToString("yyyy-MM-dd") 
+                : DateTime.Now.ToString("yyyy-MM-dd"),
             CourseCode = row["course_code"]?.ToString() ?? "N/A",
             Present = Convert.ToInt32(row["present"]),
             Late = Convert.ToInt32(row["late"]),
@@ -265,33 +293,57 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<FacultyReportStatsDto> GetFacultyReportStatsAsync(int facId)
     {
         string query = @"
-            WITH faculty_classes AS (
-                SELECT class_id FROM classes WHERE fac_id = @facId
-            ),
-            attendance_stats AS (
-                SELECT 
-                    COUNT(DISTINCT CASE WHEN a.attend_status IN ('present', 'late') AND a.attend_type = 'in' 
-                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS present_sessions,
-                    COUNT(DISTINCT CASE WHEN a.attend_status = 'late' AND a.attend_type = 'in' 
-                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS late_sessions,
-                    COUNT(DISTINCT CASE WHEN a.attend_status = 'absent' AND a.attend_type = 'in' 
-                                        THEN CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id) END) AS absent_sessions,
-                    COUNT(DISTINCT CONCAT(a.attend_date, '-', a.class_id, '-', a.stud_id)) AS total_sessions
-                FROM attendance a
-                INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
-            ),
-            student_count AS (
-                SELECT COUNT(DISTINCT e.stud_id) AS total_students
+            -- ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
+            WITH faculty_students AS (
+                SELECT DISTINCT e.stud_id
                 FROM enrollment e
-                INNER JOIN faculty_classes fc ON e.class_id = fc.class_id
+                INNER JOIN classes c ON e.class_id = c.class_id
+                WHERE c.fac_id = @facId
+            ),
+            -- Get today's attendance stats from daily_attendance_log
+            today_stats AS (
+                SELECT 
+                    COUNT(DISTINCT CASE 
+                        WHEN dal.time_in IS NOT NULL 
+                        THEN dal.stud_id 
+                    END) as present_count,
+                    COUNT(DISTINCT CASE 
+                        WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL 
+                        THEN dal.stud_id 
+                    END) as late_count,
+                    COUNT(DISTINCT fs.stud_id) as total_enrolled
+                FROM faculty_students fs
+                LEFT JOIN daily_attendance_log dal 
+                    ON fs.stud_id = dal.stud_id 
+                    AND dal.attend_date = CURRENT_DATE
+            ),
+            -- Calculate overall attendance rate from last 30 days
+            overall_stats AS (
+                SELECT 
+                    COUNT(DISTINCT CASE 
+                        WHEN dal.time_in IS NOT NULL 
+                        THEN CONCAT(dal.stud_id, '-', dal.attend_date) 
+                    END) as attended_sessions,
+                    COUNT(DISTINCT CONCAT(fs.stud_id, '-', dates.attend_date)) as total_sessions
+                FROM faculty_students fs
+                CROSS JOIN (
+                    SELECT generate_series(
+                        CURRENT_DATE - INTERVAL '30 days',
+                        CURRENT_DATE,
+                        INTERVAL '1 day'
+                    )::date AS attend_date
+                ) dates
+                LEFT JOIN daily_attendance_log dal 
+                    ON fs.stud_id = dal.stud_id 
+                    AND dal.attend_date = dates.attend_date
             )
             SELECT 
-                COALESCE(ROUND((CAST(ast.present_sessions AS DECIMAL) / NULLIF(ast.total_sessions, 0)) * 100), 0) AS average_attendance,
-                COALESCE(ast.late_sessions, 0) AS late_arrivals_today,
-                COALESCE(ast.absent_sessions, 0) AS absent_students,
-                COALESCE(sc.total_students, 0) AS total_students
-            FROM attendance_stats ast
-            CROSS JOIN student_count sc;";
+                COALESCE(ROUND((CAST(os.attended_sessions AS DECIMAL) / NULLIF(os.total_sessions, 0)) * 100), 0) AS average_attendance,
+                COALESCE(ts.late_count, 0) AS late_arrivals_today,
+                COALESCE(ts.total_enrolled - ts.present_count, 0) AS absent_students,
+                COALESCE(ts.total_enrolled, 0) AS total_students
+            FROM today_stats ts
+            CROSS JOIN overall_stats os;";
 
         var parameters = new Dictionary<string, object> { { "@facId", facId } };
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -500,5 +552,50 @@ public class AttendanceRepository : IAttendanceRepository
             DailyAttendId = row["daily_attend_id"] != DBNull.Value ? Convert.ToInt32(row["daily_attend_id"]) : null,
             IsPresent = row["is_present"] != DBNull.Value && Convert.ToBoolean(row["is_present"])
         };
+    }
+
+    /// <summary>
+    /// ✅ NEW: Sync attendance record to attendance table for faculty tracking
+    /// Creates or updates attendance record based on daily_attendance_log entry
+    /// </summary>
+    public async Task<bool> SyncAttendanceFromDailyLogAsync(int dailyAttendId, int classId, int studId, DateTime attendDate, DateTime scanTime, ScanType scanType)
+    {
+        // Check if record exists
+        var existing = await GetByClassStudentDateAsync(classId, studId, attendDate);
+        
+        if (existing == null)
+        {
+            // Create new attendance record
+            var newAttendance = new Attendance
+            {
+                ClassId = classId,
+                StudId = studId,
+                AttendDate = attendDate,
+                AttendScanTime = scanTime,
+                AttendType = scanType,
+                AttendStatus = AttendanceStatus.Present, // Default to present since they scanned
+                AttendRemark = "Auto-synced from daily attendance",
+                AttendCreatedAt = DateTime.Now,
+                DailyAttendId = dailyAttendId,
+                IsPresent = true
+            };
+            
+            return await AddAsync(newAttendance);
+        }
+        else
+        {
+            // Update existing record
+            existing.AttendScanTime = scanTime;
+            existing.AttendType = scanType;
+            existing.DailyAttendId = dailyAttendId;
+            existing.IsPresent = true;
+            
+            if (scanType == ScanType.Out)
+            {
+                existing.AttendStatus = AttendanceStatus.Present; // Completed attendance
+            }
+            
+            return await UpdateAsync(existing);
+        }
     }
 }

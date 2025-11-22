@@ -142,28 +142,85 @@ function initializeDataTable(classId, date) {
         ajax: {
             url: `/FacultyAttendance/GetClassAttendance?classId=${classId}&date=${date}`,
             dataSrc: function (json) {
-                if (json.success) {
-                    // Update card header
-                    $('#classTitle').text(`${json.data.courseCode} - Attendance`);
-                    $('#classSubtitle').text(`${json.data.date}`);
-                    return json.data.students;
+                console.log('✅ DataTables AJAX response:', json); // Enhanced debug log
+                
+                if (!json) {
+                    console.error('❌ Response is null or undefined');
+                    Toast.error('No response from server');
+                    return [];
                 }
-                Toast.error(json.message || 'Failed to load attendance');
-                return [];
+                
+                if (json.success === false) {
+                    console.error('❌ Server returned error:', json.message);
+                    Toast.error(json.message || 'Failed to load attendance');
+                    showEmptyState();
+                    return [];
+                }
+                
+                if (!json.data) {
+                    console.error('❌ Response missing data property');
+                    Toast.error('Invalid response format');
+                    showEmptyState();
+                    return [];
+                }
+                
+                // Update card header
+                $('#classTitle').text(`${json.data.courseCode || 'Class'} - Attendance`);
+                $('#classSubtitle').text(`${json.data.date || date}`);
+                
+                // ✅ FIX: Handle both 'students' (camelCase) and 'Students' (PascalCase)
+                const studentsArray = json.data.students || json.data.Students || [];
+                
+                console.log(`✅ Found ${studentsArray.length} students in response`);
+                
+                if (studentsArray.length === 0) {
+                    console.warn('⚠️ No students in class or no enrollment data');
+                    Toast.info('No students enrolled in this class');
+                }
+                
+                return studentsArray;
             },
-            error: function () {
-                Toast.error('Failed to load attendance data.');
+            error: function (xhr, error, thrown) {
+                console.error('❌ DataTables AJAX error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    error: error,
+                    thrown: thrown,
+                    responseText: xhr.responseText
+                });
+                
+                // Parse error message from response
+                let errorMessage = 'Failed to load attendance data';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMessage = errorResponse.message || errorMessage;
+                } catch (e) {
+                    // If response is not JSON, use status text
+                    if (xhr.statusText) {
+                        errorMessage = xhr.statusText;
+                    }
+                }
+                
+                Toast.error(errorMessage);
+                showEmptyState();
             }
         },
         columns: [
             {
                 data: 'studentNumber',
-                width: '15%'
+                width: '15%',
+                defaultContent: '-',
+                render: function (data) {
+                    return data || '-';
+                }
             },
             {
                 data: 'name',
                 width: '25%',
+                defaultContent: '-',
                 render: function (data, type, row) {
+                    if (!data) return '-';
+                    
                     const profileImage = row.profileImage && row.profileImage !== 'default_profile.png'
                         ? `/images/profile/${row.profileImage}`
                         : '/images/profile/default_profile.png';
@@ -181,6 +238,7 @@ function initializeDataTable(classId, date) {
             {
                 data: 'timeIn',
                 width: '15%',
+                defaultContent: '-',
                 render: function (data) {
                     return data || '-';
                 }
@@ -188,6 +246,7 @@ function initializeDataTable(classId, date) {
             {
                 data: 'timeOut',
                 width: '15%',
+                defaultContent: '-',
                 render: function (data) {
                     return data || '-';
                 }
@@ -195,10 +254,14 @@ function initializeDataTable(classId, date) {
             {
                 data: 'status',
                 width: '15%',
+                defaultContent: 'absent',
                 render: function (data) {
+                    if (!data) data = 'absent';
+                    
                     const statusLower = data.toLowerCase();
                     const icon = getStatusIcon(statusLower);
-                    return `<span class="status-badge ${statusLower}">${icon}${data}</span>`;
+                    const displayStatus = data.charAt(0).toUpperCase() + data.slice(1).toLowerCase();
+                    return `<span class="status-badge ${statusLower}">${icon}${displayStatus}</span>`;
                 }
             },
             {
@@ -206,13 +269,23 @@ function initializeDataTable(classId, date) {
                 width: '15%',
                 orderable: false,
                 searchable: false,
+                defaultContent: '',
                 render: function (data, type, row) {
+                    if (!row.studId) {
+                        console.warn('⚠️ Row missing studId:', row);
+                        return '';
+                    }
+                    
+                    // Escape quotes in name for onclick attribute
+                    const escapedName = (row.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const status = row.status || 'Absent';
+                    
                     return `
                         <div class="action-buttons">
-                            <button class="btn-action btn-edit" onclick="showEditModal(${row.studId}, '${row.name}', '${row.status}')" title="Edit">
+                            <button class="btn-action btn-edit" onclick="showEditModal(${row.studId}, '${escapedName}', '${status}')" title="Edit">
                                 <i data-lucide="edit-2" class="icon-sm" style="color: #3b82f6;"></i>
                             </button>
-                            <button class="btn-action btn-delete" onclick="showDeleteModal(${row.studId}, '${row.name}')" title="Delete">
+                            <button class="btn-action btn-delete" onclick="showDeleteModal(${row.studId}, '${escapedName}')" title="Delete">
                                 <i data-lucide="trash-2" class="icon-sm" style="color: #ef4444;"></i>
                             </button>
                         </div>
@@ -221,6 +294,10 @@ function initializeDataTable(classId, date) {
             }
         ],
         order: [[0, 'asc']],
+        drawCallback: function() {
+            // Reinitialize Lucide icons after table is drawn
+            initializeLucideIcons();
+        },
         ...commonDataTableConfig,
         language: getDataTableLanguage('students', 'student')
     });

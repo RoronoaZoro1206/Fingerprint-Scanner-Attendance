@@ -20,6 +20,7 @@ public class HomeController : Controller
     private readonly IFacultyRepository _facultyRepo; // ✅ NEW
     private readonly IRoomRepository _roomRepo; // ✅ NEW
     private readonly IUserRepository _userRepo; // ✅ NEW
+    private readonly IAttendanceRepository _attendanceRepository; // ✅ NEW: For dual-write sync
     private readonly AttendanceProcessingService _attendanceService;
     private readonly ILogger<HomeController> _logger;
 
@@ -35,6 +36,7 @@ public class HomeController : Controller
         IFacultyRepository facultyRepo, // ✅ NEW
         IRoomRepository roomRepo, // ✅ NEW
         IUserRepository userRepo, // ✅ NEW
+        IAttendanceRepository attendanceRepository, // ✅ NEW: Inject attendance repository
         AttendanceProcessingService attendanceService,
         ILogger<HomeController> logger)
     {
@@ -49,6 +51,7 @@ public class HomeController : Controller
         _facultyRepo = facultyRepo; // ✅ NEW
         _roomRepo = roomRepo; // ✅ NEW
         _userRepo = userRepo; // ✅ NEW
+        _attendanceRepository = attendanceRepository; // ✅ NEW: Store attendance repository
         _attendanceService = attendanceService;
         _logger = logger;
     }
@@ -348,6 +351,25 @@ public class HomeController : Controller
                     
                     await _dailyAttendanceRepo.UpdateAsync(existingAttendance);
                     
+                    // ✅ NEW: Dual-write time out to attendance table
+                    try
+                    {
+                        await _attendanceRepository.SyncAttendanceFromDailyLogAsync(
+                            existingAttendance.DailyAttendId,
+                            activeClassInfo.ClassId,
+                            student.StudId,
+                            currentTime.Date,
+                            currentTime,
+                            ScanType.Out
+                        );
+                        
+                        _logger.LogInformation($"✅ Synced time out to attendance table for faculty tracking");
+                    }
+                    catch (Exception syncEx)
+                    {
+                        _logger.LogWarning(syncEx, "Failed to sync time out to attendance table (non-critical)");
+                    }
+                    
                     // Success feedback: green light + beep
                     _fingerprintService.SetLedLight("green", true);
                     _fingerprintService.Beep(true);
@@ -420,6 +442,34 @@ public class HomeController : Controller
                     messageType = "unknown_error",
                     message = "Unable to process attendance. Please try again."
                 });
+            }
+
+            // ✅ NEW: Dual-write to attendance table for faculty tracking
+            try
+            {
+                var dailyAttendLog = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(
+                    student.StudId, 
+                    activeClassInfo.ClassId, 
+                    currentTime.Date
+                );
+                
+                if (dailyAttendLog != null)
+                {
+                    await _attendanceRepository.SyncAttendanceFromDailyLogAsync(
+                        dailyAttendLog.DailyAttendId,
+                        activeClassInfo.ClassId,
+                        student.StudId,
+                        currentTime.Date,
+                        currentTime,
+                        ScanType.In
+                    );
+                    
+                    _logger.LogInformation($"✅ Synced attendance record to attendance table for faculty tracking");
+                }
+            }
+            catch (Exception syncEx)
+            {
+                _logger.LogWarning(syncEx, "Failed to sync attendance to attendance table (non-critical)");
             }
 
             _logger.LogInformation($"✅ Attendance recorded for {student.StudNumber}: {attendanceResponse.Action}");

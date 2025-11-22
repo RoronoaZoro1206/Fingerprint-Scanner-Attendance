@@ -246,28 +246,6 @@ CREATE TABLE fingerprint_templates (
                                        ftemp_created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE attendance (
-                            attend_id         SERIAL PRIMARY KEY,
-                            class_id          INT REFERENCES classes(class_id) ON DELETE CASCADE,
-                            stud_id           INT REFERENCES students(stud_id) ON DELETE CASCADE,
-                            attend_date       DATE NOT NULL DEFAULT CURRENT_DATE,
-                            attend_scan_time  TIMESTAMP NOT NULL DEFAULT NOW(),
-                            attend_type       scan_type_enum NOT NULL,
-                            attend_status     attendance_status NOT NULL DEFAULT 'pending',
-                            attend_remark     TEXT,
-                            attend_created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                            UNIQUE (class_id, stud_id, attend_scan_time, attend_type)
-);
-
-CREATE TABLE scan_logs (
-                           scan_id           SERIAL PRIMARY KEY,
-                           user_id           INT REFERENCES users(user_id) ON DELETE SET NULL,
-                           scan_time         TIMESTAMP NOT NULL DEFAULT NOW(),
-                           scan_success      BOOLEAN,
-                           scan_log_message  TEXT,
-                           scan_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS daily_attendance_log (
     daily_attend_id     SERIAL PRIMARY KEY,
     stud_id             INT NOT NULL REFERENCES students(stud_id) ON DELETE CASCADE,
@@ -289,6 +267,31 @@ CREATE TABLE IF NOT EXISTS daily_attendance_log (
     
     -- Business rule: time_out must be after time_in
     CONSTRAINT daily_attendance_time_check CHECK (time_out IS NULL OR time_out > time_in)
+);
+
+CREATE TABLE attendance (
+                            attend_id         SERIAL PRIMARY KEY,
+                            class_id          INT REFERENCES classes(class_id) ON DELETE CASCADE,
+                            stud_id           INT REFERENCES students(stud_id) ON DELETE CASCADE,
+                            attend_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+                            attend_scan_time  TIMESTAMP NOT NULL DEFAULT NOW(),
+                            attend_type       scan_type_enum NOT NULL,
+                            attend_status     attendance_status NOT NULL DEFAULT 'pending',
+                            attend_remark     TEXT,
+                            attend_created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                            -- ✅ NEW COLUMNS FOR FACULTY ATTENDANCE FIX (Dual-Write Sync)
+                            daily_attend_id   INT REFERENCES daily_attendance_log(daily_attend_id) ON DELETE CASCADE,
+                            is_present        BOOLEAN DEFAULT TRUE,
+                            UNIQUE (class_id, stud_id, attend_scan_time, attend_type)
+);
+
+CREATE TABLE scan_logs (
+                           scan_id           SERIAL PRIMARY KEY,
+                           user_id           INT REFERENCES users(user_id) ON DELETE SET NULL,
+                           scan_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+                           scan_success      BOOLEAN,
+                           scan_log_message  TEXT,
+                           scan_created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 
@@ -399,6 +402,8 @@ CREATE INDEX idx_enroll_class_id            ON enrollment(class_id);
 CREATE INDEX idx_attend_class_id            ON attendance(class_id);
 CREATE INDEX idx_attend_stud_id             ON attendance(stud_id);
 CREATE INDEX idx_attend_scan_time           ON attendance(attend_scan_time);
+-- ✅ NEW: Index for dual-write sync foreign key
+CREATE INDEX idx_attend_daily_log           ON attendance(daily_attend_id);
 
 -- Classes table
 CREATE INDEX idx_class_fac_id               ON classes(fac_id);
@@ -784,6 +789,8 @@ DROP CONSTRAINT IF EXISTS daily_attendance_unique_student_date;
 ALTER TABLE daily_attendance_log 
 ADD CONSTRAINT daily_attendance_unique_student_class_date 
 UNIQUE (stud_id, class_id, attend_date);
+
+
 -- ============================================================
 -- COMPLETE DATABASE TABLE QUERIES
 -- ============================================================
@@ -940,442 +947,3 @@ FROM users u
 LEFT JOIN administration a ON u.user_id = a.user_id
 WHERE u.role_id = 1 AND a.admin_id IS NULL;
 
-
-
-
-
-
-SELECT '=== TEST 1: STUDENT VERIFICATION (2025-0001) ===' as test_name;
-
-SELECT 
-    s.stud_id,
-    s.stud_number,
-    CONCAT(u.user_first_name, ' ', COALESCE(u.user_middle_name || ' ', ''), u.user_last_name) as full_name,
-    u.user_email,
-    u.role_id,
-    ur.role_name,
-    p.program_code,
-    p.program_name,
-    s.stud_year_level,
-    sec.section_name,
-    CASE WHEN s.stud_id IS NOT NULL THEN '✅ PASS' ELSE '❌ FAIL' END as status
-FROM students s
-INNER JOIN users u ON s.user_id = u.user_id
-INNER JOIN user_roles ur ON u.role_id = ur.role_id
-LEFT JOIN programs p ON s.program_id = p.program_id
-LEFT JOIN sections sec ON s.section_id = sec.section_id
-WHERE s.stud_number = '2025-0001';
-
-SELECT '=== TEST 2: ENROLLMENT VERIFICATION (2025-0001) ===' as test_name;
-
-SELECT 
-    e.enroll_id,
-    e.stud_id,
-    e.class_id,
-    co.course_code,
-    co.course_name,
-    CASE WHEN e.enroll_id IS NOT NULL THEN '✅ PASS' ELSE '❌ FAIL' END as status
-FROM students s
-INNER JOIN enrollment e ON s.stud_id = e.stud_id
-INNER JOIN classes c ON e.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-WHERE s.stud_number = '2025-0001'
-ORDER BY e.class_id;
-
-SELECT '=== TEST 3: ALL SCHEDULES FOR STUDENT 2025-0001 ===' as test_name;
-
-SELECT 
-    cs.sched_id,
-    cs.class_id,
-    co.course_code,
-    co.course_name,
-    cs.sched_day_of_week,
-    LENGTH(cs.sched_day_of_week) as day_length,
-    cs.sched_start_time,
-    cs.sched_end_time,
-    -- Validation checks
-    CASE WHEN cs.sched_day_of_week = TRIM(cs.sched_day_of_week) THEN '✅ No Whitespace' ELSE '❌ Has Whitespace' END as whitespace_check,
-    CASE WHEN cs.sched_start_time IS NOT NULL THEN '✅ Has Start Time' ELSE '❌ NULL Start Time' END as start_time_check,
-    CASE WHEN cs.sched_end_time IS NOT NULL THEN '✅ Has End Time' ELSE '❌ NULL End Time' END as end_time_check
-FROM students s
-INNER JOIN enrollment e ON s.stud_id = e.stud_id
-INNER JOIN classes c ON e.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-INNER JOIN class_schedules cs ON c.class_id = cs.class_id
-WHERE s.stud_number = '2025-0001'
-ORDER BY co.course_code, cs.sched_day_of_week, cs.sched_start_time;
-
-
-SELECT '=== TEST 4: FRIDAY 1:33 PM TIME MATCHING ===' as test_name;
-
-SELECT 
-    cs.sched_id,
-    co.course_code,
-    cs.sched_day_of_week,
-    cs.sched_start_time,
-    cs.sched_end_time,
-    '13:33:00'::TIME as current_time,
-    TO_CHAR(CURRENT_DATE, 'Day') as current_day_postgres,
-    TO_CHAR(CURRENT_DATE, 'FMDay') as current_day_trimmed,
-    -- Day matching tests
-    CASE 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = LOWER(TRIM(TO_CHAR(CURRENT_DATE, 'Day'))) 
-        THEN '✅ Day Match (with trim)' 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = LOWER(TRIM(TO_CHAR(CURRENT_DATE, 'FMDay'))) 
-        THEN '✅ Day Match (FMDay)' 
-        WHEN cs.sched_day_of_week = TO_CHAR(CURRENT_DATE, 'Day') 
-        THEN '✅ Day Match (exact)' 
-        ELSE '❌ Day Mismatch' 
-    END as day_match,
-    -- Time matching tests (for 1:33 PM = 13:33:00)
-    CASE 
-        WHEN '13:33:00'::TIME >= cs.sched_start_time THEN '✅ After Start' 
-        ELSE '❌ Before Start' 
-    END as after_start,
-    CASE 
-        WHEN '13:33:00'::TIME <= cs.sched_end_time THEN '✅ Before End' 
-        ELSE '❌ After End' 
-    END as before_end,
-    -- Overall matching result
-    CASE 
-        WHEN (LOWER(TRIM(cs.sched_day_of_week)) = LOWER(TRIM(TO_CHAR(CURRENT_DATE, 'Day'))) 
-              OR LOWER(TRIM(cs.sched_day_of_week)) = LOWER(TRIM(TO_CHAR(CURRENT_DATE, 'FMDay'))))
-         AND '13:33:00'::TIME >= cs.sched_start_time 
-         AND '13:33:00'::TIME <= cs.sched_end_time 
-        THEN '✅✅✅ SHOULD ALLOW TIME IN ✅✅✅' 
-        ELSE '❌ Should NOT match' 
-    END as overall_match
-FROM students s
-INNER JOIN enrollment e ON s.stud_id = e.stud_id
-INNER JOIN classes c ON e.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-INNER JOIN class_schedules cs ON c.class_id = cs.class_id
-WHERE s.stud_number = '2025-0001'
-ORDER BY cs.sched_start_time;
-
-
--- ==============================================================================
-SELECT '=== TEST 5: SATURDAY SCHEDULE FOR IT203 ===' as test_name;
-
-SELECT 
-    cs.sched_id,
-    co.course_code,
-    cs.sched_day_of_week,
-    cs.sched_start_time,
-    cs.sched_end_time,
-    -- Saturday test time: 1:01 PM = 13:01:00
-    '13:01:00'::TIME as test_time,
-    CASE 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = 'saturday' THEN '✅ Is Saturday' 
-        ELSE '❌ Not Saturday' 
-    END as is_saturday,
-    CASE 
-        WHEN '13:01:00'::TIME >= cs.sched_start_time 
-         AND '13:01:00'::TIME <= cs.sched_end_time 
-        THEN '✅ Time Match (1:01 PM in range)' 
-        ELSE '❌ Time Mismatch' 
-    END as time_match_saturday
-FROM students s
-INNER JOIN enrollment e ON s.stud_id = e.stud_id
-INNER JOIN classes c ON e.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-INNER JOIN class_schedules cs ON c.class_id = cs.class_id
-WHERE s.stud_number = '2025-0001'
-  AND co.course_code = 'IT203'
-ORDER BY cs.sched_day_of_week;
-
-SELECT '=== TEST 6: FINGERPRINT REGISTRATION ===' as test_name;
-
-SELECT 
-    s.stud_id,
-    s.stud_number,
-    u.user_id,
-    CONCAT(u.user_first_name, ' ', u.user_last_name) as student_name,
-    ft.ftemp_id,
-    ft.ftemp_name,
-    LENGTH(ft.ftemp_data) as template_size_bytes,
-    ft.ftemp_created_at,
-    CASE 
-        WHEN ft.ftemp_id IS NOT NULL THEN '✅ Fingerprint Registered' 
-        ELSE '❌ No Fingerprint' 
-    END as fingerprint_status
-FROM students s
-INNER JOIN users u ON s.user_id = u.user_id
-LEFT JOIN fingerprint_templates ft ON u.user_id = ft.user_id
-WHERE s.stud_number = '2025-0001';
-
-SELECT '=== TEST 7: EXISTING ATTENDANCE RECORDS ===' as test_name;
-
-SELECT 
-    dal.daily_attend_id,
-    dal.stud_id,
-    dal.class_id,
-    c.class_id as class_id_check,
-    co.course_code,
-    dal.attend_date,
-    dal.time_in,
-    dal.time_out,
-    dal.status,
-    dal.forgot_timeout,
-    CASE 
-        WHEN dal.status = 'completed' THEN '? Completed (Both In/Out)' 
-        WHEN dal.status = 'active' THEN '?? Active (Only In)' 
-        WHEN dal.status = 'incomplete' THEN '? Incomplete (Forgot Out)' 
-        ELSE CONCAT('? Unknown Status: "', COALESCE(dal.status, 'NULL'), '"')
-    END as status_explanation
-FROM students s
-LEFT JOIN daily_attendance_log dal ON s.stud_id = dal.stud_id
-LEFT JOIN classes c ON dal.class_id = c.class_id
-LEFT JOIN courses co ON c.course_id = co.course_id
-WHERE s.stud_number = '2025-0001'
-ORDER BY dal.attend_date DESC, dal.time_in DESC;
-
-SELECT '=== TEST 8: ACADEMIC TERM STATUS ===' as test_name;
-
-SELECT 
-    at.term_id,
-    at.term_name,
-    at.start_date,
-    at.end_date,
-    at.is_active,
-    CASE 
-        WHEN at.is_active = TRUE THEN '✅ Active Term' 
-        ELSE '❌ Inactive Term' 
-    END as term_status,
-    CASE 
-        WHEN CURRENT_DATE >= at.start_date AND CURRENT_DATE <= at.end_date THEN '✅ Within Date Range' 
-        ELSE '⚠️ Outside Date Range' 
-    END as date_range_status
-FROM academic_terms at
-WHERE at.is_active = TRUE
-ORDER BY at.term_id DESC
-LIMIT 1;
-
-SELECT '=== DIAGNOSTIC SUMMARY FOR 2025-0001 ===' as section;
-
-WITH verification_results AS (
-    SELECT 
-        (SELECT COUNT(*) FROM students WHERE stud_number = '2025-0001') as student_exists,
-        (SELECT COUNT(*) FROM enrollment e INNER JOIN students s ON e.stud_id = s.stud_id WHERE s.stud_number = '2025-0001') as enrollments_count,
-        (SELECT COUNT(*) FROM class_schedules cs 
-         INNER JOIN classes c ON cs.class_id = c.class_id 
-         INNER JOIN enrollment e ON c.class_id = e.class_id 
-         INNER JOIN students s ON e.stud_id = s.stud_id 
-         WHERE s.stud_number = '2025-0001') as total_schedules,
-        (SELECT COUNT(*) FROM fingerprint_templates ft
-         INNER JOIN users u ON ft.user_id = u.user_id
-         INNER JOIN students s ON u.user_id = s.user_id
-         WHERE s.stud_number = '2025-0001') as has_fingerprint,
-        (SELECT COUNT(*) FROM academic_terms WHERE is_active = TRUE) as active_term_exists
-)
-SELECT 
-    student_exists,
-    CASE WHEN student_exists = 1 THEN '✅' ELSE '❌' END as student_check,
-    enrollments_count,
-    CASE WHEN enrollments_count >= 3 THEN '✅' ELSE '❌' END as enrollment_check,
-    total_schedules,
-    CASE WHEN total_schedules > 0 THEN '✅' ELSE '❌' END as schedule_check,
-    has_fingerprint,
-    CASE WHEN has_fingerprint = 1 THEN '✅' ELSE '❌' END as fingerprint_check,
-    active_term_exists,
-    CASE WHEN active_term_exists = 1 THEN '✅' ELSE '❌' END as term_check,
-    CASE 
-        WHEN student_exists = 1 
-         AND enrollments_count >= 3 
-         AND total_schedules > 0 
-         AND has_fingerprint = 1 
-         AND active_term_exists = 1 
-        THEN '✅ ALL CHECKS PASSED!' 
-        ELSE '❌ SOME CHECKS FAILED!' 
-    END as final_verdict
-FROM verification_results;
-
-
-SELECT '=== STEP 1: IT203 SCHEDULE VERIFICATION ===' as test_name;
-
-SELECT 
-    cs.sched_id,
-    cs.class_id,
-    c.course_id,
-    co.course_code,
-    co.course_name,
-    cs.sched_day_of_week,
-    LENGTH(cs.sched_day_of_week) as day_name_length,
-    cs.sched_start_time,
-    cs.sched_end_time,
-    -- Check for whitespace
-    CASE 
-        WHEN cs.sched_day_of_week = TRIM(cs.sched_day_of_week) THEN '✅ No Whitespace'
-        ELSE '❌ Has Whitespace (CRITICAL BUG!)'
-    END as whitespace_check,
-    -- Check if matches "Saturday"
-    CASE 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = 'saturday' THEN '✅ Matches Saturday'
-        ELSE CONCAT('❌ Does NOT match Saturday (value: "', cs.sched_day_of_week, '")')
-    END as saturday_match
-FROM class_schedules cs
-INNER JOIN classes c ON cs.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-WHERE co.course_code = 'IT203'
-ORDER BY cs.sched_day_of_week, cs.sched_start_time;
-
-SELECT '=== STEP 2: TIME MATCHING TEST (Saturday 1:50 PM) ===' as test_name;
-
-WITH test_time AS (
-    SELECT 
-        '13:50:00'::TIME as current_time,
-        'Saturday' as current_day
-)
-SELECT 
-    cs.sched_id,
-    co.course_code,
-    cs.sched_day_of_week,
-    LENGTH(cs.sched_day_of_week) as db_day_length,
-    cs.sched_start_time,
-    cs.sched_end_time,
-    tt.current_time,
-    tt.current_day,
-    -- Day matching tests
-    CASE 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = LOWER(tt.current_day) 
-        THEN '✅ DAY MATCH' 
-        ELSE CONCAT('❌ DAY MISMATCH (DB: "', cs.sched_day_of_week, '" vs Current: "', tt.current_day, '")') 
-    END as day_match_result,
-    -- Time matching tests
-    CASE 
-        WHEN tt.current_time >= cs.sched_start_time 
-        THEN '✅ After Start' 
-        ELSE CONCAT('❌ Before Start (', tt.current_time, ' < ', cs.sched_start_time, ')') 
-    END as after_start_check,
-    CASE 
-        WHEN tt.current_time <= cs.sched_end_time 
-        THEN '✅ Before End' 
-        ELSE CONCAT('❌ After End (', tt.current_time, ' > ', cs.sched_end_time, ')') 
-    END as before_end_check,
-    -- Overall result
-    CASE 
-        WHEN LOWER(TRIM(cs.sched_day_of_week)) = LOWER(tt.current_day)
-         AND tt.current_time >= cs.sched_start_time 
-         AND tt.current_time <= cs.sched_end_time 
-        THEN '✅✅✅ SHOULD ALLOW TIME IN ✅✅✅' 
-        ELSE '❌ Should REJECT (debug above checks)' 
-    END as final_result
-FROM class_schedules cs
-INNER JOIN classes c ON cs.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-CROSS JOIN test_time tt
-WHERE co.course_code = 'IT203';
-
-SELECT '=== STEP 3: STUDENT ENROLLMENT IN IT203 ===' as test_name;
-
-SELECT 
-    s.stud_id,
-    s.stud_number,
-    e.class_id,
-    c.course_id,
-    co.course_code,
-    co.course_name,
-    CASE WHEN e.enroll_id IS NOT NULL THEN '✅ ENROLLED' ELSE '❌ NOT ENROLLED' END as enrollment_status
-FROM students s
-LEFT JOIN enrollment e ON s.stud_id = e.stud_id
-LEFT JOIN classes c ON e.class_id = c.class_id
-LEFT JOIN courses co ON c.course_id = co.course_id
-WHERE s.stud_number = '2025-0001'
-  AND co.course_code = 'IT203';
-
-  SELECT '=== STEP 4: C# SCHEDULE QUERY SIMULATION ===' as test_name;
-
--- This simulates what HomeController.GetActiveClassForStudentAsync does
-SELECT 
-    cs.sched_id,
-    cs.class_id,
-    c.course_id,
-    co.course_code,
-    co.course_name,
-    cs.sched_day_of_week,
-    cs.sched_start_time,
-    cs.sched_end_time
-FROM enrollment e
-INNER JOIN classes c ON e.class_id = c.class_id
-INNER JOIN courses co ON c.course_id = co.course_id
-INNER JOIN class_schedules cs ON c.class_id = cs.class_id
-INNER JOIN students s ON e.stud_id = s.stud_id
-WHERE s.stud_number = '2025-0001'
-  AND LOWER(TRIM(cs.sched_day_of_week)) = 'saturday'
-  AND '13:50:00'::TIME >= cs.sched_start_time
-  AND '13:50:00'::TIME <= cs.sched_end_time;
-
-
-SELECT '=== STEP 5: DAILY ATTENDANCE LOG CHECK ===' as test_name;
-
-SELECT 
-    dal.daily_attend_id,
-    dal.stud_id,
-    dal.class_id,
-    dal.attend_date,
-    dal.time_in,
-    dal.time_out,
-    dal.status,
-    CASE 
-        WHEN dal.attend_date = CURRENT_DATE AND dal.class_id = (
-            SELECT c.class_id FROM classes c 
-            INNER JOIN courses co ON c.course_id = co.course_id 
-            WHERE co.course_code = 'IT203' LIMIT 1
-        ) THEN '⚠️ ALREADY HAS RECORD FOR IT203 TODAY!'
-        ELSE '✅ No duplicate'
-    END as duplicate_check
-FROM daily_attendance_log dal
-INNER JOIN students s ON dal.stud_id = s.stud_id
-WHERE s.stud_number = '2025-0001'
-  AND dal.attend_date = CURRENT_DATE;
-
-  SELECT '=== STEP 6: WHITESPACE FIX (if needed) ===' as test_name;
-
--- Check if any schedules have whitespace
-SELECT 
-    sched_id,
-    sched_day_of_week,
-    LENGTH(sched_day_of_week) as length_with_whitespace,
-    LENGTH(TRIM(sched_day_of_week)) as length_trimmed,
-    CASE 
-        WHEN sched_day_of_week != TRIM(sched_day_of_week) THEN '❌ HAS WHITESPACE - NEEDS FIX'
-        ELSE '✅ OK'
-    END as whitespace_status
-FROM class_schedules
-WHERE sched_day_of_week != TRIM(sched_day_of_week);
-
-
-SELECT '=== STEP 7: COMPLETE SYSTEM DIAGNOSTIC ===' as test_name;
-
-WITH student_check AS (
-    SELECT stud_id FROM students WHERE stud_number = '2025-0001'
-),
-enrollment_check AS (
-    SELECT class_id FROM enrollment WHERE stud_id = (SELECT stud_id FROM student_check)
-),
-schedule_check AS (
-    SELECT cs.* 
-    FROM class_schedules cs
-    WHERE cs.class_id IN (SELECT class_id FROM enrollment_check)
-      AND LOWER(TRIM(cs.sched_day_of_week)) = 'saturday'
-      AND '13:50:00'::TIME >= cs.sched_start_time
-      AND '13:50:00'::TIME <= cs.sched_end_time
-)
-SELECT 
-    'Student Exists' as check_type,
-    CASE WHEN EXISTS(SELECT 1 FROM student_check) THEN '✅ PASS' ELSE '❌ FAIL' END as status
-UNION ALL
-SELECT 
-    'Has Enrollments',
-    CASE WHEN EXISTS(SELECT 1 FROM enrollment_check) THEN '✅ PASS' ELSE '❌ FAIL' END
-UNION ALL
-SELECT 
-    'Has Matching Schedule',
-    CASE WHEN EXISTS(SELECT 1 FROM schedule_check) THEN '✅ PASS' ELSE '❌ FAIL' END;
-
-	SELECT '=== DIAGNOSTIC SUMMARY ===' as section;
-
-SELECT 
-    'If all checks above passed but time in still fails,' as diagnosis,
-    'the issue is in C# code (HomeController.cs GetActiveClassForStudentAsync)' as location,
-    'Check application logs for [SCHEDULE DEBUG] messages' as next_step;

@@ -34,6 +34,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         /// <summary>
         /// Get today's attendance status for faculty's classes (doughnut chart)
         /// Returns Present, Absent, Late counts for current day
+        /// ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
         /// </summary>
         [HttpGet("chart/today-attendance")]
         public async Task<IActionResult> GetTodayAttendanceStatus()
@@ -60,16 +61,35 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     });
                 }
 
+                // ✅ CRITICAL FIX: Match on student and date only (not class_id)
+                // Old records in daily_attendance_log have NULL class_id
                 var query = @"
+                    WITH faculty_students AS (
+                        SELECT DISTINCT e.stud_id
+                        FROM enrollment e
+                        INNER JOIN classes c ON e.class_id = c.class_id
+                        WHERE c.fac_id = @facId
+                    )
                     SELECT 
-                        COUNT(CASE WHEN a.attend_status = 'present' THEN 1 END) as present_count,
-                        COUNT(CASE WHEN a.attend_status = 'absent' THEN 1 END) as absent_count,
-                        COUNT(CASE WHEN a.attend_status = 'late' THEN 1 END) as late_count
-                    FROM attendance a
-                    INNER JOIN classes c ON a.class_id = c.class_id
-                    WHERE c.fac_id = @facId 
-                        AND a.attend_date = CURRENT_DATE 
-                        AND a.attend_type = 'in';";
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) as present_count,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NULL 
+                            THEN fs.stud_id 
+                        END) as absent_count,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) - COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) as late_count
+                    FROM faculty_students fs
+                    LEFT JOIN daily_attendance_log dal 
+                        ON fs.stud_id = dal.stud_id 
+                        AND dal.attend_date = CURRENT_DATE;";
 
                 var parameters = new Dictionary<string, object> { { "@facId", faculty.FacId } };
                 var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -105,6 +125,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         /// <summary>
         /// Get weekly attendance trend for faculty's classes (line chart)
         /// Returns attendance data for the last 7 days
+        /// ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
         /// </summary>
         [HttpGet("chart/weekly-attendance")]
         public async Task<IActionResult> GetWeeklyAttendance()
@@ -136,19 +157,45 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     });
                 }
 
+                // ✅ CRITICAL FIX: Match on student and date only
                 var query = @"
+                    WITH date_series AS (
+                        SELECT generate_series(
+                            CURRENT_DATE - INTERVAL '6 days',
+                            CURRENT_DATE,
+                            INTERVAL '1 day'
+                        )::date AS attend_date
+                    ),
+                    faculty_students AS (
+                        SELECT DISTINCT e.stud_id
+                        FROM enrollment e
+                        INNER JOIN classes c ON e.class_id = c.class_id
+                        WHERE c.fac_id = @facId
+                    )
                     SELECT 
-                        a.attend_date,
-                        COUNT(CASE WHEN a.attend_status = 'present' THEN 1 END) as present,
-                        COUNT(CASE WHEN a.attend_status = 'late' THEN 1 END) as late,
-                        COUNT(CASE WHEN a.attend_status = 'absent' THEN 1 END) as absent
-                    FROM attendance a
-                    INNER JOIN classes c ON a.class_id = c.class_id
-                    WHERE c.fac_id = @facId 
-                        AND a.attend_date >= CURRENT_DATE - INTERVAL '7 days'
-                        AND a.attend_type = 'in'
-                    GROUP BY a.attend_date
-                    ORDER BY a.attend_date;";
+                        ds.attend_date,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) as present,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) - COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) as late,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NULL 
+                            THEN fs.stud_id 
+                        END) as absent
+                    FROM date_series ds
+                    CROSS JOIN faculty_students fs
+                    LEFT JOIN daily_attendance_log dal 
+                        ON fs.stud_id = dal.stud_id 
+                        AND dal.attend_date = ds.attend_date
+                    GROUP BY ds.attend_date
+                    ORDER BY ds.attend_date;";
 
                 var parameters = new Dictionary<string, object> { { "@facId", faculty.FacId } };
                 var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -188,6 +235,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         /// <summary>
         /// Get student punctuality analysis (bar chart)
         /// Returns on-time vs late arrivals for the last 7 days
+        /// ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
         /// </summary>
         [HttpGet("chart/punctuality")]
         public async Task<IActionResult> GetPunctualityAnalysis()
@@ -214,15 +262,27 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     });
                 }
 
+                // ✅ CRITICAL FIX: Match on student and date only
                 var query = @"
+                    WITH faculty_students AS (
+                        SELECT DISTINCT e.stud_id
+                        FROM enrollment e
+                        INNER JOIN classes c ON e.class_id = c.class_id
+                        WHERE c.fac_id = @facId
+                    )
                     SELECT 
-                        COUNT(CASE WHEN a.attend_status = 'present' THEN 1 END) as on_time,
-                        COUNT(CASE WHEN a.attend_status = 'late' THEN 1 END) as late
-                    FROM attendance a
-                    INNER JOIN classes c ON a.class_id = c.class_id
-                    WHERE c.fac_id = @facId 
-                        AND a.attend_date >= CURRENT_DATE - INTERVAL '7 days'
-                        AND a.attend_type = 'in';";
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
+                            THEN dal.stud_id 
+                        END) as on_time,
+                        COUNT(DISTINCT CASE 
+                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL 
+                            THEN dal.stud_id 
+                        END) as late
+                    FROM faculty_students fs
+                    LEFT JOIN daily_attendance_log dal 
+                        ON fs.stud_id = dal.stud_id 
+                        AND dal.attend_date >= CURRENT_DATE - INTERVAL '7 days';";
 
                 var parameters = new Dictionary<string, object> { { "@facId", faculty.FacId } };
                 var dt = await _db.ExecuteQueryAsync(query, parameters);
