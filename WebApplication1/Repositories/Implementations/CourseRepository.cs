@@ -103,6 +103,100 @@ public class CourseRepository : ICourseRepository
         return await _db.ExecuteNonQueryAsync(query, parameters) > 0;
     }
 
+    // ============================================================
+    // ✅ NEW: DUPLICATE VALIDATION METHODS
+    // ============================================================
+    
+    /// <summary>
+    /// Get course by course code (case-insensitive)
+    /// </summary>
+    public async Task<Course?> GetByCourseCodeAsync(string courseCode)
+    {
+        string query = "SELECT * FROM courses WHERE LOWER(course_code) = LOWER(@code);";
+        var parameters = new Dictionary<string, object> { { "@code", courseCode } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new Course
+        {
+            CourseId = Convert.ToInt32(row["course_id"]),
+            CourseCode = row["course_code"].ToString() ?? "",
+            CourseName = row["course_name"].ToString() ?? "",
+            CourseDesc = row["course_desc"]?.ToString(),
+            CourseUnits = Convert.ToInt32(row["course_units"]),
+            ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+            CourseCreatedAt = Convert.ToDateTime(row["course_created_at"])
+        };
+    }
+
+    /// <summary>
+    /// Get course by course name (case-insensitive)
+    /// </summary>
+    public async Task<Course?> GetByCourseNameAsync(string courseName)
+    {
+        string query = "SELECT * FROM courses WHERE LOWER(course_name) = LOWER(@name);";
+        var parameters = new Dictionary<string, object> { { "@name", courseName } };
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new Course
+        {
+            CourseId = Convert.ToInt32(row["course_id"]),
+            CourseCode = row["course_code"].ToString() ?? "",
+            CourseName = row["course_name"].ToString() ?? "",
+            CourseDesc = row["course_desc"]?.ToString(),
+            CourseUnits = Convert.ToInt32(row["course_units"]),
+            ProgramId = row["program_id"] != DBNull.Value ? Convert.ToInt32(row["program_id"]) : null,
+            CourseCreatedAt = Convert.ToDateTime(row["course_created_at"])
+        };
+    }
+
+    /// <summary>
+    /// Check if course code is duplicate (case-insensitive)
+    /// </summary>
+    /// <param name="courseCode">Course code to check</param>
+    /// <param name="excludeCourseId">Course ID to exclude (for updates)</param>
+    /// <returns>True if duplicate exists, false otherwise</returns>
+    public async Task<bool> IsCourseCodeDuplicateAsync(string courseCode, int? excludeCourseId = null)
+    {
+        string query = excludeCourseId.HasValue
+            ? "SELECT COUNT(*) FROM courses WHERE LOWER(course_code) = LOWER(@code) AND course_id != @excludeId;"
+            : "SELECT COUNT(*) FROM courses WHERE LOWER(course_code) = LOWER(@code);";
+
+        var parameters = new Dictionary<string, object> { { "@code", courseCode } };
+        if (excludeCourseId.HasValue)
+        {
+            parameters.Add("@excludeId", excludeCourseId.Value);
+        }
+
+        return await _db.RecordExistsAsync(query, parameters);
+    }
+
+    /// <summary>
+    /// Check if course name is duplicate (case-insensitive)
+    /// </summary>
+    /// <param name="courseName">Course name to check</param>
+    /// <param name="excludeCourseId">Course ID to exclude (for updates)</param>
+    /// <returns>True if duplicate exists, false otherwise</returns>
+    public async Task<bool> IsCourseNameDuplicateAsync(string courseName, int? excludeCourseId = null)
+    {
+        string query = excludeCourseId.HasValue
+            ? "SELECT COUNT(*) FROM courses WHERE LOWER(course_name) = LOWER(@name) AND course_id != @excludeId;"
+            : "SELECT COUNT(*) FROM courses WHERE LOWER(course_name) = LOWER(@name);";
+
+        var parameters = new Dictionary<string, object> { { "@name", courseName } };
+        if (excludeCourseId.HasValue)
+        {
+            parameters.Add("@excludeId", excludeCourseId.Value);
+        }
+
+        return await _db.RecordExistsAsync(query, parameters);
+    }
+
     /// <summary>
     /// Gets all courses with program information in a single optimized query
     /// Eliminates N+1 query problem by using JOIN instead of multiple repository calls

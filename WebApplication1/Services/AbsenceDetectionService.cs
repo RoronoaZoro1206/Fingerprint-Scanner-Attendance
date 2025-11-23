@@ -170,6 +170,7 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// ✅ NEW METHOD: Process forgot timeout for a single class
         /// Returns count of students marked absent and students with valid timeout
+        /// ✅ CRITICAL FIX: Added null checks and proper TimeSpan/DateTime formatting to prevent FormatException
         /// </summary>
         private async Task<(int forgotCount, int validCount)> ProcessClassForgotTimeoutAsync(
             int classId, 
@@ -193,7 +194,13 @@ namespace Fingerprint_Attendance_System.Services
                     {
                         if (dailyRecord.TimeOut == null)
                         {
-                            // Student forgot to time out - mark as absent
+                            // ✅ CRITICAL FIX: Properly format TimeSpan and nullable DateTime
+                            // classEndTime is TimeSpan - format with @"hh\:mm" pattern (no AM/PM)
+                            // dailyRecord.TimeIn is DateTime? - must check for null and use .Value
+                            
+                            string classEndTimeFormatted = classEndTime.ToString(@"hh\:mm");
+                            string timeInFormatted = dailyRecord.TimeIn.Value.ToString("hh:mm tt");
+                            
                             _logger.LogWarning($"Student {enrollment.StudId} forgot to time out for Class {classId}");
                             
                             var existingRecord = await _attendanceRepo.GetByClassStudentDateAsync(
@@ -214,7 +221,7 @@ namespace Fingerprint_Attendance_System.Services
                                     AttendScanTime = date, // Use date as placeholder
                                     AttendType = ScanType.In,
                                     AttendStatus = AttendanceStatus.Absent,
-                                    AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTime:hh\\:mm tt}. Timed in at {dailyRecord.TimeIn:hh\\:mm tt}.",
+                                    AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {timeInFormatted}.",
                                     AttendCreatedAt = DateTime.Now,
                                     DailyAttendId = dailyRecord.DailyAttendId,
                                     IsPresent = false
@@ -230,7 +237,7 @@ namespace Fingerprint_Attendance_System.Services
                                 _logger.LogInformation($"Updating Student {enrollment.StudId} status from {existingRecord.AttendStatus} to Absent");
                                 
                                 existingRecord.AttendStatus = AttendanceStatus.Absent;
-                                existingRecord.AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTime:hh\\:mm tt}. Timed in at {dailyRecord.TimeIn:hh\\:mm tt}.";
+                                existingRecord.AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {timeInFormatted}.",
                                 existingRecord.IsPresent = false;
                                 
                                 await _attendanceRepo.UpdateAsync(existingRecord);
@@ -243,8 +250,9 @@ namespace Fingerprint_Attendance_System.Services
                         }
                         else
                         {
-                            // Student properly timed out
-                            _logger.LogDebug($"Student {enrollment.StudId} has valid timeout at {dailyRecord.TimeOut:hh\\:mm tt}");
+                            // ✅ CRITICAL FIX: Check TimeOut is not null before formatting
+                            string timeOutFormatted = dailyRecord.TimeOut.Value.ToString("hh:mm tt");
+                            _logger.LogDebug($"Student {enrollment.StudId} has valid timeout at {timeOutFormatted}");
                             validCount++;
                         }
                     }

@@ -138,6 +138,28 @@ public class AdminCourseController : Controller
                 return Json(new { success = false, message = "Program selection is required" });
             }
 
+            // ✅ NEW: Check for duplicate course code
+            var isDuplicateCode = await _courseRepository.IsCourseCodeDuplicateAsync(course.CourseCode);
+            if (isDuplicateCode)
+            {
+                _logger.LogWarning($"Attempted to create course with duplicate code: {course.CourseCode}");
+                return Json(new { 
+                    success = false, 
+                    message = $"Course code '{course.CourseCode}' is already in use. Please use a different course code." 
+                });
+            }
+
+            // ✅ NEW: Check for duplicate course name
+            var isDuplicateName = await _courseRepository.IsCourseNameDuplicateAsync(course.CourseName);
+            if (isDuplicateName)
+            {
+                _logger.LogWarning($"Attempted to create course with duplicate name: {course.CourseName}");
+                return Json(new { 
+                    success = false, 
+                    message = $"Course name '{course.CourseName}' already exists. Please use a different course name." 
+                });
+            }
+
             course.CourseCreatedAt = DateTime.Now;
             var result = await _courseRepository.AddAsync(course);
 
@@ -171,6 +193,34 @@ public class AdminCourseController : Controller
             if (!course.ProgramId.HasValue || course.ProgramId.Value <= 0)
             {
                 return Json(new { success = false, message = "Program selection is required" });
+            }
+
+            // ✅ NEW: Check for duplicate course code (excluding current course)
+            var isDuplicateCode = await _courseRepository.IsCourseCodeDuplicateAsync(
+                course.CourseCode, 
+                course.CourseId);
+            
+            if (isDuplicateCode)
+            {
+                _logger.LogWarning($"Attempted to update course {course.CourseId} with duplicate code: {course.CourseCode}");
+                return Json(new { 
+                    success = false, 
+                    message = $"Course code '{course.CourseCode}' is already in use by another course. Please use a different course code." 
+                });
+            }
+
+            // ✅ NEW: Check for duplicate course name (excluding current course)
+            var isDuplicateName = await _courseRepository.IsCourseNameDuplicateAsync(
+                course.CourseName, 
+                course.CourseId);
+            
+            if (isDuplicateName)
+            {
+                _logger.LogWarning($"Attempted to update course {course.CourseId} with duplicate name: {course.CourseName}");
+                return Json(new { 
+                    success = false, 
+                    message = $"Course name '{course.CourseName}' is already in use by another course. Please use a different course name." 
+                });
             }
 
             var result = await _courseRepository.UpdateAsync(course);

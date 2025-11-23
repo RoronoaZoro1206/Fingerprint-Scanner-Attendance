@@ -12,4 +12,10 @@ public interface ICourseRepository
     
     // Optimized methods to reduce N+1 queries
     Task<IEnumerable<CourseDetailDto>> GetAllWithProgramAsync();
+    
+    // ✅ NEW: Duplicate validation methods
+    Task<Course?> GetByCourseCodeAsync(string courseCode);
+    Task<Course?> GetByCourseNameAsync(string courseName);
+    Task<bool> IsCourseCodeDuplicateAsync(string courseCode, int? excludeCourseId = null);
+    Task<bool> IsCourseNameDuplicateAsync(string courseName, int? excludeCourseId = null);
 }
