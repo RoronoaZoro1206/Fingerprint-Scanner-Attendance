@@ -83,3 +83,27 @@ function formatDateForInput(dateString) {
     const date = new Date(dateString);
     return date.toISOString().split('T')[0];
 }
+
+/**
+ * ✅ NEW: Get today's date in YYYY-MM-DD format
+ * Used for setting max date on date inputs
+ */
+function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * ✅ NEW: Set max date to today for date inputs (prevent future dates)
+ * @param {string} selector - CSS selector for date input element(s)
+ */
+function setMaxDateToToday(selector) {
+    const today = getTodayDate();
+    const elements = document.querySelectorAll(selector);
+    
+    elements.forEach(element => {
+        if (element.type === 'date') {
+            element.setAttribute('max', today);
+            console.log(`✅ Max date set to ${today} for`, element.id || element.name);
+        }
+    });
+}

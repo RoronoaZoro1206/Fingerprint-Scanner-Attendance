@@ -11,7 +11,7 @@
             </select>
         </div>
         <div class="date-selector">
-            <input type="date" id="dateSelect" class="form-control" />
+            <input type="date" id="dateSelect" class="form-control" max="" />
         </div>
         <button type="button" class="btn btn-primary" id="btnMarkAllPresent" disabled>
             Mark All Present
@@ -122,6 +122,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/common/date-picker-validation.js" asp-append-version="true"></script>
     <script src="~/js/faculty/faculty_attendance.js" asp-append-version="true"></script>
 }
 

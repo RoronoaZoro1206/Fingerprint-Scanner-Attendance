@@ -11,9 +11,10 @@ $(document).ready(function () {
     // Initialize icons
     initializeLucideIcons();
 
-    // Set default date to today
+    // Set default date to today and prevent future dates
     const today = new Date().toISOString().split('T')[0];
     $('#dateSelect').val(today);
+    $('#dateSelect').attr('max', today); // ✅ NEW: Prevent future date selection
     selectedDate = today;
 
     // Load faculty classes for dropdown

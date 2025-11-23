@@ -7,6 +7,7 @@ namespace Fingerprint_Attendance_System.Services
     /// <summary>
     /// Background service for detecting and marking absent students
     /// Runs at end of day to mark students who never timed in
+    /// ✅ ENHANCED: Now also detects students who forgot to time out before class ended
     /// STEP 11: Absence Detection Batch Process
     /// </summary>
     public class AbsenceDetectionService
@@ -90,6 +91,177 @@ namespace Fingerprint_Attendance_System.Services
                 _logger.LogError(ex, $"Error processing absences for {date:yyyy-MM-dd}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// ✅ NEW METHOD: Check for students who forgot to time out after class ended
+        /// Marks students as absent if they timed in but didn't time out before class end time
+        /// This handles the scenario where students bypass attendance by forgetting timeout
+        /// </summary>
+        public async Task ProcessForgotTimeoutAbsencesAsync(DateTime date)
+        {
+            try
+            {
+                _logger.LogInformation($"=== Processing Forgot Timeout Absences for {date:yyyy-MM-dd} ===");
+                
+                var dayOfWeek = date.DayOfWeek.ToString();
+                _logger.LogInformation($"Day of week: {dayOfWeek}");
+
+                // Get all enrolled classes
+                var allEnrollments = await _enrollmentRepo.GetAllAsync();
+                var classIds = allEnrollments.Select(e => e.ClassId).Distinct().ToList();
+                
+                _logger.LogInformation($"Found {classIds.Count} unique classes to check");
+
+                int forgotTimeoutCount = 0;
+                int validTimeoutCount = 0;
+
+                foreach (var classId in classIds)
+                {
+                    try
+                    {
+                        var schedules = await _classScheduleRepo.GetByClassIdAsync(classId);
+                        var todaySchedule = schedules.FirstOrDefault(s => 
+                            s.SchedDayOfWeek.Trim().Equals(dayOfWeek, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (todaySchedule == null)
+                        {
+                            _logger.LogDebug($"Class {classId} has no schedule for {dayOfWeek}");
+                            continue; // No class scheduled today
+                        }
+                        
+                        var classEndTime = todaySchedule.SchedEndTime;
+                        var currentTime = DateTime.Now.TimeOfDay;
+                        
+                        // Only process if class has ended
+                        bool classHasEnded = date.Date < DateTime.Today || 
+                                           (date.Date == DateTime.Today && currentTime > classEndTime);
+                        
+                        if (!classHasEnded)
+                        {
+                            _logger.LogDebug($"Class {classId} hasn't ended yet (ends at {classEndTime:hh\\:mm tt})");
+                            continue; // Class still in progress or future
+                        }
+                        
+                        _logger.LogInformation($"Processing Class {classId} - Ended at {classEndTime:hh\\:mm tt}");
+                        
+                        var processed = await ProcessClassForgotTimeoutAsync(classId, date, classEndTime);
+                        forgotTimeoutCount += processed.forgotCount;
+                        validTimeoutCount += processed.validCount;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Error processing forgot timeout for Class ID: {classId}");
+                        // Continue processing other classes
+                    }
+                }
+
+                _logger.LogInformation($"=== Forgot Timeout Detection Complete ===");
+                _logger.LogInformation($"Marked as Absent (Forgot Timeout): {forgotTimeoutCount} students");
+                _logger.LogInformation($"Valid Timeouts: {validTimeoutCount} students");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error processing forgot timeout absences for {date:yyyy-MM-dd}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ✅ NEW METHOD: Process forgot timeout for a single class
+        /// Returns count of students marked absent and students with valid timeout
+        /// </summary>
+        private async Task<(int forgotCount, int validCount)> ProcessClassForgotTimeoutAsync(
+            int classId, 
+            DateTime date, 
+            TimeSpan classEndTime)
+        {
+            int forgotCount = 0;
+            int validCount = 0;
+            
+            var enrollments = await _enrollmentRepo.GetByClassIdAsync(classId);
+            _logger.LogInformation($"Class {classId} has {enrollments.Count()} enrolled students");
+            
+            foreach (var enrollment in enrollments)
+            {
+                try
+                {
+                    var dailyRecord = await _dailyAttendanceRepo.GetByStudentAndDateAsync(enrollment.StudId, date);
+                    
+                    // Check if student timed in but forgot to time out
+                    if (dailyRecord != null && dailyRecord.TimeIn != null)
+                    {
+                        if (dailyRecord.TimeOut == null)
+                        {
+                            // Student forgot to time out - mark as absent
+                            _logger.LogWarning($"Student {enrollment.StudId} forgot to time out for Class {classId}");
+                            
+                            var existingRecord = await _attendanceRepo.GetByClassStudentDateAsync(
+                                classId, 
+                                enrollment.StudId, 
+                                date);
+                            
+                            if (existingRecord == null)
+                            {
+                                // Create new absence record
+                                _logger.LogInformation($"Creating absence record for Student {enrollment.StudId}");
+                                
+                                var absenceRecord = new Attendance
+                                {
+                                    ClassId = classId,
+                                    StudId = enrollment.StudId,
+                                    AttendDate = date,
+                                    AttendScanTime = date, // Use date as placeholder
+                                    AttendType = ScanType.In,
+                                    AttendStatus = AttendanceStatus.Absent,
+                                    AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTime:hh\\:mm tt}. Timed in at {dailyRecord.TimeIn:hh\\:mm tt}.",
+                                    AttendCreatedAt = DateTime.Now,
+                                    DailyAttendId = dailyRecord.DailyAttendId,
+                                    IsPresent = false
+                                };
+                                
+                                await _attendanceRepo.AddAsync(absenceRecord);
+                                forgotCount++;
+                            }
+                            else if (existingRecord.AttendStatus == AttendanceStatus.Present || 
+                                   existingRecord.AttendStatus == AttendanceStatus.Late)
+                            {
+                                // Update existing record to absent
+                                _logger.LogInformation($"Updating Student {enrollment.StudId} status from {existingRecord.AttendStatus} to Absent");
+                                
+                                existingRecord.AttendStatus = AttendanceStatus.Absent;
+                                existingRecord.AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTime:hh\\:mm tt}. Timed in at {dailyRecord.TimeIn:hh\\:mm tt}.";
+                                existingRecord.IsPresent = false;
+                                
+                                await _attendanceRepo.UpdateAsync(existingRecord);
+                                forgotCount++;
+                            }
+                            else
+                            {
+                                _logger.LogDebug($"Student {enrollment.StudId} already marked as {existingRecord.AttendStatus}");
+                            }
+                        }
+                        else
+                        {
+                            // Student properly timed out
+                            _logger.LogDebug($"Student {enrollment.StudId} has valid timeout at {dailyRecord.TimeOut:hh\\:mm tt}");
+                            validCount++;
+                        }
+                    }
+                    else
+                    {
+                        // Student never timed in (handled by main absence detection)
+                        _logger.LogDebug($"Student {enrollment.StudId} never timed in (handled by main absence detection)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error processing Student {enrollment.StudId} for Class {classId}");
+                    // Continue processing other students
+                }
+            }
+            
+            return (forgotCount, validCount);
         }
 
         /// <summary>
@@ -219,10 +391,15 @@ namespace Fingerprint_Attendance_System.Services
 
         /// <summary>
         /// Manual trigger for processing absences (for testing or manual runs)
+        /// ✅ ENHANCED: Now also processes forgot timeout absences
         /// </summary>
         public async Task ProcessAbsencesForTodayAsync()
         {
+            // Process students who never timed in
             await ProcessAbsencesForDateAsync(DateTime.Today);
+            
+            // ✅ NEW: Process students who forgot to time out
+            await ProcessForgotTimeoutAbsencesAsync(DateTime.Today);
         }
     }
 }

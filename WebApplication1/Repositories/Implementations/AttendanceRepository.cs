@@ -238,50 +238,85 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<IEnumerable<FacultyAttendanceRecordDto>> GetFacultyAttendanceRecordsAsync(int facId, int limit = 20)
     {
         string query = @"
-            -- ✅ CRITICAL FIX: Use actual attend_status from attendance table
-            -- Count by class-specific status, not daily attendance log
+            -- ✅ CRITICAL FIX: Remove duplicate counting logic to show accurate attendance counts
             WITH faculty_classes AS (
                 SELECT DISTINCT c.class_id, c.course_id
                 FROM classes c
                 WHERE c.fac_id = @facId
             ),
-            recent_dates AS (
-                SELECT DISTINCT a.attend_date
+            -- ✅ Find the FIRST attendance record date to avoid ghost dates
+            first_attendance_date AS (
+                SELECT MIN(a.attend_date) as start_date
                 FROM attendance a
                 INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
-                WHERE a.attend_date >= CURRENT_DATE - INTERVAL '30 days'
-                ORDER BY a.attend_date DESC
+            ),
+            -- ✅ Only generate dates for scheduled class days (not every day)
+            scheduled_class_dates AS (
+                SELECT DISTINCT
+                    rd.attend_date,
+                    fc.class_id,
+                    fc.course_id
+                FROM (
+                    SELECT generate_series(
+                        GREATEST(
+                            (SELECT start_date FROM first_attendance_date),
+                            CURRENT_DATE - INTERVAL '29 days'
+                        ),
+                        CURRENT_DATE,
+                        INTERVAL '1 day'
+                    )::date AS attend_date
+                ) rd
+                CROSS JOIN faculty_classes fc
+                INNER JOIN class_schedules cs ON fc.class_id = cs.class_id
+                -- ✅ Only include dates that match the scheduled day of week
+                WHERE TRIM(cs.sched_day_of_week) = TRIM(TO_CHAR(rd.attend_date, 'Day'))
+                  AND rd.attend_date >= COALESCE((SELECT start_date FROM first_attendance_date), CURRENT_DATE)
+                ORDER BY rd.attend_date DESC
                 LIMIT @limit
+            ),
+            -- Get actual attendance records
+            attendance_records AS (
+                SELECT 
+                    a.attend_date,
+                    a.stud_id,
+                    a.class_id,
+                    a.attend_status
+                FROM attendance a
+                INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
+                WHERE a.attend_date >= COALESCE((SELECT start_date FROM first_attendance_date), CURRENT_DATE)
+                  AND a.attend_date <= CURRENT_DATE
             )
+            -- ✅ CRITICAL FIX: Count DISTINCT students to prevent duplicates
             SELECT 
-                rd.attend_date,
+                scd.attend_date,
+                scd.course_id,
                 COALESCE(co.course_code, 'N/A') AS course_code,
-                -- ✅ FIX: Count by actual attend_status from attendance table
+                -- ✅ FIX: Use DISTINCT to count each student only ONCE per status
                 COUNT(DISTINCT CASE 
-                    WHEN a.attend_status = 'present'::attendance_status 
-                    THEN a.stud_id 
+                    WHEN ar.attend_status = 'present'::attendance_status 
+                    THEN ar.stud_id 
                 END) AS present,
                 COUNT(DISTINCT CASE 
-                    WHEN a.attend_status = 'late'::attendance_status 
-                    THEN a.stud_id 
+                    WHEN ar.attend_status = 'late'::attendance_status 
+                    THEN ar.stud_id 
                 END) AS late,
                 COUNT(DISTINCT CASE 
-                    WHEN a.attend_status = 'absent'::attendance_status 
-                    THEN a.stud_id 
+                    WHEN ar.attend_status = 'absent'::attendance_status 
+                    THEN ar.stud_id 
                 END) AS absent,
                 COUNT(DISTINCT CASE 
-                    WHEN a.attend_status = 'excused'::attendance_status 
-                    THEN a.stud_id 
+                    WHEN ar.attend_status = 'excused'::attendance_status 
+                    THEN ar.stud_id 
                 END) AS excused
-            FROM recent_dates rd
-            CROSS JOIN faculty_classes fc
-            LEFT JOIN courses co ON fc.course_id = co.course_id
-            LEFT JOIN attendance a 
-                ON fc.class_id = a.class_id 
-                AND a.attend_date = rd.attend_date
-            GROUP BY rd.attend_date, co.course_code
-            HAVING COUNT(a.attend_id) > 0  -- Only show dates with actual attendance records
-            ORDER BY rd.attend_date DESC
+            FROM scheduled_class_dates scd
+            LEFT JOIN courses co ON scd.course_id = co.course_id
+            LEFT JOIN attendance_records ar 
+                ON scd.class_id = ar.class_id 
+                AND scd.attend_date = ar.attend_date
+            GROUP BY scd.attend_date, scd.course_id, co.course_code
+            -- ✅ FIX: Only show rows with actual attendance data (prevent empty rows)
+            HAVING COUNT(DISTINCT ar.stud_id) > 0
+            ORDER BY scd.attend_date DESC
             LIMIT @limit;";
 
         var parameters = new Dictionary<string, object> 
@@ -308,14 +343,53 @@ public class AttendanceRepository : IAttendanceRepository
     public async Task<FacultyReportStatsDto> GetFacultyReportStatsAsync(int facId)
     {
         string query = @"
-            -- ✅ CRITICAL FIX: Removed class_id filter - old records have NULL class_id
-            WITH faculty_students AS (
-                SELECT DISTINCT e.stud_id
-                FROM enrollment e
-                INNER JOIN classes c ON e.class_id = c.class_id
+            -- ✅ AUTOMATIC ABSENT LOGIC: Count students in ended classes without attendance as absent
+            WITH faculty_classes AS (
+                SELECT c.class_id
+                FROM classes c
                 WHERE c.fac_id = @facId
             ),
-            -- Get today's attendance stats from daily_attendance_log
+            faculty_students AS (
+                SELECT DISTINCT e.stud_id
+                FROM enrollment e
+                INNER JOIN faculty_classes fc ON e.class_id = fc.class_id
+            ),
+            today_day_of_week AS (
+                SELECT TO_CHAR(CURRENT_DATE, 'Day') as day_name
+            ),
+            -- Get all enrolled students with scheduled classes for today
+            enrolled_students_today AS (
+                SELECT DISTINCT
+                    e.stud_id,
+                    e.class_id,
+                    cs.sched_end_time
+                FROM enrollment e
+                INNER JOIN faculty_classes fc ON e.class_id = fc.class_id
+                INNER JOIN class_schedules cs ON e.class_id = cs.class_id
+                CROSS JOIN today_day_of_week dow
+                WHERE TRIM(cs.sched_day_of_week) = TRIM(dow.day_name)
+            ),
+            -- Get students with actual attendance records today
+            students_with_attendance_today AS (
+                SELECT DISTINCT
+                    a.stud_id,
+                    a.class_id,
+                    a.attend_status
+                FROM attendance a
+                INNER JOIN faculty_classes fc ON a.class_id = fc.class_id
+                WHERE a.attend_date = CURRENT_DATE
+            ),
+            -- Determine automatic absents (students in ended classes without records)
+            automatic_absents_today AS (
+                SELECT DISTINCT est.stud_id
+                FROM enrolled_students_today est
+                LEFT JOIN students_with_attendance_today swat 
+                    ON est.stud_id = swat.stud_id 
+                    AND est.class_id = swat.class_id
+                WHERE swat.stud_id IS NULL  -- No attendance record
+                  AND est.sched_end_time < CURRENT_TIME  -- Class has ended
+            ),
+            -- Get today's attendance stats (using daily_attendance_log for time in/out)
             today_stats AS (
                 SELECT 
                     COUNT(DISTINCT CASE 
@@ -355,7 +429,12 @@ public class AttendanceRepository : IAttendanceRepository
             SELECT 
                 COALESCE(ROUND((CAST(os.attended_sessions AS DECIMAL) / NULLIF(os.total_sessions, 0)) * 100), 0) AS average_attendance,
                 COALESCE(ts.late_count, 0) AS late_arrivals_today,
-                COALESCE(ts.total_enrolled - ts.present_count, 0) AS absent_students,
+                -- Combine students who haven't timed in + automatic absents from ended classes
+                COALESCE(
+                    (ts.total_enrolled - ts.present_count) + 
+                    (SELECT COUNT(*) FROM automatic_absents_today),
+                    0
+                ) AS absent_students,
                 COALESCE(ts.total_enrolled, 0) AS total_students
             FROM today_stats ts
             CROSS JOIN overall_stats os;";

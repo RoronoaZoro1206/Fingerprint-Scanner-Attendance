@@ -2,8 +2,10 @@ using Fingerprint_Attendance_System.Attributes;
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
-using Fingerprint_Attendance_System.Services; // ✅ ADDED: For UniversalAuditService
+using Fingerprint_Attendance_System.Services;
+using Fingerprint_Attendance_System.Data; // ✅ ADDED: For DatabaseHelper
 using Microsoft.AspNetCore.Mvc;
+using System.Data; // ✅ ADDED: For DataRow
 
 namespace Fingerprint_Attendance_System.Controllers.Faculty
 {
@@ -17,6 +19,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         private readonly IClassRepository _classRepository;
         private readonly ICourseRepository _courseRepository; // ✅ ADDED: For course details
         private readonly UniversalAuditService _auditService; // ✅ ADDED: Universal audit service
+        private readonly DatabaseHelper _db; // ✅ ADDED: For schedule validation
+        private readonly AbsenceDetectionService _absenceDetectionService; // ✅ NEW: For forgot timeout detection
 
         public FacultyAttendanceController(
             ILogger<FacultyAttendanceController> logger,
@@ -25,7 +29,9 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             IEnrollmentRepository enrollmentRepository,
             IClassRepository classRepository,
             ICourseRepository courseRepository, // ✅ ADDED: Inject course repository
-            UniversalAuditService auditService) // ✅ ADDED: Inject universal audit service
+            UniversalAuditService auditService, // ✅ ADDED: Inject universal audit service
+            DatabaseHelper db, // ✅ ADDED: Inject DatabaseHelper
+            AbsenceDetectionService absenceDetectionService) // ✅ NEW: Inject absence detection service
         {
             _logger = logger;
             _facultyRepository = facultyRepository;
@@ -34,6 +40,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             _classRepository = classRepository;
             _courseRepository = courseRepository; // ✅ ADDED: Store course repository
             _auditService = auditService; // ✅ ADDED: Store audit service
+            _db = db; // ✅ ADDED: Store DatabaseHelper
+            _absenceDetectionService = absenceDetectionService; // ✅ NEW: Store absence detection service
         }
 
         // GET: FacultyAttendance/Index
@@ -75,6 +83,57 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     : DateTime.TryParse(date, out DateTime parsedDate) ? parsedDate : DateTime.Today;
 
                 _logger.LogInformation($"✅ Target date: {targetDate:yyyy-MM-dd}");
+
+                // ✅ CRITICAL FIX: Validate if class is scheduled for this day of the week
+                var classEntity = await _classRepository.GetByIdAsync(classId);
+                if (classEntity == null || classEntity.FacId != faculty.FacId)
+                {
+                    _logger.LogWarning($"❌ Class not found or access denied for classId: {classId}");
+                    return Json(new { success = false, message = "Class not found or access denied" });
+                }
+
+                // Get class schedule to check if class meets on this day
+                var classSchedules = await _db.ExecuteQueryAsync(
+                    "SELECT sched_day_of_week, sched_start_time, sched_end_time FROM class_schedules WHERE class_id = @classId",
+                    new Dictionary<string, object> { { "@classId", classId } }
+                );
+
+                bool hasScheduleForThisDay = false;
+                foreach (DataRow scheduleRow in classSchedules.Rows)
+                {
+                    var scheduledDay = scheduleRow["sched_day_of_week"]?.ToString()?.Trim();
+                    var targetDay = targetDate.ToString("dddd").Trim();
+                    
+                    if (string.Equals(scheduledDay, targetDay, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasScheduleForThisDay = true;
+                        break;
+                    }
+                }
+
+                if (!hasScheduleForThisDay)
+                {
+                    _logger.LogWarning($"❌ No class scheduled for {targetDate:dddd, yyyy-MM-dd}");
+                    return Json(new 
+                    { 
+                        success = false, 
+                        message = $"No class scheduled for {targetDate:dddd, MMMM dd, yyyy}. This class only meets on scheduled days." 
+                    });
+                }
+
+                // ✅ NEW: Check for students who forgot to time out before displaying attendance
+                // This ensures the attendance data is up-to-date with forgot timeout detections
+                try
+                {
+                    _logger.LogInformation($"🔍 Running forgot timeout detection for {targetDate:yyyy-MM-dd}");
+                    await _absenceDetectionService.ProcessForgotTimeoutAbsencesAsync(targetDate);
+                    _logger.LogInformation($"✅ Forgot timeout detection completed");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "⚠️ Forgot timeout detection failed, but continuing with attendance display");
+                    // Don't fail the entire request if forgot timeout detection fails
+                }
 
                 // Single optimized query with all JOINs and faculty verification
                 var attendanceData = await _attendanceRepository.GetClassAttendanceWithDetailsAsync(
