@@ -885,6 +885,34 @@ namespace Fingerprint_Attendance_System.Controllers.Home
         }
 
         /// <summary>
+        /// ✅ NEW: Helper method to log scan events to scan_logs table
+        /// Ensures all scans (success and failure) are persisted for statistics
+        /// </summary>
+        private async Task LogScanEventAsync(int? userId, DateTime scanTime, bool success, string message)
+        {
+            try
+            {
+                var scanLog = new ScanLog
+                {
+                    UserId = userId,
+                    ScanTime = scanTime,
+                    ScanSuccess = success,
+                    ScanLogMessage = message,
+                    ScanCreatedAt = DateTime.Now
+                };
+
+                await _scanLogRepo.AddAsync(scanLog);
+                
+                _logger.LogInformation($"✅ Scan log saved: UserId={userId}, Success={success}, Message={message}");
+            }
+            catch (Exception logEx)
+            {
+                // Log but don't fail the main operation if logging fails
+                _logger.LogWarning(logEx, $"Failed to save scan log (non-critical): {message}");
+            }
+        }
+
+        /// <summary>
         /// ✅ CRITICAL BUG FIX: Get active class for student at current time with all details
         /// Returns class information if student has a scheduled class right now
         /// HANDLES MIDNIGHT-CROSSING SCHEDULES (e.g., 4:00 PM - 12:00 AM)
