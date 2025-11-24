@@ -23,6 +23,8 @@ namespace Fingerprint_Attendance_System.Controllers.Home
         private readonly IAttendanceRepository _attendanceRepository;
         private readonly AttendanceProcessingService _attendanceService;
         private readonly IScanLogRepository _scanLogRepo;
+        private readonly IProgramRepository _programRepo;  // ✅ NEW: For loading student program
+        private readonly ISectionRepository _sectionRepo;  // ✅ NEW: For loading student section
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
@@ -40,6 +42,8 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             IAttendanceRepository attendanceRepository,
             AttendanceProcessingService attendanceService,
             IScanLogRepository scanLogRepo,
+            IProgramRepository programRepo,      // ✅ NEW: For loading student program
+            ISectionRepository sectionRepo,      // ✅ NEW: For loading student section
             ILogger<HomeController> logger)
         {
             _fingerprintService = fingerprintService;
@@ -56,6 +60,8 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             _attendanceRepository = attendanceRepository;
             _attendanceService = attendanceService;
             _scanLogRepo = scanLogRepo;
+            _programRepo = programRepo;          // ✅ NEW: Assign program repository
+            _sectionRepo = sectionRepo;          // ✅ NEW: Assign section repository
             _logger = logger;
         }
 
@@ -143,11 +149,18 @@ namespace Fingerprint_Attendance_System.Controllers.Home
         /// <summary>
         /// Process public fingerprint scan for attendance with intelligent schedule validation
         /// ✅ ENHANCED: Prevents duplicate time-in after completing attendance for same class
+        /// ✅ NEW: Logs all scan events to scan_logs table for statistics tracking
         /// POST: /Home/ScanFingerprint
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> ScanFingerprint()
         {
+            // ✅ NEW: Track scan start time for logging
+            var scanStartTime = DateTime.Now;
+            int? matchedUserId = null;
+            bool scanWasSuccessful = false;
+            string scanLogMessage = "";
+            
             try
             {
                 _logger.LogInformation("=== Public Attendance Scan Started with Schedule Validation ===");
@@ -156,6 +169,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 if (!_fingerprintService.IsDeviceConnected)
                 {
                     _logger.LogWarning("Scanner not available");
+                    
+                    // ✅ NEW: Log scanner unavailable event
+                    scanLogMessage = "Scanner not available - device not connected";
+                    await LogScanEventAsync(null, scanStartTime, false, scanLogMessage);
+                    
                     return Json(new
                     {
                         success = false,
@@ -171,6 +189,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 if (template == null || template.Length == 0)
                 {
                     _logger.LogWarning($"Failed to capture fingerprint: {errorMessage}");
+                    
+                    // ✅ NEW: Log capture failure
+                    scanLogMessage = $"Failed to capture fingerprint: {errorMessage ?? "No finger detected"}";
+                    await LogScanEventAsync(null, scanStartTime, false, scanLogMessage);
+                    
                     return Json(new
                     {
                         success = false,
@@ -189,6 +212,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 if (matchResult.Student == null && matchResult.User == null)
                 {
                     _logger.LogWarning("Fingerprint not recognized");
+                    
+                    // ✅ NEW: Log fingerprint not recognized
+                    scanLogMessage = "Fingerprint not recognized - no match found in system";
+                    await LogScanEventAsync(null, scanStartTime, false, scanLogMessage);
                     
                     // Error feedback: red light + beep
                     _fingerprintService.SetLedLight("red", true);
@@ -212,6 +239,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 if (matchResult.Student == null && matchResult.User != null)
                 {
                     _logger.LogWarning($"Non-student user detected: {matchResult.User.UserEmail} (Role: {matchResult.UserRoleName})");
+                    
+                    // ✅ NEW: Log role restriction
+                    matchedUserId = matchResult.User.UserId;
+                    scanLogMessage = $"Role restriction: {matchResult.UserRoleName} fingerprint detected - not allowed for public attendance";
+                    await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
                     
                     // Error feedback: red light + beep
                     _fingerprintService.SetLedLight("red", true);
@@ -244,6 +276,7 @@ namespace Fingerprint_Attendance_System.Controllers.Home
 
                 // STEP 3C: Valid student found
                 var student = matchResult.Student!;
+                matchedUserId = student.UserId;
                 _logger.LogInformation($"Student identified: {student.StudNumber}");
 
                 // STEP 4: Check current schedule - Find active class
@@ -258,6 +291,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 if (activeClassInfo == null)
                 {
                     _logger.LogWarning($"No class scheduled for student {student.StudNumber} on {currentDay} at {currentTimeOnly}");
+                    
+                    // ✅ NEW: Log no schedule
+                    scanLogMessage = $"No class scheduled for student {student.StudNumber} on {currentDay} at {currentTime:HH:mm}";
+                    await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
                     
                     // Error feedback: red light + beep
                     _fingerprintService.SetLedLight("red", true);
@@ -305,6 +342,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                     if (existingAttendance.Status == "completed" && existingAttendance.TimeOut != null)
                     {
                         _logger.LogWarning($"⚠️ BLOCKED: Student {student.StudNumber} already completed attendance for {activeClassInfo.CourseCode}");
+                        
+                        // ✅ NEW: Log already completed
+                        scanLogMessage = $"Attendance already completed for {activeClassInfo.CourseCode} - Time In: {existingAttendance.TimeIn:HH:mm}, Time Out: {existingAttendance.TimeOut:HH:mm}";
+                        await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
                         
                         // Error feedback: red light + beep
                         _fingerprintService.SetLedLight("red", true);
@@ -354,6 +395,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                             if (currentTimeOnly > classEndTime)
                             {
                                 _logger.LogWarning($"⚠️ BLOCKED: Class has ended. Student {student.StudNumber} cannot time out for {activeClassInfo.CourseCode}");
+                                
+                                // ✅ NEW: Log class ended
+                                scanLogMessage = $"Cannot time out - class {activeClassInfo.CourseCode} ended at {classEndTime:hh\\:mm}. Student forgot to time out.";
+                                await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
                                 
                                 // Error feedback: red light + beep
                                 _fingerprintService.SetLedLight("red", true);
@@ -422,6 +467,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                             _logger.LogWarning(syncEx, "Failed to sync time out to attendance table (non-critical)");
                         }
                         
+                        // ✅ NEW: Log successful time out
+                        scanWasSuccessful = true;
+                        scanLogMessage = $"TIME OUT successful for {activeClassInfo.CourseCode} - Duration: {durationText}";
+                        await LogScanEventAsync(matchedUserId, scanStartTime, true, scanLogMessage);
+                        
                         // Success feedback: green light + beep
                         _fingerprintService.SetLedLight("green", true);
                         _fingerprintService.Beep(true);
@@ -467,6 +517,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 {
                     _logger.LogWarning($"Attendance processing failed: {processingResult.Error}");
                     
+                    // ✅ NEW: Log processing failure
+                    scanLogMessage = $"Attendance processing failed: {processingResult.Error}";
+                    await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
+                    
                     // Error feedback: red light + beep
                     _fingerprintService.SetLedLight("red", true);
                     _fingerprintService.Beep(true);
@@ -488,6 +542,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
 
                 if (attendanceResponse == null)
                 {
+                    // ✅ NEW: Log unknown error
+                    scanLogMessage = "Unknown error - attendance response is null";
+                    await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
+                    
                     return Json(new
                     {
                         success = false,
@@ -525,6 +583,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 }
 
                 _logger.LogInformation($"✅ Attendance recorded for {student.StudNumber}: {attendanceResponse.Action}");
+                
+                // ✅ NEW: Log successful time in
+                scanWasSuccessful = true;
+                scanLogMessage = $"TIME IN successful for {activeClassInfo.CourseCode} - Class: {activeClassInfo.CourseName}";
+                await LogScanEventAsync(matchedUserId, scanStartTime, true, scanLogMessage);
 
                 // Success feedback: green light + beep
                 _fingerprintService.SetLedLight("green", true);
@@ -564,6 +627,11 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during public fingerprint scan");
+                
+                // ✅ NEW: Log exception
+                scanLogMessage = $"Exception during scan: {ex.Message}";
+                await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
+                
                 return Json(new
                 {
                     success = false,
@@ -620,8 +688,19 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                                 // ✅ FIX: Populate student.User navigation property immediately
                                 // This ensures student name is available for all error messages
                                 student.User = user;
-                                
-                                _logger.LogInformation($"Student retrieved: {student.StudNumber}, Name: {user.UserFirstName} {user.UserMiddleName} {user.UserLastName}");
+                
+                                // ✅ NEW FIX: Load Program and Section navigation properties for complete student info
+                                if (student.ProgramId.HasValue)
+                                {
+                                    student.Program = await _programRepo.GetByIdAsync(student.ProgramId.Value);
+                                }
+                
+                                if (student.SectionId.HasValue)
+                                {
+                                    student.Section = await _sectionRepo.GetByIdAsync(student.SectionId.Value);
+                                }
+                
+                                _logger.LogInformation($"Student retrieved: {student.StudNumber}, Name: {user.UserFirstName} {user.UserMiddleName} {user.UserLastName}, Program: {student.Program?.ProgramName ?? "N/A"}, Year: {student.StudYearLevel}, Section: {student.Section?.SectionName ?? "N/A"}");
                                 
                                 return new FingerprintMatchResult 
                                 { 
@@ -736,6 +815,7 @@ namespace Fingerprint_Attendance_System.Controllers.Home
 
         /// <summary>
         /// Get today's attendance statistics
+        /// ✅ ENHANCED: Added error handling to prevent UI crash if statistics fail
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetStatistics()
@@ -743,7 +823,24 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             try
             {
                 var today = DateTime.Today;
-                var allScans = await _scanLogRepo.GetAllAsync();
+                
+                // ✅ CRITICAL FIX: Wrap in try-catch to prevent UI crash
+                IEnumerable<ScanLog> allScans;
+                try
+                {
+                    allScans = await _scanLogRepo.GetAllAsync();
+                }
+                catch (Exception scanEx)
+                {
+                    _logger.LogError(scanEx, "Error loading scan logs - returning default statistics");
+                    // Return default stats if scan logs fail to load
+                    return Json(new
+                    {
+                        success = true,
+                        successRate = 0,
+                        todayScans = 0
+                    });
+                }
                 
                 // Filter today's scans
                 var todayScans = allScans.Where(log => log.ScanTime.Date == today).ToList();
@@ -767,6 +864,7 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting statistics");
+                // ✅ FIX: Always return valid JSON even on error
                 return Json(new { success = false, successRate = 0, todayScans = 0 });
             }
         }

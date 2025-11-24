@@ -287,6 +287,7 @@ CREATE TABLE attendance (
 );
 
 CREATE TABLE scan_logs (
+						   scan_id 			 SERIAL PRIMARY KEY,
                            user_id           INT REFERENCES users(user_id) ON DELETE SET NULL,
                            scan_time         TIMESTAMP NOT NULL DEFAULT NOW(),
                            scan_success      BOOLEAN,
@@ -1122,6 +1123,60 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION record_time_out IS 
 '✅ UPDATED: Records student time out for a SPECIFIC CLASS (or any active record if class_id is NULL). Validates that time in exists and time out is after time in.';
 
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'daily_attendance_log' 
+          AND column_name = 'class_id'
+    ) THEN
+        RAISE NOTICE '❌ class_id column is MISSING from daily_attendance_log';
+        RAISE NOTICE '➡️ Adding class_id column now...';
+        
+        -- Step 2: Add class_id column
+        ALTER TABLE daily_attendance_log 
+        ADD COLUMN class_id INT REFERENCES classes(class_id) ON DELETE SET NULL;
+        
+        RAISE NOTICE '✅ class_id column added successfully';
+    ELSE
+        RAISE NOTICE '✅ class_id column already exists in daily_attendance_log';
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    -- Check if old constraint exists
+    IF EXISTS (
+        SELECT 1 
+        FROM pg_constraint 
+        WHERE conname = 'daily_attendance_unique_student_date'
+    ) THEN
+        -- Drop old constraint
+        ALTER TABLE daily_attendance_log 
+        DROP CONSTRAINT daily_attendance_unique_student_date;
+        
+        RAISE NOTICE '✅ Dropped old unique constraint: daily_attendance_unique_student_date';
+    END IF;
+    
+    -- Check if new constraint already exists
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_constraint 
+        WHERE conname = 'daily_attendance_unique_student_class_date'
+    ) THEN
+        -- Add new unique constraint
+        ALTER TABLE daily_attendance_log 
+        ADD CONSTRAINT daily_attendance_unique_student_class_date 
+        UNIQUE (stud_id, class_id, attend_date);
+        
+        RAISE NOTICE '✅ Added new unique constraint: daily_attendance_unique_student_class_date';
+    ELSE
+        RAISE NOTICE '✅ Unique constraint already exists: daily_attendance_unique_student_class_date';
+    END IF;
+END $$;
+
 -- ============================================================
 -- COMPLETE DATABASE TABLE QUERIES
 -- ============================================================
@@ -1154,3 +1209,15 @@ SELECT * FROM student_id_pool ORDER BY pool_id;
 SELECT * FROM classes ORDER BY class_id;
 SELECT * FROM class_schedules ORDER BY sched_id;
 SELECT * FROM enrollment ORDER BY enroll_id;
+
+-- ATTENDANCE TABLES
+SELECT * FROM attendance ORDER BY attend_id DESC;
+SELECT * FROM daily_attendance_log ORDER BY attend_date DESC, daily_attend_id DESC;
+SELECT * FROM scan_logs ORDER BY scan_time DESC;
+SELECT * FROM student_excuse_requests ORDER BY submitted_at DESC;
+SELECT * FROM faculty_attendance_actions ORDER BY action_timestamp DESC;
+SELECT * FROM attendance_notifications ORDER BY created_at DESC;
+
+-- BIOMETRIC TABLES
+SELECT * FROM fingerprint_templates ORDER BY ftemp_id;
+

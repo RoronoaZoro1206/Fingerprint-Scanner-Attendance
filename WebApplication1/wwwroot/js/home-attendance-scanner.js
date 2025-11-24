@@ -805,13 +805,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * ✅ Update statistics from server
+     * ✅ ENHANCED: Added error handling to prevent UI freeze
      */
     async function updateStats() {
         try {
             const response = await fetch('/Home/GetStatistics');
+            
+            // ✅ FIX: Check if response is OK before parsing
+            if (!response.ok) {
+                console.warn('Statistics endpoint returned error status:', response.status);
+                return; // Silently fail - don't break UI
+            }
+            
             const data = await response.json();
             
-            if (data) {
+            if (data && data.success !== false) {
                 // Update Success Rate
                 const successRateElement = document.getElementById('successRateValue');
                 if (successRateElement && data.successRate !== undefined) {
@@ -826,6 +834,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (error) {
             console.error('Error updating statistics:', error);
+            // ✅ FIX: Don't throw - just log and continue
+            // UI will continue functioning with old stats
         }
     }
 
