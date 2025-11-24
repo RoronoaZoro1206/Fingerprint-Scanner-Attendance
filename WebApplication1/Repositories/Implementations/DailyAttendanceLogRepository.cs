@@ -200,6 +200,32 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
             _logger.LogInformation($"Daily attendance record updated: ID {record.DailyAttendId}");
         }
 
+        /// <summary>
+        /// ✅ NEW: Delete a daily attendance log record by ID
+        /// Enables faculty to completely remove attendance records
+        /// Allows students to re-scan during active class time
+        /// </summary>
+        public async Task<bool> DeleteAsync(int dailyAttendId)
+        {
+            var query = @"
+                DELETE FROM daily_attendance_log
+                WHERE daily_attend_id = @daily_attend_id";
+
+            var parameters = new Dictionary<string, object>
+            {
+                { "@daily_attend_id", dailyAttendId }
+            };
+
+            var rowsAffected = await _db.ExecuteNonQueryAsync(query, parameters);
+            
+            if (rowsAffected > 0)
+            {
+                _logger.LogInformation($"Daily attendance record deleted: ID {dailyAttendId}");
+            }
+            
+            return rowsAffected > 0;
+        }
+
         public async Task SaveChangesAsync()
         {
             // DatabaseHelper executes changes immediately, so this is a no-op

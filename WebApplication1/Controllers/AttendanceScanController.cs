@@ -308,10 +308,11 @@ namespace Fingerprint_Attendance_System.Controllers
                     _logger.LogInformation($"Active class found: {courseCode} - {courseName} (Class ID: {classId})");
 
                     // Record time in using database function
-                    var timeInQuery = "SELECT * FROM record_time_in(@stud_id, @timestamp)";
+                    var timeInQuery = "SELECT * FROM record_time_in(@stud_id, @class_id, @timestamp)";
                     var timeInParams = new Dictionary<string, object>
                     {
                         { "@stud_id", student.StudId },
+                        { "@class_id", classId },  // ✅ ADDED: Pass the active class ID
                         { "@timestamp", DateTime.Now }
                     };
 

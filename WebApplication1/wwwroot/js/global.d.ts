@@ -86,7 +86,8 @@ declare function ajaxPut(
 declare function ajaxDelete(
     url: string,
     successCallback: (response: AjaxResponse) => void,
-    errorCallback?: (error: any) => void
+    errorCallback?: (error: any) => void,
+    data?: any
 ): void;
 
 declare function handleAjaxError(xhr: JQuery.jqXHR, defaultMessage?: string): void;

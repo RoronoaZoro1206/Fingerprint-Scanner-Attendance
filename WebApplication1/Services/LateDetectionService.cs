@@ -32,6 +32,7 @@ namespace Fingerprint_Attendance_System.Services
         /// STEP 10: Check student's Time In against class schedules and mark late/present
         /// Called immediately after Time In is recorded
         /// ✅ FIXED: Proper time boundary checking - only processes classes that are currently active
+        /// ✅ ENHANCED: Now properly handles class_id from daily_attendance_log
         /// </summary>
         public async Task ProcessLateDetectionAsync(int dailyAttendId)
         {
@@ -51,35 +52,92 @@ namespace Fingerprint_Attendance_System.Services
                 var timeIn = dailyRecord.TimeIn.Value;
                 var timeInTime = timeIn.TimeOfDay; // ✅ Extract time only for comparison
                 var date = dailyRecord.AttendDate;
+                var classId = dailyRecord.ClassId; // ✅ Get the class ID from the record
 
-                _logger.LogInformation($"Student ID: {studId}, Time In: {timeIn:HH:mm:ss}, Date: {date:yyyy-MM-dd}");
+                _logger.LogInformation($"Student ID: {studId}, Time In: {timeIn:HH:mm:ss}, Date: {date:yyyy-MM-dd}, Class ID: {classId?.ToString() ?? "NULL"}");
 
+                // ✅ CRITICAL FIX: If ClassId is present, only process attendance for THAT SPECIFIC CLASS
+                if (classId.HasValue)
+                {
+                    _logger.LogInformation($"Processing class-specific attendance for Class ID: {classId}");
+                    
+                    // Get schedule for this specific class
+                    var schedules = await _classScheduleRepo.GetByClassIdAsync(classId.Value);
+                    var scheduleList = schedules.ToList();
+                    
+                    if (!scheduleList.Any())
+                    {
+                        _logger.LogWarning($"No schedules found for Class ID: {classId}");
+                        return;
+                    }
+                    
+                    // Process ONLY the schedule that matches today's day of week
+                    var todayDayOfWeek = date.DayOfWeek.ToString();
+                    var todaySchedule = scheduleList.FirstOrDefault(s => 
+                        s.SchedDayOfWeek.Trim().Equals(todayDayOfWeek, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (todaySchedule == null)
+                    {
+                        _logger.LogWarning($"Class {classId} has no schedule for {todayDayOfWeek}");
+                        return;
+                    }
+                    
+                    // ✅ CRITICAL FIX: Proper time boundary checking
+                    // A class is active if: time in >= start time AND time in <= end time
+                    bool timeMatch = timeInTime >= todaySchedule.SchedStartTime && timeInTime <= todaySchedule.SchedEndTime;
+                    
+                    if (!timeMatch)
+                    {
+                        _logger.LogWarning($"Time In {timeInTime:hh\\:mm} is outside class schedule {todaySchedule.SchedStartTime:hh\\:mm} - {todaySchedule.SchedEndTime:hh\\:mm}");
+                        return;
+                    }
+                    
+                    // Build StudentScheduleDto for this class
+                    // (You'll need to get course details from the class repository)
+                    var classScheduleDto = new StudentScheduleDto
+                    {
+                        ClassId = classId.Value,
+                        StartTime = todaySchedule.SchedStartTime,
+                        EndTime = todaySchedule.SchedEndTime,
+                        CourseCode = "N/A", // Will be filled by ProcessClassAttendanceAsync
+                        DayOfWeek = todayDayOfWeek
+                    };
+                    
+                    await ProcessClassAttendanceAsync(dailyRecord, classScheduleDto, timeIn);
+                    
+                    _logger.LogInformation($"✅ Late detection processing complete for Class ID: {classId}");
+                    return;
+                }
+
+                // ✅ FALLBACK: If no ClassId (old records), process all scheduled classes for today
+                _logger.LogInformation("No ClassId found - processing all scheduled classes for today (legacy mode)");
+                
                 // Get student's schedule for today
-                var todaySchedule = await _classScheduleRepo.GetStudentScheduleForDateAsync(studId, date);
-                var scheduleList = todaySchedule.ToList();
+                var todayScheduleAll = await _classScheduleRepo.GetStudentScheduleForDateAsync(studId, date);
+                var scheduleListAll = todayScheduleAll.ToList();
 
-                if (!scheduleList.Any())
+                if (!scheduleListAll.Any())
                 {
                     _logger.LogInformation($"No classes scheduled for Student {studId} on {date.DayOfWeek}");
                     return;
                 }
 
-                _logger.LogInformation($"Found {scheduleList.Count} class(es) scheduled for Student {studId} today");
+                _logger.LogInformation($"Found {scheduleListAll.Count} class(es) scheduled for Student {studId} today");
 
                 // ✅ CRITICAL FIX: Filter to only ACTIVE classes (where current time is within schedule window)
                 // A class is active if: time in >= start time AND time in <= end time
-                var activeSchedules = scheduleList.Where(s => 
+                var activeSchedules = scheduleListAll.Where(s => 
                     timeInTime >= s.StartTime && 
                     timeInTime <= s.EndTime
                 ).ToList();
 
-                _logger.LogInformation($"🔍 SCHEDULE VALIDATION: {scheduleList.Count} total classes, {activeSchedules.Count} are currently ACTIVE at {timeInTime:hh\\:mm}");
+                _logger.LogInformation($"🔍 SCHEDULE VALIDATION: {scheduleListAll.Count} total classes, {activeSchedules.Count} are currently ACTIVE at {timeInTime:hh\\:mm}");
 
                 if (!activeSchedules.Any())
                 {
                     _logger.LogWarning($"❌ No active classes at time {timeInTime:hh\\:mm}. Student timed in outside all class schedules.");
                     _logger.LogInformation("Available class schedules:");
-                    foreach (var sched in scheduleList)
+                    foreach (var sched in scheduleListAll)
                     {
                         _logger.LogInformation($"  - {sched.CourseCode}: {sched.StartTime:hh\\:mm} - {sched.EndTime:hh\\:mm} (INACTIVE - outside time window)");
                     }

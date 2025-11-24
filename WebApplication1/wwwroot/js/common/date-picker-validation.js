@@ -4,7 +4,21 @@
  * Applied globally across Faculty, Student, and Admin modules
  * 
  * This is separate from birthdate-validation.js which handles birthdate fields specifically
+ * ✅ CRITICAL FIX: Dynamic date updating to handle midnight transitions
+ * ✅ NEW FIX: Update max date on focus/click for immediate accuracy
  */
+
+/**
+ * Get today's date in YYYY-MM-DD format
+ * Always returns current date, even after midnight
+ */
+function getTodayDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 /**
  * Initialize attendance date validation
@@ -12,7 +26,7 @@
  */
 function initializeAttendanceDateValidation() {
     // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateString();
     
     // Attendance-related date field selectors
     const attendanceDateSelectors = [
@@ -39,13 +53,34 @@ function initializeAttendanceDateValidation() {
             // Set max attribute to today
             element.setAttribute('max', today);
             
+            // ✅ NEW: Update max date when user clicks/focuses the input
+            // This ensures immediate update after midnight without waiting for timer
+            element.addEventListener('focus', function() {
+                const currentToday = getTodayDateString();
+                const currentMax = this.getAttribute('max');
+                if (currentMax !== currentToday) {
+                    this.setAttribute('max', currentToday);
+                    console.log(`🔄 Updated max date on focus: ${currentMax} → ${currentToday}`);
+                }
+            });
+            
+            // ✅ NEW: Also update on click (for calendar icon clicks)
+            element.addEventListener('click', function() {
+                const currentToday = getTodayDateString();
+                const currentMax = this.getAttribute('max');
+                if (currentMax !== currentToday) {
+                    this.setAttribute('max', currentToday);
+                    console.log(`🔄 Updated max date on click: ${currentMax} → ${currentToday}`);
+                }
+            });
+            
             // Add visual feedback - show warning if trying to select future date
             element.addEventListener('input', function() {
                 const selectedDate = new Date(this.value);
-                const maxDate = new Date(today);
+                const maxDate = new Date(getTodayDateString());
                 
                 if (selectedDate > maxDate) {
-                    this.value = today; // Reset to today
+                    this.value = getTodayDateString(); // Reset to today
                     
                     // Show warning toast if Toast is available
                     if (typeof Toast !== 'undefined') {
@@ -64,7 +99,7 @@ function initializeAttendanceDateValidation() {
                 }
             });
             
-            console.log(`✅ Date validation applied to: ${selector}`);
+            console.log(`✅ Date validation applied to: ${selector} (max: ${today})`);
         });
     });
 }
@@ -77,10 +112,45 @@ function reinitializeAttendanceDateValidation() {
     initializeAttendanceDateValidation();
 }
 
+/**
+ * ✅ IMPROVED: Update max date every minute to handle midnight transitions
+ * This ensures the date picker automatically allows the new day after midnight
+ * Combined with focus/click handlers for immediate updates
+ */
+function startDateValidationUpdater() {
+    // Update immediately
+    initializeAttendanceDateValidation();
+    
+    // Update every minute (60000ms) to catch midnight transitions
+    setInterval(function() {
+        const today = getTodayDateString();
+        console.log(`🕐 Updating date picker max to: ${today}`);
+        
+        // Update all date inputs
+        const allDateInputs = document.querySelectorAll('input[type="date"]');
+        allDateInputs.forEach(input => {
+            // Skip birthdate fields
+            if (input.id && input.id.toLowerCase().includes('birthdate')) {
+                return;
+            }
+            if (input.name && input.name.toLowerCase().includes('birthdate')) {
+                return;
+            }
+            
+            // Update max attribute to current date
+            const currentMax = input.getAttribute('max');
+            if (currentMax !== today) {
+                input.setAttribute('max', today);
+                console.log(`✅ Updated ${input.id || input.name || 'date input'} max to ${today}`);
+            }
+        });
+    }, 60000); // Run every 60 seconds (1 minute)
+}
+
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    initializeAttendanceDateValidation();
-    console.log('✅ Attendance date validation initialized globally');
+    startDateValidationUpdater();
+    console.log('✅ Attendance date validation initialized globally with auto-updater + focus/click handlers');
 });
 
 // Reinitialize when Bootstrap modals are shown
@@ -93,4 +163,5 @@ document.addEventListener('shown.bs.modal', function() {
 if (typeof window !== 'undefined') {
     window.initializeAttendanceDateValidation = initializeAttendanceDateValidation;
     window.reinitializeAttendanceDateValidation = reinitializeAttendanceDateValidation;
+    window.getTodayDateString = getTodayDateString;
 }

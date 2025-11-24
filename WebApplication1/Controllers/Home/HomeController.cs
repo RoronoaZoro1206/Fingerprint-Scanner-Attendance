@@ -338,6 +338,55 @@ public class HomeController : Controller
                 {
                     _logger.LogInformation($"Processing TIME OUT for {activeClassInfo.CourseCode}");
                     
+                    // ✅ NEW: Get class schedule to check if class has ended
+                    var classSchedules = await _classScheduleRepo.GetByClassIdAsync(activeClassInfo.ClassId);
+                    var todaySchedule = classSchedules.FirstOrDefault(s => 
+                        s.SchedDayOfWeek.Trim().Equals(currentDay, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (todaySchedule != null)
+                    {
+                        var classEndTime = todaySchedule.SchedEndTime;
+                        
+                        // ✅ NEW: Check if current time is after class end time
+                        if (currentTimeOnly > classEndTime)
+                        {
+                            _logger.LogWarning($"⚠️ BLOCKED: Class has ended. Student {student.StudNumber} cannot time out for {activeClassInfo.CourseCode}");
+                            
+                            // Error feedback: red light + beep
+                            _fingerprintService.SetLedLight("red", true);
+                            _fingerprintService.Beep(true);
+                            _ = Task.Delay(1000).ContinueWith(_ =>
+                            {
+                                _fingerprintService.SetLedLight("red", false);
+                                _fingerprintService.Beep(false);
+                            });
+                            
+                            var classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+
+                            return Json(new
+                            {
+                                success = false,
+                                messageType = "class_ended",
+                                studentName = $"{student.User?.UserFirstName} {student.User?.UserLastName}",
+                                studentNumber = student.StudNumber,
+                                courseName = $"{activeClassInfo.CourseCode} - {activeClassInfo.CourseName}",
+                                facultyName = activeClassInfo.FacultyName,
+                                classEndTime = classEndTimeFormatted,
+                                timeIn = existingAttendance.TimeIn?.ToString("hh:mm tt"),
+                                message = $"⚠️ Class Has Ended - Cannot Time Out\n\n" +
+                                         $"Hello, {student.User?.UserFirstName} {student.User?.UserLastName}\n\n" +
+                                         $"The class has already ended:\n" +
+                                         $"📚 {activeClassInfo.CourseCode} - {activeClassInfo.CourseName}\n" +
+                                         $"👨‍🏫 Prof. {activeClassInfo.FacultyName}\n\n" +
+                                         $"🕒 Class ended at: {classEndTimeFormatted}\n" +
+                                         $"✅ Your Time In: {existingAttendance.TimeIn:hh:mm tt}\n\n" +
+                                         $"⚠️ You forgot to time out before the class ended.\n" +
+                                         $"Your attendance has been automatically marked as ABSENT.\n\n" +
+                                         $"Please contact your faculty if you need to appeal this status."
+                            });
+                        }
+                    }
+                    
                     existingAttendance.TimeOut = currentTime;
                     existingAttendance.Status = "completed";
                     existingAttendance.UpdatedAt = DateTime.Now;

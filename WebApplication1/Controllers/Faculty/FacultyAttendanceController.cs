@@ -21,6 +21,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         private readonly UniversalAuditService _auditService; // ✅ ADDED: Universal audit service
         private readonly DatabaseHelper _db; // ✅ ADDED: For schedule validation
         private readonly AbsenceDetectionService _absenceDetectionService; // ✅ NEW: For forgot timeout detection
+        private readonly IDailyAttendanceLogRepository _dailyAttendanceRepo; // ✅ NEW: For daily attendance log operations
 
         public FacultyAttendanceController(
             ILogger<FacultyAttendanceController> logger,
@@ -31,7 +32,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             ICourseRepository courseRepository, // ✅ ADDED: Inject course repository
             UniversalAuditService auditService, // ✅ ADDED: Inject universal audit service
             DatabaseHelper db, // ✅ ADDED: Inject DatabaseHelper
-            AbsenceDetectionService absenceDetectionService) // ✅ NEW: Inject absence detection service
+            AbsenceDetectionService absenceDetectionService, // ✅ NEW: Inject absence detection service
+            IDailyAttendanceLogRepository dailyAttendanceRepo) // ✅ NEW: Inject daily attendance log repository
         {
             _logger = logger;
             _facultyRepository = facultyRepository;
@@ -42,6 +44,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
             _auditService = auditService; // ✅ ADDED: Store audit service
             _db = db; // ✅ ADDED: Store DatabaseHelper
             _absenceDetectionService = absenceDetectionService; // ✅ NEW: Store absence detection service
+            _dailyAttendanceRepo = dailyAttendanceRepo; // ✅ NEW: Store daily attendance log repository
         }
 
         // GET: FacultyAttendance/Index
@@ -77,12 +80,28 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
                 _logger.LogInformation($"✅ Faculty found - FacId: {faculty.FacId}");
 
-                // Parse target date
-                DateTime targetDate = string.IsNullOrEmpty(date) 
-                    ? DateTime.Today 
-                    : DateTime.TryParse(date, out DateTime parsedDate) ? parsedDate : DateTime.Today;
+                // ✅ TIMEZONE FIX: Use Philippine time (UTC+8) instead of UTC
+                // Get current date in Philippine timezone
+                var philippineTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time"); // Philippines uses UTC+8, same as Singapore
+                var philippineNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, philippineTimeZone);
+                var philippineToday = philippineNow.Date;
 
-                _logger.LogInformation($"✅ Target date: {targetDate:yyyy-MM-dd}");
+                // Parse target date - default to Philippine local time, not UTC
+                DateTime targetDate;
+                if (string.IsNullOrEmpty(date))
+                {
+                    targetDate = philippineToday; // ✅ Use Philippine today
+                }
+                else if (DateTime.TryParse(date, out DateTime parsedDate))
+                {
+                    targetDate = parsedDate.Date;
+                }
+                else
+                {
+                    targetDate = philippineToday; // ✅ Fallback to Philippine today
+                }
+
+                _logger.LogInformation($"✅ Target date: {targetDate:yyyy-MM-dd} (Philippine Time: {philippineNow:yyyy-MM-dd HH:mm:ss})");
 
                 // ✅ CRITICAL FIX: Validate if class is scheduled for this day of the week
                 var classEntity = await _classRepository.GetByIdAsync(classId);
@@ -310,6 +329,8 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
                 // Get attendance for the specified date
                 var targetDate = string.IsNullOrEmpty(request.Date) ? DateTime.Today : DateTime.Parse(request.Date);
+                
+                // ✅ STEP 1: Delete from attendance table
                 var allAttendance = await _attendanceRepository.GetAllAsync();
                 var attendanceRecords = allAttendance
                     .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == targetDate)
@@ -320,7 +341,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     return Json(new { success = false, message = "Attendance record not found" });
                 }
 
-                // Delete all attendance records for this student today
+                // Delete all attendance records for this student on this date
                 int deletedCount = 0;
                 foreach (var record in attendanceRecords)
                 {
@@ -328,6 +349,28 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     if (result)
                     {
                         deletedCount++;
+                    }
+                }
+
+                // ✅ STEP 2: Also delete from daily_attendance_log table
+                // This ensures students can re-scan during active class time
+                var dailyAttendLog = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(
+                    request.StudId, 
+                    request.ClassId, 
+                    targetDate
+                );
+                
+                if (dailyAttendLog != null)
+                {
+                    try
+                    {
+                        await _dailyAttendanceRepo.DeleteAsync(dailyAttendLog.DailyAttendId);
+                        _logger.LogInformation($"✅ Deleted daily attendance log for Student {request.StudId}, Class {request.ClassId}, Date {targetDate:yyyy-MM-dd}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "⚠️ Failed to delete from daily_attendance_log, but continuing with operation");
+                        // Don't fail the entire operation if daily log deletion fails
                     }
                 }
 
@@ -342,7 +385,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                             await _auditService.LogActionAsync(
                                 "Attendance Record Deleted",
                                 $"Faculty deleted attendance for student {request.StudId} in {course.CourseCode} " +
-                                $"on {targetDate:yyyy-MM-dd} ({deletedCount} record(s))"
+                                $"on {targetDate:yyyy-MM-dd} ({deletedCount} attendance record(s) + daily log)"
                             );
                         }
                     }

@@ -96,6 +96,12 @@ function handleClassChange() {
     }
 
     currentClassId = parseInt(classId);
+    
+    // ✅ CRITICAL FIX: Always use current date from picker (don't use cached value)
+    // This ensures the date is TODAY when coming from My Classes page
+    selectedDate = $('#dateSelect').val();
+    console.log(`✅ Loading attendance for class ${classId} on date: ${selectedDate}`);
+    
     loadAttendanceForDate();
 }
 
@@ -222,15 +228,16 @@ function initializeDataTable(classId, date) {
                 render: function (data, type, row) {
                     if (!data) return '-';
                     
-                    const profileImage = row.profileImage && row.profileImage !== 'default_profile.png'
+                    // ✅ FIX: Update default profile image path to templates folder
+                    const profileImage = row.profileImage && row.profileImage !== 'default_profile.png' && row.profileImage !== 'templates/default_profile.png'
                         ? `/images/profile/${row.profileImage}`
-                        : '/images/profile/default_profile.png';
+                        : '/images/profile/templates/default_profile.png';
                     return `
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <img src="${profileImage}" 
                                  alt="${data}" 
                                  class="student-profile-img"
-                                 onerror="this.src='/images/profile/default_profile.png'">
+                                 onerror="this.src='/images/profile/templates/default_profile.png'">
                             <span>${data}</span>
                         </div>
                     `;

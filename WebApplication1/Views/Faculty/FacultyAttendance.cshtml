@@ -1,5 +1,9 @@
 @{
     ViewData["Title"] = "Attendance Monitoring";
+    // ✅ TIMEZONE FIX: Calculate Philippine local time (UTC+8)
+    var philippineTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+    var philippineToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, philippineTimeZone).Date;
+    var philippineTodayString = philippineToday.ToString("yyyy-MM-dd");
 }
 
 <div class="page-header">
@@ -11,7 +15,7 @@
             </select>
         </div>
         <div class="date-selector">
-            <input type="date" id="dateSelect" class="form-control" max="" />
+            <input type="date" id="dateSelect" class="form-control" max="@philippineTodayString" value="@philippineTodayString" />
         </div>
         <button type="button" class="btn btn-primary" id="btnMarkAllPresent" disabled>
             Mark All Present

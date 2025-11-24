@@ -117,9 +117,9 @@ public class AttendanceRepository : IAttendanceRepository
 
     /// <summary>
     /// Gets class attendance with all student details in a single optimized query
-    /// ✅ CRITICAL FIX: Removed class_id filter from daily_attendance_log JOIN
-    /// - Old records in daily_attendance_log have NULL class_id
-    /// - Query now matches on stud_id and date only
+    /// ✅ CRITICAL FIX: Properly filter attendance and daily_attendance_log by class_id
+    /// - Ensures only records for the SELECTED class are shown
+    /// - Prevents mixing data from different classes on the same date
     /// - Shows ALL enrolled students regardless of attendance status
     /// Eliminates N+1 query problem by using JOINs and aggregation
     /// Verifies faculty ownership of the class
@@ -133,7 +133,7 @@ public class AttendanceRepository : IAttendanceRepository
                 FROM classes
                 WHERE class_id = @classId AND fac_id = @facId
             ),
-            -- ✅ CRITICAL FIX: Get all enrolled students with their ACTUAL attendance status
+            -- ✅ CRITICAL FIX: Get all enrolled students with their CLASS-SPECIFIC attendance
             -- Priority: attendance.attend_status (class-specific) > daily log status
             student_attendance AS (
                 SELECT 
@@ -158,15 +158,16 @@ public class AttendanceRepository : IAttendanceRepository
                 FROM enrollment e
                 INNER JOIN students s ON e.stud_id = s.stud_id
                 INNER JOIN users u ON s.user_id = u.user_id
-                -- ✅ LEFT JOIN to attendance table to get actual status
+                -- ✅ CRITICAL FIX: LEFT JOIN to attendance table filtered by THIS class only
                 LEFT JOIN attendance a 
-                    ON e.class_id = a.class_id
-                    AND e.stud_id = a.stud_id
+                    ON a.class_id = @classId        -- ✅ FILTER BY SELECTED CLASS
+                    AND a.stud_id = e.stud_id
                     AND a.attend_date = @date
-                -- ✅ LEFT JOIN to daily_attendance_log for time in/out
+                -- ✅ CRITICAL FIX: LEFT JOIN to daily_attendance_log filtered by THIS class only
                 LEFT JOIN daily_attendance_log dal 
-                    ON s.stud_id = dal.stud_id 
+                    ON dal.stud_id = s.stud_id 
                     AND dal.attend_date = @date
+                    AND (dal.class_id = @classId OR dal.class_id IS NULL)  -- ✅ FILTER BY SELECTED CLASS
                 WHERE e.class_id = @classId
                 ORDER BY s.stud_number
             )
@@ -357,6 +358,7 @@ public class AttendanceRepository : IAttendanceRepository
             today_day_of_week AS (
                 SELECT TO_CHAR(CURRENT_DATE, 'Day') as day_name
             ),
+            -- ✅ CRITICAL FIX: Removed invalid references to rd.attend_date, first_attendance_date, and LIMIT/ORDER BY
             -- Get all enrolled students with scheduled classes for today
             enrolled_students_today AS (
                 SELECT DISTINCT

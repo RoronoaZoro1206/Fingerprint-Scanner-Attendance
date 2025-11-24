@@ -108,9 +108,10 @@ function ajaxPut(url, data, successCallback, errorCallback) {
  * @param {string} url - API endpoint URL
  * @param {function(AjaxResponse): void} successCallback - Success callback function
  * @param {function(*): void} [errorCallback] - Error callback function (optional)
+ * @param {Object} [data] - Optional data to send in request body (optional)
  */
-function ajaxDelete(url, successCallback, errorCallback) {
-    $.ajax({
+function ajaxDelete(url, successCallback, errorCallback, data) {
+    const ajaxOptions = {
         url: url,
         type: 'DELETE',
         success: function(response) {
@@ -125,12 +126,22 @@ function ajaxDelete(url, successCallback, errorCallback) {
             console.error('DELETE Error:', error);
             if (xhr.status === 409) {
                 Toast.error('Cannot delete. It may be in use by other records.');
+            } else if (xhr.status === 415) {
+                Toast.error('Invalid request format. Please try again.');
             } else {
                 Toast.error('Request failed');
             }
             if (errorCallback) errorCallback(xhr);
         }
-    });
+    };
+
+    // ✅ FIX: Add data to request body if provided
+    if (data) {
+        ajaxOptions.contentType = 'application/json';
+        ajaxOptions.data = JSON.stringify(data);
+    }
+
+    $.ajax(ajaxOptions);
 }
 
 /**

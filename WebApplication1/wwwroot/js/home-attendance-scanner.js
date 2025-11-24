@@ -461,6 +461,46 @@ document.addEventListener('DOMContentLoaded', function () {
                         popup: 'student-error-subtle'  // ✅ SUBTLE ENHANCEMENT: Blue top border for student error
                     }
                 });
+            } else if (result.messageType === 'class_ended') {
+                // ✅ NEW: Handle "class has ended, cannot time out" error
+                Swal.fire({
+                    ...swalOptions,
+                    icon: 'warning',
+                    title: '⚠️ Class Has Ended',
+                    html: `
+                        <div style="text-align: left; line-height: 1.8;">
+                            <p>Hello, <strong>${result.studentName}</strong></p>
+                            
+                            <p style="margin-top: 15px;">The class has already ended:</p>
+                            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                                <strong>📚 ${result.courseName}</strong><br>
+                                👨‍🏫 Prof. ${result.facultyName}
+                            </div>
+                            
+                            <div style="margin-top: 15px;">
+                                <strong>🕒 Class ended at:</strong> ${result.classEndTime}<br>
+                                <strong>✅ Your Time In:</strong> ${result.timeIn}
+                            </div>
+                            
+                            <p style="margin-top: 15px; padding: 12px; background: #fef3c7; border-radius: 8px; color: #92400e;">
+                                <strong>⚠️ You forgot to time out before the class ended.</strong><br>
+                                Your attendance has been automatically marked as <strong>ABSENT</strong>.
+                            </p>
+                            
+                            <p style="margin-top: 15px; color: #6b7280; font-size: 14px;">
+                                Please contact your faculty if you need to appeal this status.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Understood',
+                    confirmButtonColor: '#f59e0b',
+                    timer: 12000,
+                    timerProgressBar: true,
+                    allowOutsideClick: false,
+                    customClass: {
+                        popup: 'student-error-subtle'
+                    }
+                });
             } else if (result.messageType === 'role_restriction') {
                 // ✅ SUBTLE ENHANCEMENT: Handle role restriction errors with colored borders
                 const userRole = result.userRole || 'Unknown';

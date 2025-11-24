@@ -41,6 +41,13 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         Task UpdateAsync(DailyAttendanceLog record);
 
         /// <summary>
+        /// ✅ NEW: Delete a daily attendance log record by ID
+        /// Required for faculty to completely remove student attendance
+        /// Enables re-scanning during active class time
+        /// </summary>
+        Task<bool> DeleteAsync(int dailyAttendId);
+
+        /// <summary>
         /// Save changes (for consistency with EF Core pattern)
         /// </summary>
         Task SaveChangesAsync();

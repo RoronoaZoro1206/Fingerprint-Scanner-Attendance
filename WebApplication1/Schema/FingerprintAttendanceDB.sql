@@ -249,6 +249,7 @@ CREATE TABLE fingerprint_templates (
 CREATE TABLE IF NOT EXISTS daily_attendance_log (
     daily_attend_id     SERIAL PRIMARY KEY,
     stud_id             INT NOT NULL REFERENCES students(stud_id) ON DELETE CASCADE,
+    class_id            INT REFERENCES classes(class_id) ON DELETE SET NULL,  -- ✅ ADDED: Links to specific class/course
     attend_date         DATE NOT NULL DEFAULT CURRENT_DATE,
     time_in             TIMESTAMP,
     time_out            TIMESTAMP,
@@ -262,8 +263,8 @@ CREATE TABLE IF NOT EXISTS daily_attendance_log (
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     
-    -- Business constraint: One record per student per date
-    CONSTRAINT daily_attendance_unique_student_date UNIQUE (stud_id, attend_date),
+    -- ✅ UPDATED: Business constraint: One record per student per class per date
+    CONSTRAINT daily_attendance_unique_student_class_date UNIQUE (stud_id, class_id, attend_date),
     
     -- Business rule: time_out must be after time_in
     CONSTRAINT daily_attendance_time_check CHECK (time_out IS NULL OR time_out > time_in)
@@ -286,7 +287,6 @@ CREATE TABLE attendance (
 );
 
 CREATE TABLE scan_logs (
-                           scan_id           SERIAL PRIMARY KEY,
                            user_id           INT REFERENCES users(user_id) ON DELETE SET NULL,
                            scan_time         TIMESTAMP NOT NULL DEFAULT NOW(),
                            scan_success      BOOLEAN,
@@ -443,6 +443,8 @@ COMMENT ON TABLE authentication_audit IS 'Universal audit log for ALL authentica
 CREATE INDEX idx_daily_attend_stud_date ON daily_attendance_log(stud_id, attend_date);
 CREATE INDEX idx_daily_attend_date ON daily_attendance_log(attend_date);
 CREATE INDEX idx_daily_attend_status ON daily_attendance_log(status);
+CREATE INDEX idx_daily_attend_class_id ON daily_attendance_log(class_id);  -- ✅ ADDED: For class filtering
+CREATE INDEX idx_daily_attend_stud_class_date ON daily_attendance_log(stud_id, class_id, attend_date);  -- ✅ ADDED: Composite index
 
 -- Specialized index for finding incomplete records
 CREATE INDEX idx_daily_attend_forgot ON daily_attendance_log(forgot_timeout) 
@@ -774,22 +776,351 @@ ALTER TABLE faculty_attendance_actions
 ADD CONSTRAINT valid_action_type 
 CHECK (action_type IN ('excuse', 'change_status', 'add_manual', 'approve_request', 'reject_request', 'bulk_excuse'));
 
--- Add class_id column to daily_attendance_log
-ALTER TABLE daily_attendance_log 
-ADD COLUMN IF NOT EXISTS class_id INT REFERENCES classes(class_id) ON DELETE SET NULL;
 
--- Add index for performance
-CREATE INDEX IF NOT EXISTS idx_daily_attend_class_id ON daily_attendance_log(class_id);
+-- ============================================================
+-- ✅ NEW: CRITICAL FUNCTION - Auto-Mark Absent on Missing Time Out
+-- ============================================================
+-- This function detects students who:
+-- 1. Have Time In recorded (time_in IS NOT NULL)
+-- 2. Do NOT have Time Out recorded (time_out IS NULL)
+-- 3. Current time is PAST the class end time
+-- Result: Mark their attendance status from 'present' to 'absent'
+-- ============================================================
 
--- Update constraint to prevent duplicate time-ins for same class
--- (Currently allows one record per student per date, but should be per student per class per date)
-ALTER TABLE daily_attendance_log 
-DROP CONSTRAINT IF EXISTS daily_attendance_unique_student_date;
+CREATE OR REPLACE FUNCTION auto_mark_absent_on_missing_timeout()
+RETURNS TABLE (
+    marked_absent_count INT,
+    details TEXT
+) AS $$
+DECLARE
+    v_count INT := 0;
+    v_record RECORD;
+BEGIN
+    -- Loop through all daily attendance records with missing time_out
+    FOR v_record IN (
+        SELECT 
+            dal.daily_attend_id,
+            dal.stud_id,
+            dal.class_id,
+            dal.attend_date,
+            dal.time_in,
+            cs.sched_end_time,
+            CASE 
+                -- For today's records, check if current time > class end time
+                WHEN dal.attend_date = CURRENT_DATE 
+                    THEN CURRENT_TIME > cs.sched_end_time
+                -- For past dates, all classes have ended
+                WHEN dal.attend_date < CURRENT_DATE 
+                    THEN TRUE
+                ELSE FALSE
+            END as class_has_ended
+        FROM daily_attendance_log dal
+        INNER JOIN classes c ON dal.class_id = c.class_id
+        INNER JOIN class_schedules cs ON c.class_id = cs.class_id
+        WHERE dal.time_in IS NOT NULL
+          AND dal.time_out IS NULL
+          AND dal.status = 'active'
+          AND TRIM(cs.sched_day_of_week) = TRIM(TO_CHAR(dal.attend_date, 'Day'))
+    ) LOOP
+        -- Only process if class has ended
+        IF v_record.class_has_ended THEN
+            -- Update attendance table to mark as absent
+            UPDATE attendance
+            SET attend_status = 'absent',
+                attend_remark = CONCAT(
+                    COALESCE(attend_remark, ''),
+                    ' | Auto-marked absent: Time In recorded at ',
+                    TO_CHAR(v_record.time_in, 'HH:MI:SS'),
+                    ' but no Time Out after class ended at ',
+                    TO_CHAR(v_record.sched_end_time, 'HH:MI:SS')
+                )
+            WHERE stud_id = v_record.stud_id
+              AND class_id = v_record.class_id
+              AND attend_date = v_record.attend_date
+              AND LOWER(attend_status::TEXT) IN ('present', 'late')  -- Only change if currently marked present/late
+              AND time_out IS NULL;  -- Still missing time out
+            
+            -- Mark daily_attendance_log as incomplete
+            UPDATE daily_attendance_log
+            SET status = 'incomplete',
+                forgot_timeout = TRUE,
+                remarks = CONCAT(
+                    COALESCE(remarks, ''),
+                    ' | Forgot to time out after class ended at ',
+                    TO_CHAR(v_record.sched_end_time, 'HH:MI:SS')
+                ),
+                updated_at = NOW()
+            WHERE daily_attendance_id = v_record.daily_attend_id;
+            
+            v_count := v_count + 1;
+            
+            RAISE NOTICE 'Marked student % as absent for class % on % (no timeout after %)', v_record.stud_id, v_record.class_id, v_record.attend_date, v_record.sched_end_time;
+        END IF;
+    END LOOP;
+    
+    RETURN QUERY SELECT v_count, v_count || ' record(s) updated';
+END;
+$$ LANGUAGE plpgsql;
 
-ALTER TABLE daily_attendance_log 
-ADD CONSTRAINT daily_attendance_unique_student_class_date 
-UNIQUE (stud_id, class_id, attend_date);
+COMMENT ON FUNCTION auto_mark_absent_on_missing_timeout IS 
+'🚨 CRITICAL: Automatically marks students as absent if they forget to clock out. Should be scheduled to run periodically (e.g., every 10 minutes).';
 
+-- Example usage:  This can be called from a scheduled job to auto-correct attendance
+-- SELECT * FROM auto_mark_absent_on_missing_timeout();
+
+-- ============================================================
+-- Scheduled Jobs (pg_cron)
+-- ============================================================
+-- NOTE: These jobs require the pg_cron extension and appropriate setup
+
+-- 1. Mark absent on missing time out - every 10 minutes
+-- SELECT cron.schedule('*/10 * * * *', $$
+--     SELECT auto_mark_absent_on_missing_timeout();
+-- $$);
+
+-- 2. Process forgot timeout absences - every hour
+-- SELECT cron.schedule('0 * * * *', $$
+--     SELECT process_forgot_timeout_absences();
+-- $$);
+
+
+-- ============================================================
+-- SUPPORTING FUNCTION - Process Forgot Timeout Absences
+-- ============================================================
+-- This function processes students who have forgotten to clock out:
+-- 1. Marks their attendance as incomplete
+-- 2. Sends notification to student
+-- 3. Optionally, informs admin for manual review
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION process_forgot_timeout_absences()
+RETURNS VOID AS $$
+DECLARE
+    v_record RECORD;
+    v_admin_users INT[];
+BEGIN
+    -- Find students who forgot to time out (active status, no time_out, flagged as forgot_timeout)
+    FOR v_record IN (
+        SELECT dal.*,
+               s.user_id,
+               u.user_email as student_email,
+               u.user_first_name || ' ' || u.user_last_name as student_name
+        FROM daily_attendance_log dal
+        JOIN students s ON dal.stud_id = s.stud_id
+        JOIN users u ON s.user_id = u.user_id
+        WHERE dal.status = 'active'
+          AND dal.time_out IS NULL
+          AND dal.forgot_timeout = TRUE
+          AND dal.attend_date = CURRENT_DATE
+    ) LOOP
+        -- Update daily_attendance_log to mark as incomplete
+        UPDATE daily_attendance_log
+        SET status = 'incomplete',
+            remarks = COALESCE(remarks, '') || ' | Forgot to clock out',
+            updated_at = NOW()
+        WHERE daily_attendance_id = v_record.daily_attend_id;
+        
+        -- Optionally, notify admin for manual review
+        IF FALSE THEN  -- SET TO TRUE to enable admin notifications
+            -- Notify admin users
+            PERFORM pg_notify('admin_channel', 
+                'Student ' || v_record.student_name || ' forgot to clock out. Please review.'
+            );
+        END IF;
+        
+        -- ✅ FIXED: Removed send_email call (not a built-in PostgreSQL function)
+        -- Email notifications should be handled by the application layer (C# BackgroundService)
+        -- Log the event for application to process
+        RAISE NOTICE 'Student % (%) forgot to clock out on %', 
+            v_record.student_name, v_record.student_email, v_record.attend_date;
+    END LOOP;
+    
+    -- Admin log entry
+    INSERT INTO administration_audit (admin_id, aud_action, aud_details)
+    VALUES (NULL, 'Processed forgot timeout absences', 
+            'Reviewed and updated records for students who forgot to clock out');
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION process_forgot_timeout_absences IS 
+'Wrapper function for scheduled execution. Call this from C# BackgroundService or cron job to auto-detect and mark absences.';
+
+-- ============================================================
+-- ✅ UPDATED: record_time_in function to support class_id
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION record_time_in(
+    p_stud_id INT,
+    p_class_id INT,  -- ✅ NEW PARAMETER
+    p_timestamp TIMESTAMP DEFAULT NOW()
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT,
+    daily_attend_id INT,
+    incomplete_date DATE
+) AS $$
+DECLARE
+    v_incomplete_record RECORD;
+    v_new_attend_id INT;
+    v_today DATE := p_timestamp::DATE;
+BEGIN
+    -- Check for incomplete previous records for THIS CLASS
+    SELECT dal.daily_attend_id, dal.attend_date 
+    INTO v_incomplete_record
+    FROM daily_attendance_log dal
+    WHERE dal.stud_id = p_stud_id
+      AND dal.class_id = p_class_id
+      AND dal.attend_date < v_today
+      AND dal.time_out IS NULL
+      AND dal.forgot_timeout = FALSE
+    ORDER BY dal.attend_date DESC
+    LIMIT 1;
+    
+    -- If incomplete record found, mark it as forgot to time out
+    IF v_incomplete_record.daily_attend_id IS NOT NULL THEN
+        UPDATE daily_attendance_log
+        SET status = 'incomplete',
+            forgot_timeout = TRUE,
+            updated_at = NOW()
+        WHERE daily_attendance_id = v_incomplete_record.daily_attend_id;
+    END IF;
+    
+    -- Check if already timed in for THIS CLASS today
+    IF EXISTS (
+        SELECT 1 FROM daily_attendance_log 
+        WHERE stud_id = p_stud_id 
+          AND class_id = p_class_id
+          AND attend_date = v_today 
+          AND time_out IS NULL
+    ) THEN
+        RETURN QUERY 
+        SELECT 
+            FALSE as success,
+            'Already timed in for this class today'::TEXT as message,
+            NULL::INT as daily_attend_id,
+            v_incomplete_record.attend_date as incomplete_date;
+        RETURN;
+    END IF;
+    
+    -- Create new time in record FOR THIS CLASS
+    INSERT INTO daily_attendance_log (
+        stud_id, 
+        class_id,  -- ✅ ADDED
+        attend_date, 
+        time_in, 
+        status,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        p_stud_id,
+        p_class_id,  -- ✅ ADDED
+        v_today,
+        p_timestamp,
+        'active',
+        NOW(),
+        NOW()
+    )
+    RETURNING daily_attendance_log.daily_attend_id INTO v_new_attend_id;
+    
+    RETURN QUERY 
+    SELECT 
+        TRUE as success,
+        'Time in recorded successfully'::TEXT as message,
+        v_new_attend_id as daily_attend_id,
+        v_incomplete_record.attend_date as incomplete_date;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION record_time_in IS 
+'✅ UPDATED: Records student time in for a SPECIFIC CLASS. Checks for incomplete previous records for the same class and auto-marks them as forgot_timeout.';
+
+-- ============================================================
+-- ✅ UPDATED: record_time_out function to support class_id
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION record_time_out(
+    p_stud_id INT,
+    p_class_id INT,  -- ✅ NEW PARAMETER (optional, can be NULL for general timeout)
+    p_timestamp TIMESTAMP DEFAULT NOW()
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT,
+    daily_attend_id INT,
+    time_in TIMESTAMP,
+    time_out TIMESTAMP,
+    duration_hours NUMERIC
+) AS $$
+DECLARE
+    v_record RECORD;
+    v_today DATE := p_timestamp::DATE;
+BEGIN
+    -- Find today's active record for THIS CLASS
+    IF p_class_id IS NOT NULL THEN
+        SELECT * INTO v_record
+        FROM daily_attendance_log
+        WHERE stud_id = p_stud_id
+          AND class_id = p_class_id
+          AND attend_date = v_today
+          AND time_out IS NULL;
+    ELSE
+        -- Fallback: Find ANY active record for today (backward compatibility)
+        SELECT * INTO v_record
+        FROM daily_attendance_log
+        WHERE stud_id = p_stud_id
+          AND attend_date = v_today
+          AND time_out IS NULL
+        LIMIT 1;
+    END IF;
+    
+    -- Check if no active time in
+    IF v_record.daily_attend_id IS NULL THEN
+        RETURN QUERY 
+        SELECT 
+            FALSE as success,
+            'No active time in found for this class today'::TEXT as message,
+            NULL::INT as daily_attend_id,
+            NULL::TIMESTAMP as time_in,
+            NULL::TIMESTAMP as time_out,
+            NULL::NUMERIC as duration_hours;
+        RETURN;
+    END IF;
+    
+    -- Check if time out is before time in
+    IF p_timestamp <= v_record.time_in THEN
+        RETURN QUERY 
+        SELECT 
+            FALSE as success,
+            'Time out cannot be before time in'::TEXT as message,
+            NULL::INT as daily_attend_id,
+            NULL::TIMESTAMP as time_in,
+            NULL::TIMESTAMP as time_out,
+            NULL::NUMERIC as duration_hours;
+        RETURN;
+    END IF;
+    
+    -- Record time out
+    UPDATE daily_attendance_log
+    SET time_out = p_timestamp,
+        status = 'completed',
+        updated_at = NOW()
+    WHERE daily_attendance_id = v_record.daily_attend_id;
+    
+    RETURN QUERY 
+    SELECT 
+        TRUE as success,
+        'Time out recorded successfully'::TEXT as message,
+        v_record.daily_attend_id as daily_attend_id,
+        v_record.time_in as time_in,
+        p_timestamp as time_out,
+        ROUND(EXTRACT(EPOCH FROM (p_timestamp - v_record.time_in))/3600, 2) as duration_hours;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION record_time_out IS 
+'✅ UPDATED: Records student time out for a SPECIFIC CLASS (or any active record if class_id is NULL). Validates that time in exists and time out is after time in.';
 
 -- ============================================================
 -- COMPLETE DATABASE TABLE QUERIES
@@ -823,127 +1154,3 @@ SELECT * FROM student_id_pool ORDER BY pool_id;
 SELECT * FROM classes ORDER BY class_id;
 SELECT * FROM class_schedules ORDER BY sched_id;
 SELECT * FROM enrollment ORDER BY enroll_id;
-
-
--- ATTENDANCE TABLES
-SELECT * FROM attendance ORDER BY attend_id DESC;
-SELECT * FROM daily_attendance_log ORDER BY attend_date DESC, daily_attend_id DESC;
-SELECT * FROM scan_logs ORDER BY scan_time DESC;
-SELECT * FROM student_excuse_requests ORDER BY submitted_at DESC;
-SELECT * FROM faculty_attendance_actions ORDER BY action_timestamp DESC;
-SELECT * FROM attendance_notifications ORDER BY created_at DESC;
-
--- BIOMETRIC TABLES
-SELECT * FROM fingerprint_templates ORDER BY ftemp_id;
-
--- ============================================================
--- USEFUL DIAGNOSTIC QUERIES
--- ============================================================
-
--- Find users WITHOUT student records (THIS IS YOUR PROBLEM!)
-SELECT 
-    u.user_id,
-    u.user_email,
-    u.user_first_name,
-    u.user_last_name,
-    u.role_id,
-    ur.role_name,
-    CASE WHEN s.stud_id IS NULL THEN '❌ NO STUDENT RECORD' ELSE '✅ Has Student Record' END as status
-FROM users u
-JOIN user_roles ur ON u.role_id = ur.role_id
-LEFT JOIN students s ON u.user_id = s.user_id
-WHERE u.role_id = 3  -- Student role
-ORDER BY s.stud_id NULLS FIRST;
-
--- Count records in each table
-SELECT 
-    'user_roles' as table_name, COUNT(*) as record_count FROM user_roles
-UNION ALL SELECT 'users', COUNT(*) FROM users
-UNION ALL SELECT 'administration', COUNT(*) FROM administration
-UNION ALL SELECT 'departments', COUNT(*) FROM departments
-UNION ALL SELECT 'faculty', COUNT(*) FROM faculty
-UNION ALL SELECT 'programs', COUNT(*) FROM programs
-UNION ALL SELECT 'courses', COUNT(*) FROM courses
-UNION ALL SELECT 'sections', COUNT(*) FROM sections
-UNION ALL SELECT 'students', COUNT(*) FROM students
-UNION ALL SELECT 'student_id_pool', COUNT(*) FROM student_id_pool
-UNION ALL SELECT 'rooms', COUNT(*) FROM rooms
-UNION ALL SELECT 'classes', COUNT(*) FROM classes
-UNION ALL SELECT 'class_schedules', COUNT(*) FROM class_schedules
-UNION ALL SELECT 'enrollment', COUNT(*) FROM enrollment
-UNION ALL SELECT 'academic_terms', COUNT(*) FROM academic_terms
-UNION ALL SELECT 'attendance', COUNT(*) FROM attendance
-UNION ALL SELECT 'daily_attendance_log', COUNT(*) FROM daily_attendance_log
-UNION ALL SELECT 'scan_logs', COUNT(*) FROM scan_logs
-UNION ALL SELECT 'fingerprint_templates', COUNT(*) FROM fingerprint_templates
-UNION ALL SELECT 'student_excuse_requests', COUNT(*) FROM student_excuse_requests
-UNION ALL SELECT 'faculty_attendance_actions', COUNT(*) FROM faculty_attendance_actions
-UNION ALL SELECT 'attendance_notifications', COUNT(*) FROM attendance_notifications
-UNION ALL SELECT 'authentication_audit', COUNT(*) FROM authentication_audit
-UNION ALL SELECT 'administration_audit', COUNT(*) FROM administration_audit
-ORDER BY table_name;
-
--- View all students with their enrollment status
-SELECT 
-    s.stud_id,
-    s.stud_number,
-    u.user_first_name || ' ' || u.user_last_name as full_name,
-    u.user_email,
-    p.program_name,
-    s.stud_year_level,
-    sec.section_name,
-    s.profile_submitted,
-    s.profile_submitted_at,
-    COUNT(DISTINCT e.class_id) as enrolled_classes
-FROM students s
-JOIN users u ON s.user_id = u.user_id
-LEFT JOIN programs p ON s.program_id = p.program_id
-LEFT JOIN sections sec ON s.section_id = sec.section_id
-LEFT JOIN enrollment e ON s.stud_id = e.stud_id
-GROUP BY s.stud_id, s.stud_number, u.user_first_name, u.user_last_name, 
-         u.user_email, p.program_name, s.stud_year_level, sec.section_name,
-         s.profile_submitted, s.profile_submitted_at
-ORDER BY s.stud_id;
-
--- View all classes with enrollment counts
-SELECT 
-    c.class_id,
-    co.course_code,
-    co.course_name,
-    r.room_code,
-    u.user_first_name || ' ' || u.user_last_name as faculty_name,
-    at.term_name,
-    COUNT(e.enroll_id) as enrolled_students
-FROM classes c
-JOIN courses co ON c.course_id = co.course_id
-LEFT JOIN rooms r ON c.room_id = r.room_id
-LEFT JOIN faculty f ON c.fac_id = f.fac_id
-LEFT JOIN users u ON f.user_id = u.user_id
-LEFT JOIN academic_terms at ON c.term_id = at.term_id
-LEFT JOIN enrollment e ON c.class_id = e.class_id
-GROUP BY c.class_id, co.course_code, co.course_name, r.room_code,
-         u.user_first_name, u.user_last_name, at.term_name
-ORDER BY c.class_id;
-
--- Check for orphaned records (users with student role but no student record)
-SELECT 
-    'CRITICAL: Students without records' as issue_type,
-    COUNT(*) as count
-FROM users u
-LEFT JOIN students s ON u.user_id = s.user_id
-WHERE u.role_id = 3 AND s.stud_id IS NULL
-UNION ALL
-SELECT 
-    'Faculty without records' as issue_type,
-    COUNT(*) as count
-FROM users u
-LEFT JOIN faculty f ON u.user_id = f.user_id
-WHERE u.role_id = 2 AND f.fac_id IS NULL
-UNION ALL
-SELECT 
-    'Admins without records' as issue_type,
-    COUNT(*) as count
-FROM users u
-LEFT JOIN administration a ON u.user_id = a.user_id
-WHERE u.role_id = 1 AND a.admin_id IS NULL;
-
