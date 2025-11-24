@@ -140,19 +140,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     });
                 }
 
-                // ✅ NEW: Check for students who forgot to time out before displaying attendance
-                // This ensures the attendance data is up-to-date with forgot timeout detections
-                try
-                {
-                    _logger.LogInformation($"🔍 Running forgot timeout detection for {targetDate:yyyy-MM-dd}");
-                    await _absenceDetectionService.ProcessForgotTimeoutAbsencesAsync(targetDate);
-                    _logger.LogInformation($"✅ Forgot timeout detection completed");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "⚠️ Forgot timeout detection failed, but continuing with attendance display");
-                    // Don't fail the entire request if forgot timeout detection fails
-                }
+                // ❌ REMOVED: DO NOT run absence detection here - it overwrites faculty manual edits!
+                // The service should ONLY run:
+                // 1. Automatically at 11:59 PM via AttendanceBackgroundService
+                // 2. Manually via explicit faculty action
+                // 
+                // Removing this prevents race condition where service overwrites faculty edits
+                // when the page is loaded/refreshed
 
                 // Single optimized query with all JOINs and faculty verification
                 var attendanceData = await _attendanceRepository.GetClassAttendanceWithDetailsAsync(
@@ -206,9 +200,12 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         {
             try
             {
+                _logger.LogInformation($"🔍 UpdateAttendance called - ClassId: {request.ClassId}, StudId: {request.StudId}, Status: {request.Status}, Date: {request.Date}");
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (userId == null)
                 {
+                    _logger.LogWarning("❌ User not authenticated");
                     return Json(new { success = false, message = "User not authenticated" });
                 }
 
@@ -216,29 +213,74 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 var faculty = await _facultyRepository.GetByUserIdAsync(userId.Value);
                 if (faculty == null)
                 {
+                    _logger.LogWarning($"❌ Faculty record not found for userId: {userId.Value}");
                     return Json(new { success = false, message = "Faculty record not found" });
                 }
 
                 var classEntity = await _classRepository.GetByIdAsync(request.ClassId);
                 if (classEntity == null || classEntity.FacId != faculty.FacId)
                 {
+                    _logger.LogWarning($"❌ Class not found or access denied - ClassId: {request.ClassId}, FacId: {faculty.FacId}");
                     return Json(new { success = false, message = "Class not found or access denied" });
                 }
 
-                // Get attendance for the specified date
-                var targetDate = string.IsNullOrEmpty(request.Date) ? DateTime.Today : DateTime.Parse(request.Date);
-                var now = DateTime.Now;
-                var allAttendance = await _attendanceRepository.GetAllAsync();
-                var attendanceRecords = allAttendance
-                    .Where(a => a.ClassId == request.ClassId && a.StudId == request.StudId && a.AttendDate.Date == targetDate)
-                    .ToList();
+                // ✅ CRITICAL FIX: Parse the target date properly and use UTC if parsing fails
+                var philippineTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+                var philippineToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, philippineTimeZone).Date;
+                
+                DateTime targetDate;
+                if (string.IsNullOrEmpty(request.Date))
+                {
+                    targetDate = philippineToday;
+                }
+                else if (DateTime.TryParse(request.Date, out DateTime parsedDate))
+                {
+                    targetDate = parsedDate.Date;
+                }
+                else
+                {
+                    _logger.LogWarning($"❌ Invalid date format: {request.Date}");
+                    return Json(new { success = false, message = "Invalid date format" });
+                }
+
+                _logger.LogInformation($"✅ Target date: {targetDate:yyyy-MM-dd}");
+
+                // ✅ CRITICAL FIX: Add faculty override marker to remarks
+                // This prevents AbsenceDetectionService from overwriting manual edits
+                var facultyOverrideRemark = string.IsNullOrEmpty(request.Remarks)
+                    ? $"Updated to {request.Status} by faculty"
+                    : $"{request.Remarks} (Updated to {request.Status} by faculty)";
+
+                // ✅ CRITICAL FIX: Use database query to get records directly instead of loading all into memory
+                var attendanceQuery = @"
+                    SELECT attend_id, class_id, stud_id, attend_date, attend_scan_time, attend_type, 
+                           attend_status, attend_remark, attend_created_at
+                    FROM attendance
+                    WHERE class_id = @classId 
+                      AND stud_id = @studId 
+                      AND attend_date = @date
+                    ORDER BY attend_scan_time;";
+                
+                var parameters = new Dictionary<string, object>
+                {
+                    { "@classId", request.ClassId },
+                    { "@studId", request.StudId },
+                    { "@date", targetDate }
+                };
+
+                var dt = await _db.ExecuteQueryAsync(attendanceQuery, parameters);
+                
+                _logger.LogInformation($"🔍 Found {dt.Rows.Count} attendance record(s) for Student {request.StudId} on {targetDate:yyyy-MM-dd}");
 
                 bool result = false;
                 int updatedCount = 0;
+                var now = DateTime.Now;
 
-                if (!attendanceRecords.Any())
+                if (dt.Rows.Count == 0)
                 {
-                    // Create new attendance record if none exist
+                    // ✅ Create new attendance record if none exist
+                    _logger.LogInformation($"📝 Creating NEW attendance record - Status: {request.Status}");
+                    
                     var newAttendance = new Attendance
                     {
                         ClassId = request.ClassId,
@@ -246,34 +288,52 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                         AttendDate = targetDate,
                         AttendScanTime = now,
                         AttendType = ScanType.In,
-                        AttendStatus = Enum.Parse<AttendanceStatus>(request.Status),
-                        AttendRemark = request.Remarks,
+                        AttendStatus = Enum.Parse<AttendanceStatus>(request.Status, ignoreCase: true),
+                        AttendRemark = facultyOverrideRemark, // ✅ Use faculty override remark
                         AttendCreatedAt = now
                     };
 
                     result = await _attendanceRepository.AddAsync(newAttendance);
-                    if (result) updatedCount = 1;
+                    if (result)
+                    {
+                        updatedCount = 1;
+                        _logger.LogInformation($"✅ NEW attendance record created successfully");
+                    }
+                    else
+                    {
+                        _logger.LogError($"❌ Failed to create new attendance record");
+                    }
                 }
                 else
                 {
-                    // Update all existing attendance records (both In and Out) with the same status and remark
-                    foreach (var attendance in attendanceRecords)
+                    // ✅ CRITICAL FIX: Update ALL existing attendance records with direct SQL UPDATE
+                    // This ensures the database is actually updated
+                    var updateQuery = @"
+                        UPDATE attendance 
+                        SET attend_status = @status::attendance_status,
+                            attend_remark = @remark
+                        WHERE class_id = @classId 
+                          AND stud_id = @studId 
+                          AND attend_date = @date;";
+                    
+                    var updateParams = new Dictionary<string, object>
                     {
-                        attendance.AttendStatus = Enum.Parse<AttendanceStatus>(request.Status);
-                        attendance.AttendRemark = request.Remarks;
+                        { "@classId", request.ClassId },
+                        { "@studId", request.StudId },
+                        { "@date", targetDate },
+                        { "@status", request.Status.ToLower() },
+                        { "@remark", facultyOverrideRemark } // ✅ Use faculty override remark
+                    };
 
-                        var updateResult = await _attendanceRepository.UpdateAsync(attendance);
-                        if (updateResult)
-                        {
-                            updatedCount++;
-                        }
-                    }
+                    updatedCount = await _db.ExecuteNonQueryAsync(updateQuery, updateParams);
                     result = updatedCount > 0;
+                    
+                    _logger.LogInformation($"✅ Updated {updatedCount} attendance record(s) to status: {request.Status} with faculty override protection");
                 }
 
                 if (result)
                 {
-                    // ✅ ADDED: Log audit for individual attendance update
+                    // ✅ Log audit for individual attendance update
                     if (classEntity?.CourseId != null)
                     {
                         var course = await _courseRepository.GetByIdAsync(classEntity.CourseId.Value);
@@ -282,22 +342,27 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                             await _auditService.LogActionAsync(
                                 "Attendance Status Changed",
                                 $"Faculty changed attendance for student {request.StudId} in {course.CourseCode} " +
-                                $"on {targetDate:yyyy-MM-dd} to {request.Status}"
+                                $"on {targetDate:yyyy-MM-dd} to {request.Status} (Override Protected)"
                             );
+                            _logger.LogInformation($"✅ Audit log created for status change");
                         }
                     }
 
                     var message = updatedCount > 1 
                         ? $"Attendance updated successfully ({updatedCount} records)" 
                         : "Attendance updated successfully";
+                    
+                    _logger.LogInformation($"✅✅✅ SUCCESS - {message}");
                     return Json(new { success = true, message = message });
                 }
 
+                _logger.LogError($"❌ Failed to update attendance - no records affected");
                 return Json(new { success = false, message = "Failed to update attendance" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating attendance");
+                _logger.LogError(ex, $"❌ Error updating attendance: {ex.Message}");
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
                 return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
@@ -520,11 +585,85 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                 return Json(new { success = false, message = "Failed to mark attendance" });
             }
         }
+
+        // ✅ NEW: POST: FacultyAttendance/ProcessForgotTimeout
+        // Allows faculty to manually check for students who forgot to time out
+        [HttpPost]
+        public async Task<IActionResult> ProcessForgotTimeout([FromBody] ProcessForgotTimeoutRequest request)
+        {
+            try
+            {
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                {
+                    return Json(new { success = false, message = "User not authenticated" });
+                }
+
+                // Verify faculty owns this class
+                var faculty = await _facultyRepository.GetByUserIdAsync(userId.Value);
+                if (faculty == null)
+                {
+                    return Json(new { success = false, message = "Faculty record not found" });
+                }
+
+                var classEntity = await _classRepository.GetByIdAsync(request.ClassId);
+                if (classEntity == null || classEntity.FacId != faculty.FacId)
+                {
+                    return Json(new { success = false, message = "Class not found or access denied" });
+                }
+
+                // Parse target date
+                DateTime targetDate = string.IsNullOrEmpty(request.Date) 
+                    ? DateTime.Today 
+                    : DateTime.Parse(request.Date);
+
+                _logger.LogInformation($"✅ Faculty triggering forgot timeout detection for Class {request.ClassId} on {targetDate:yyyy-MM-dd}");
+
+                // Run the forgot timeout detection
+                var result = await _absenceDetectionService.ProcessForgotTimeoutForClassAsync(request.ClassId, targetDate);
+
+                if (result.forgotCount > 0)
+                {
+                    // Log audit
+                    if (classEntity?.CourseId != null)
+                    {
+                        var course = await _courseRepository.GetByIdAsync(classEntity.CourseId.Value);
+                        if (course != null)
+                        {
+                            await _auditService.LogActionAsync(
+                                "Forgot Timeout Detection",
+                                $"Faculty ran forgot timeout detection for {course.CourseCode} on {targetDate:yyyy-MM-dd}. " +
+                                $"Marked {result.forgotCount} student(s) as absent."
+                            );
+                        }
+                    }
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    message = result.message,
+                    forgotCount = result.forgotCount,
+                    validCount = result.validCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing forgot timeout");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
     }
 
     public class MarkAllPresentRequest
     {
         public int ClassId { get; set; }
+    }
+
+    public class ProcessForgotTimeoutRequest
+    {
+        public int ClassId { get; set; }
+        public string? Date { get; set; }
     }
 
     public class UpdateAttendanceRequest

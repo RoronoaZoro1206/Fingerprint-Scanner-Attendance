@@ -237,12 +237,15 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             isScanning = false;
 
-            // ✅ ENHANCED: Longer cooldown after failed manual scans
-            if (!isAutoScan) {
+            // ✅ ENHANCED: Minimal cooldown for successful scans, longer for manual failures
+            if (!isAutoScan && !result?.success) {
                 isCooldown = true;
                 setTimeout(() => {
                     isCooldown = false;
-                }, 5000); // Reduced to 5 seconds cooldown for better UX
+                }, 2000); // Reduced to 2 seconds for better UX
+            } else {
+                // ✅ No cooldown for successful scans - allow immediate time-out
+                isCooldown = false;
             }
         }
     }
@@ -256,6 +259,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const actionText = document.getElementById('scanActionText');
         const actionTime = document.getElementById('scanActionTime');
         const studentName = document.getElementById('liveStudentName');
+        const studentNumber = document.getElementById('liveStudentNumber');
+        const studentId = document.getElementById('liveStudentId');
+        const programYear = document.getElementById('liveProgramYear');
         const courseName = document.getElementById('liveCourseName');
         const facultyName = document.getElementById('liveFacultyName');
 
@@ -264,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show container
         container.style.display = 'block';
 
-        // Update badge
+        // Update badge - Green for TIME IN, Yellow for TIME OUT
         if (result.action === 'time_in') {
             badge.className = 'scan-action-badge time-in';
             actionText.textContent = 'TIME IN';
@@ -286,7 +292,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const student = result.student || {};
         const currentClass = result.currentClass || {};
 
+        // Student Name and Number
         studentName.textContent = student.fullName || '-';
+        studentNumber.textContent = student.studNumber || '-';
+
+        // ✅ NEW: Student ID (same as studNumber)
+        studentId.textContent = student.studNumber || '-';
+
+        // ✅ NEW: Program / Year
+        let programYearText = '-';
+        if (student.programName && student.yearLevel) {
+            programYearText = `${student.programName} - ${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
+        } else if (student.programName) {
+            programYearText = student.programName;
+        }
+        programYear.textContent = programYearText;
 
         // Format course name
         if (currentClass.courseCode && currentClass.courseName) {
@@ -678,257 +698,135 @@ document.addEventListener('DOMContentLoaded', function () {
         fingerprintScanner.classList.remove('validating', 'scanning', 'error');
         fingerprintScanner.classList.add('success');
 
-        const student = result.student || {};
-        const currentClass = result.currentClass || {};
-
-        // ✅ UPDATE: Show live info cards
+        // ✅ UPDATE: Show live info cards in the RIGHT SIDE LIST
         updateLiveScanInfo(result);
 
         // ✅ UPDATE: Show SweetAlert2 notification ONLY (no inline message)
         showSweetAlertNotification(result);
 
-        // Update info cards (gradient cards below scanner)
-        updateInfoCards(student, currentClass, result);
-
-        // ✅ REMOVED: No inline success message - only SweetAlert2
-
+        // ✅ Update statistics
         updateStats();
 
-        // Reset after 6 seconds (keep info cards visible)
+        // ✅ CRITICAL FIX: Reset scanner immediately after 2 seconds to allow time-out scan
         setTimeout(() => {
             resetScanner();
+            // ✅ CRITICAL FIX: Ensure auto-detection is running for immediate time-out capability
             if (!autoScanInterval) {
+                console.log('✅ Restarting auto-detection after successful scan');
                 startAutoDetection();
+            } else {
+                console.log('✅ Auto-detection already running');
             }
-        }, 6000);
+        }, 2000); // Reduced from 6 to 2 seconds for faster time-out capability
     }
-
+    
     /**
-     * ✅ NEW: Update Info Cards with Student/Class Data
-     */
-    function updateInfoCards(student, currentClass, result) {
-        const infoCardsContainer = document.getElementById('studentInfoCards');
-
-        if (infoCardsContainer) {
-            // Show info cards
-            infoCardsContainer.style.display = 'grid';
-
-            // Update student name
-            const studentNameElement = document.getElementById('currentStudentName');
-            const studentNumberElement = document.getElementById('currentStudentNumber');
-            if (studentNameElement) {
-                studentNameElement.textContent = student.fullName || '-';
-            }
-            if (studentNumberElement) {
-                studentNumberElement.textContent = student.studNumber || '-';
-            }
-
-            // Update program
-            const programElement = document.getElementById('currentProgram');
-            const yearSectionElement = document.getElementById('currentYearSection');
-            if (programElement) {
-                programElement.textContent = student.programName || '-';
-            }
-            if (yearSectionElement) {
-                let yearSection = '';
-                if (student.yearLevel) {
-                    yearSection = `${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
-                }
-                if (student.sectionName) {
-                    yearSection += yearSection ? `, ${student.sectionName}` : student.sectionName;
-                }
-                yearSectionElement.textContent = yearSection || '-';
-            }
-
-            // Update course
-            const courseElement = document.getElementById('currentCourse');
-            const roomElement = document.getElementById('currentRoom');
-            if (courseElement && currentClass) {
-                courseElement.textContent = currentClass.courseCode
-                    ? `${currentClass.courseCode} - ${currentClass.courseName}`
-                    : '-';
-            }
-            if (roomElement && currentClass) {
-                roomElement.textContent = currentClass.roomCode || '-';
-            }
-
-            // Update faculty
-            const facultyElement = document.getElementById('currentFaculty');
-            const scheduleElement = document.getElementById('currentSchedule');
-            if (facultyElement && currentClass) {
-                facultyElement.textContent = currentClass.facultyName || '-';
-            }
-            if (scheduleElement && currentClass) {
-                scheduleElement.textContent = currentClass.schedule || '-';
-            }
-        }
-    }
-
-    /**
-     * ✅ NEW: Build Program Info HTML
-     */
-    function buildProgramInfo(student) {
-        if (!student.programName) return '';
-
-        let programDisplay = student.programName;
-        if (student.yearLevel) {
-            programDisplay += ` - ${student.yearLevel}${getOrdinalSuffix(student.yearLevel)} Year`;
-        }
-        if (student.sectionName) {
-            programDisplay += `, ${student.sectionName}`;
-        }
-
-        return `<strong>Program:</strong> ${programDisplay}`;
-    }
-
-    /**
-     * ✅ NEW: Build Class Info HTML
-     */
-    function buildClassInfo(currentClass) {
-        if (!currentClass || !currentClass.courseCode) return '';
-
-        return `
-            <div style="background: #f9fafb; border: 2px solid #e5e7eb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <strong style="font-size: 16px; color: #1f2937;">📚 Current Class</strong><br>
-                <div style="margin-top: 8px; line-height: 1.8;">
-                    <strong>Course:</strong> ${currentClass.courseCode} - ${currentClass.courseName}<br>
-                    <strong>Faculty:</strong> ${currentClass.facultyName}<br>
-                    <strong>Room:</strong> ${currentClass.roomCode}<br>
-                    <strong>Schedule:</strong> ${currentClass.schedule}
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * ✅ ENHANCED: Handle scan error - ONLY SweetAlert2, NO inline message (except for "no finger detected")
-     */
-    function handleError(result) {
-        fingerprintScanner.classList.remove('validating', 'scanning', 'success');
-        fingerprintScanner.classList.add('error');
-
-        let displayTime = 4000; // Default 4 seconds
-
-        // ✅ ENHANCED: Only show SweetAlert2 for actual errors
-        // DO NOT show inline messages for role restrictions, schedule errors, or attendance errors
-        if (result.message &&
-            !result.message.includes('No finger detected') &&
-            !result.message.includes('No fingerprint detected') &&
-            !result.message.includes('Failed to capture')) {
-
-            // Show SweetAlert2 for all other errors (role restriction, no schedule, etc.)
-            showSweetAlertNotification(result);
-
-            // ✅ NO inline message for these errors
-        } else {
-            // For "no finger" errors during manual scan, show brief inline hint
-            if (!result.message || result.message.includes('No finger detected')) {
-                // This is handled silently during auto-scan
-                // For manual scan, a brief console log is sufficient
-                console.log('Waiting for finger placement...');
-            }
-        }
-
-        setTimeout(() => {
-            resetScanner();
-            // ✅ Restart auto-detection after error
-            if (!autoScanInterval) {
-                startAutoDetection();
-            }
-        }, displayTime);
-    }
-
-    /**
-     * ✅ ENHANCED: Handle scan timeout with proper display time
-     */
-    function handleScanTimeout() {
-        isScanning = false;
-        fingerprintScanner.classList.remove('scanning', 'validating');
-        fingerprintScanner.classList.add('error');
-        showMessage('⏱️ Scan timeout. No finger detected. Please try again.', 'error');
-
-        // ✅ ENHANCED: Give user time to read timeout message
-        setTimeout(() => {
-            resetScanner();
-        }, 4000); // 4 seconds for timeout messages
-    }
-
-    /**
-     * ✅ ENHANCED: Reset scanner to ready state with smooth transition
+     * ✅ Reset scanner to ready state
      */
     function resetScanner() {
-        // Fade out current message first
-        if (scanStatusMessage) {
-            scanStatusMessage.style.opacity = '0';
-            scanStatusMessage.style.transform = 'translateY(-10px)';
-        }
-
-        // Wait for fade animation, then reset
-        setTimeout(() => {
-            fingerprintScanner.classList.remove('scanning', 'validating', 'success', 'error');
-            fingerprintScanner.classList.add('ready');
-            fingerprintScanner.style.animation = 'pulse 2s infinite';
-            showMessage('Scanner ready. Place finger to scan.', 'info');
-        }, 500); // 500ms for smooth transition
+        console.log('🔄 Resetting scanner to ready state');
+        fingerprintScanner.classList.remove('scanning', 'success', 'error', 'validating');
+        fingerprintScanner.classList.add('ready');
+        fingerprintScanner.style.animation = 'pulse 2s infinite';
+        
+        // ✅ CRITICAL FIX: Reset scanning flags to allow immediate next scan
+        isScanning = false;
+        isCooldown = false;
+        
+        console.log('✅ Scanner reset complete - Ready for next scan');
     }
-
+    
     /**
-     * ✅ ENHANCED: Show status message with better visibility
+     * ✅ Handle scan error
      */
-    function showMessage(message, type = 'info') {
+    function handleError(result) {
+        console.log('❌ Handling scan error');
+        fingerprintScanner.classList.remove('scanning', 'validating', 'success');
+        fingerprintScanner.classList.add('error');
+        
+        showSweetAlertNotification(result);
+        
+        setTimeout(() => {
+            resetScanner();
+            // ✅ CRITICAL FIX: Ensure auto-detection restarts after error
+            if (!autoScanInterval) {
+                console.log('✅ Restarting auto-detection after error');
+                startAutoDetection();
+            }
+        }, 3000);
+    }
+    
+    /**
+     * ✅ Handle scan timeout
+     */
+    function handleScanTimeout() {
+        fingerprintScanner.classList.remove('scanning', 'validating');
+        fingerprintScanner.classList.add('error');
+        
+        showMessage('Scan timeout. Please try again.', 'error');
+        
+        isScanning = false;
+        
+        setTimeout(() => {
+            resetScanner();
+            if (!autoScanInterval) {
+                startAutoDetection();
+            }
+        }, 3000);
+    }
+    
+    /**
+     * ✅ Show status message
+     */
+    function showMessage(message, type) {
         if (!scanStatusMessage) return;
-
+        
+        scanStatusMessage.classList.remove('success', 'error', 'warning', 'scanning', 'validating', 'info');
+        scanStatusMessage.classList.add(type, 'show');
         scanStatusMessage.innerHTML = message;
-        scanStatusMessage.className = 'scan-status-message show';
-
-        if (type === 'success') {
-            scanStatusMessage.classList.add('success');
-        } else if (type === 'error') {
-            scanStatusMessage.classList.add('error');
-        } else if (type === 'scanning') {
-            scanStatusMessage.classList.add('scanning');
-        } else if (type === 'validating') {
-            scanStatusMessage.classList.add('validating');
-        } else {
-            scanStatusMessage.classList.add('info');
+        
+        if (type === 'error' || type === 'warning') {
+            setTimeout(() => {
+                scanStatusMessage.classList.remove('show');
+            }, 5000);
         }
-
-        // Smooth fade-in
-        scanStatusMessage.style.opacity = '0';
-        scanStatusMessage.style.transform = 'translateY(-10px)';
-        scanStatusMessage.style.display = 'block'; // Ensure visible
-
-        requestAnimationFrame(() => {
-            scanStatusMessage.style.opacity = '1';
-            scanStatusMessage.style.transform = 'translateY(0)';
-        });
     }
 
     /**
-     * Update statistics display
+     * ✅ Start auto-updating statistics
+     */
+    function startStatsUpdates() {
+        // Update stats immediately
+        updateStats();
+        
+        // Then update every 5 seconds
+        statsUpdateInterval = setInterval(updateStats, 5000);
+    }
+
+    /**
+     * ✅ Update statistics from server
      */
     async function updateStats() {
         try {
             const response = await fetch('/Home/GetStatistics');
-            const result = await response.json();
-
-            if (successRateElement) {
-                successRateElement.textContent = result.successRate || '0%';
-            }
-            if (todayScansElement) {
-                todayScansElement.textContent = result.todayScans || 0;
+            const data = await response.json();
+            
+            if (data) {
+                // Update Success Rate
+                const successRateElement = document.getElementById('successRateValue');
+                if (successRateElement && data.successRate !== undefined) {
+                    successRateElement.textContent = data.successRate + '%';
+                }
+                
+                // Update Today's Scans
+                const todayScansElement = document.getElementById('todayScansValue');
+                if (todayScansElement && data.todayScans !== undefined) {
+                    todayScansElement.textContent = data.todayScans;
+                }
             }
         } catch (error) {
-            console.error('Error updating stats:', error);
+            console.error('Error updating statistics:', error);
         }
-    }
-
-    /**
-     * Start periodic stats updates
-     */
-    function startStatsUpdates() {
-        updateStats();
-        statsUpdateInterval = setInterval(updateStats, 30000); // Update every 30 seconds
     }
 
     /**

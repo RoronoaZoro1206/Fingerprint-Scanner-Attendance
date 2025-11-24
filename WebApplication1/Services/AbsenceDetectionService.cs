@@ -176,6 +176,13 @@ namespace Fingerprint_Attendance_System.Services
         /// ✅ NEW METHOD: Process forgot timeout for a single class
         /// Returns count of students marked absent and students with valid timeout
         /// ✅ CRITICAL FIX: Properly format TimeSpan (no AM/PM) and DateTime (with AM/PM) to prevent FormatException
+        /// ✅ CRITICAL FIX V2: Check for FACULTY OVERRIDE before auto-marking absent
+        /// ✅ CRITICAL FIX V3: Validate TimeOut occurred BEFORE class ended (not just NULL check)
+        /// ✅ CRITICAL FIX V4: Process forgot timeout for a single class
+        /// Returns count of students marked absent and students with valid timeout
+        /// ✅ FIX: Students with ANY TimeOut (even late) should NOT be marked absent
+        /// ✅ FIX: Check for FACULTY OVERRIDE before auto-marking absent
+        /// ✅ FIX: ONLY mark absent if TimeIn exists AND TimeOut is NULL AND class has ended
         /// </summary>
         private async Task<(int forgotCount, int validCount)> ProcessClassForgotTimeoutAsync(
             int classId, 
@@ -192,85 +199,106 @@ namespace Fingerprint_Attendance_System.Services
             {
                 try
                 {
-                    var dailyRecord = await _dailyAttendanceRepo.GetByStudentAndDateAsync(enrollment.StudId, date);
+                    var dailyRecord = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(enrollment.StudId, classId, date);
                     
-                    // Check if student timed in but forgot to time out
-                    if (dailyRecord != null && dailyRecord.TimeIn != null)
+                    // ✅ CRITICAL FIX: Check if student never timed in at all
+                    if (dailyRecord == null || dailyRecord.TimeIn == null)
                     {
-                        if (dailyRecord.TimeOut == null)
+                        _logger.LogDebug($"Student {enrollment.StudId} never timed in (handled by main absence detection)");
+                        continue;
+                    }
+                    
+                    // ✅ CRITICAL FIX V4: If student has BOTH TimeIn AND TimeOut, SKIP (complete record)
+                    // This prevents marking students with complete attendance as absent
+                    if (dailyRecord.TimeOut != null)
+                    {
+                        string timeInFormatted = dailyRecord.TimeIn.Value.ToString("hh:mm:ss tt");
+                        string timeOutFormatted = dailyRecord.TimeOut.Value.ToString("hh:mm:ss tt");
+                        _logger.LogInformation($"✅ Student {enrollment.StudId} has COMPLETE attendance record - TimeIn: {timeInFormatted}, TimeOut: {timeOutFormatted}. SKIPPING forgot timeout check.");
+                        validCount++;
+                        continue; // ✅ SKIP - Complete attendance record (regardless of whether timeout was late)
+                    }
+                    
+                    // ✅ At this point: Student has TimeIn but NO TimeOut (NULL)
+                    string classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+                    string studentTimeInFormatted = dailyRecord.TimeIn.Value.ToString("hh:mm tt");
+                    
+                    _logger.LogWarning($"⚠️ Student {enrollment.StudId} forgot to time out for Class {classId}. TimeIn: {studentTimeInFormatted}, TimeOut: NULL, Class ended: {classEndTimeFormatted}");
+                    
+                    var existingRecord = await _attendanceRepo.GetByClassStudentDateAsync(
+                        classId, 
+                        enrollment.StudId, 
+                        date);
+                    
+                    if (existingRecord == null)
+                    {
+                        // Create new absence record
+                        _logger.LogInformation($"Creating absence record for Student {enrollment.StudId}");
+                        
+                        var absenceRecord = new Attendance
                         {
-                            // ✅ CRITICAL FIX: Properly format TimeSpan and nullable DateTime
-                            // classEndTime is TimeSpan - use @"hh\:mm" pattern (NO AM/PM)
-                            // dailyRecord.TimeIn is DateTime? - must check for null before using .Value
-                            
-                            string classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
-                            string timeInFormatted = dailyRecord.TimeIn.Value.ToString("hh:mm tt");
-                            
-                            _logger.LogWarning($"Student {enrollment.StudId} forgot to time out for Class {classId}");
-                            
-                            var existingRecord = await _attendanceRepo.GetByClassStudentDateAsync(
-                                classId, 
-                                enrollment.StudId, 
-                                date);
-                            
-                            if (existingRecord == null)
-                            {
-                                // Create new absence record
-                                _logger.LogInformation($"Creating absence record for Student {enrollment.StudId}");
-                                
-                                var absenceRecord = new Attendance
-                                {
-                                    ClassId = classId,
-                                    StudId = enrollment.StudId,
-                                    AttendDate = date,
-                                    AttendScanTime = date, // Use date as placeholder
-                                    AttendType = ScanType.In,
-                                    AttendStatus = AttendanceStatus.Absent,
-                                    AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {timeInFormatted}.",
-                                    AttendCreatedAt = DateTime.Now,
-                                    DailyAttendId = dailyRecord.DailyAttendId,
-                                    IsPresent = false
-                                };
-                                
-                                await _attendanceRepo.AddAsync(absenceRecord);
-                                forgotCount++;
-                            }
-                            else if (existingRecord.AttendStatus == AttendanceStatus.Present || 
-                                   existingRecord.AttendStatus == AttendanceStatus.Late)
-                            {
-                                // Update existing record to absent
-                                _logger.LogInformation($"Updating Student {enrollment.StudId} status from {existingRecord.AttendStatus} to Absent");
-                                
-                                existingRecord.AttendStatus = AttendanceStatus.Absent;
-                                existingRecord.AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {timeInFormatted}.";
-                                existingRecord.IsPresent = false;
-                                
-                                await _attendanceRepo.UpdateAsync(existingRecord);
-                                forgotCount++;
-                            }
-                            else
-                            {
-                                _logger.LogDebug($"Student {enrollment.StudId} already marked as {existingRecord.AttendStatus}");
-                            }
-                        }
-                        else
-                        {
-                            // ✅ CRITICAL FIX: Check TimeOut is not null before formatting
-                            string timeOutFormatted = dailyRecord.TimeOut.Value.ToString("hh:mm tt");
-                            _logger.LogDebug($"Student {enrollment.StudId} has valid timeout at {timeOutFormatted}");
-                            validCount++;
-                        }
+                            ClassId = classId,
+                            StudId = enrollment.StudId,
+                            AttendDate = date,
+                            AttendScanTime = date,
+                            AttendType = ScanType.In,
+                            AttendStatus = AttendanceStatus.Absent,
+                            AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {studentTimeInFormatted}.",
+                            AttendCreatedAt = DateTime.Now,
+                            DailyAttendId = dailyRecord.DailyAttendId,
+                            IsPresent = false
+                        };
+                        
+                        await _attendanceRepo.AddAsync(absenceRecord);
+                        forgotCount++;
                     }
                     else
                     {
-                        // Student never timed in (handled by main absence detection)
-                        _logger.LogDebug($"Student {enrollment.StudId} never timed in (handled by main absence detection)");
+                        // ✅ CRITICAL FIX: Check if faculty manually modified this record
+                        bool isFacultyOverride = !string.IsNullOrEmpty(existingRecord.AttendRemark) &&
+                            (existingRecord.AttendRemark.Contains("by faculty", StringComparison.OrdinalIgnoreCase) ||
+                             existingRecord.AttendRemark.Contains("Corrected by faculty", StringComparison.OrdinalIgnoreCase) ||
+                             existingRecord.AttendRemark.Contains("Manually set", StringComparison.OrdinalIgnoreCase) ||
+                             existingRecord.AttendRemark.Contains("Updated to", StringComparison.OrdinalIgnoreCase));
+                        
+                        if (isFacultyOverride)
+                        {
+                            _logger.LogInformation($"✅ FACULTY OVERRIDE DETECTED - Preserving {existingRecord.AttendStatus} status for Student {enrollment.StudId}. Remark: {existingRecord.AttendRemark}");
+                            validCount++; // Count as valid (faculty has control)
+                            continue;
+                        }
+                        
+                        // ✅ CRITICAL FIX: Never override 'Excused' status (always faculty-set)
+                        if (existingRecord.AttendStatus == AttendanceStatus.Excused)
+                        {
+                            _logger.LogInformation($"✅ EXCUSED STATUS PRESERVED - Skipping auto-absent for Student {enrollment.StudId}");
+                            validCount++;
+                            continue;
+                        }
+                        
+                        // ✅ Only update if currently marked as Present or Late (and no faculty override)
+                        if (existingRecord.AttendStatus == AttendanceStatus.Present || 
+                            existingRecord.AttendStatus == AttendanceStatus.Late)
+                        {
+                            _logger.LogInformation($"Updating Student {enrollment.StudId} status from {existingRecord.AttendStatus} to Absent");
+							
+							existingRecord.AttendStatus = AttendanceStatus.Absent;
+                            existingRecord.AttendRemark = $"Absent - Forgot to time out before class ended at {classEndTimeFormatted}. Timed in at {studentTimeInFormatted}.";
+                            existingRecord.IsPresent = false;
+                            
+                            await _attendanceRepo.UpdateAsync(existingRecord);
+                            forgotCount++;
+                        }
+                        else
+                        {
+                            _logger.LogDebug($"Student {enrollment.StudId} already marked as {existingRecord.AttendStatus}");
+                            validCount++;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, $"Error processing Student {enrollment.StudId} for Class {classId}");
-                    // Continue processing other students
                 }
             }
             
@@ -341,6 +369,7 @@ namespace Fingerprint_Attendance_System.Services
 
         /// <summary>
         /// Mark student as absent for a specific class
+        /// ✅ CRITICAL FIX: Check for faculty override before marking absent
         /// </summary>
         private async Task MarkClassAbsentAsync(int studId, StudentScheduleDto classSchedule, DateTime date)
         {
@@ -354,6 +383,26 @@ namespace Fingerprint_Attendance_System.Services
 
                 if (existingRecord != null)
                 {
+                    // ✅ CRITICAL FIX: Check if faculty manually modified this record
+                    bool isFacultyOverride = !string.IsNullOrEmpty(existingRecord.AttendRemark) &&
+                        (existingRecord.AttendRemark.Contains("by faculty", StringComparison.OrdinalIgnoreCase) ||
+                         existingRecord.AttendRemark.Contains("Corrected by faculty", StringComparison.OrdinalIgnoreCase) ||
+                         existingRecord.AttendRemark.Contains("Manually set", StringComparison.OrdinalIgnoreCase) ||
+                         existingRecord.AttendRemark.Contains("Updated to", StringComparison.OrdinalIgnoreCase));
+                    
+                    if (isFacultyOverride)
+                    {
+                        _logger.LogInformation($"✅ FACULTY OVERRIDE DETECTED - Preserving {existingRecord.AttendStatus} status for Student {studId}, Class {classSchedule.ClassId}. Remark: {existingRecord.AttendRemark}");
+                        return; // Don't override faculty decision
+                    }
+                    
+                    // ✅ CRITICAL FIX: Never override 'Excused' status (always faculty-set)
+                    if (existingRecord.AttendStatus == AttendanceStatus.Excused)
+                    {
+                        _logger.LogInformation($"✅ EXCUSED STATUS PRESERVED - Skipping auto-absent for Student {studId}, Class {classSchedule.ClassId}");
+                        return;
+                    }
+                    
                     // Update existing record to absent (in case it was marked pending)
                     if (existingRecord.AttendStatus != AttendanceStatus.Present && 
                         existingRecord.AttendStatus != AttendanceStatus.Late)
@@ -393,12 +442,68 @@ namespace Fingerprint_Attendance_System.Services
                     await _attendanceRepo.AddAsync(absenceRecord);
                 }
 
-                _logger.LogInformation($"? Marked absent: {classSchedule.CourseCode} for Student {studId}");
+                _logger.LogInformation($"✅ Marked absent: {classSchedule.CourseCode} for Student {studId}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error marking class {classSchedule.ClassId} absent for Student {studId}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// ✅ NEW: Manual trigger for forgot timeout detection (can be called by faculty)
+        /// Processes ONLY classes that have already ended
+        /// </summary>
+        public async Task<(int forgotCount, int validCount, string message)> ProcessForgotTimeoutForClassAsync(int classId, DateTime date)
+        {
+            try
+            {
+                _logger.LogInformation($"=== Manual Forgot Timeout Check for Class {classId} on {date:yyyy-MM-dd} ===");
+                
+                var dayOfWeek = date.DayOfWeek.ToString();
+                
+                var schedules = await _classScheduleRepo.GetByClassIdAsync(classId);
+                var todaySchedule = schedules.FirstOrDefault(s => 
+                    s.SchedDayOfWeek.Trim().Equals(dayOfWeek, StringComparison.OrdinalIgnoreCase));
+                
+                if (todaySchedule == null)
+                {
+                    _logger.LogWarning($"Class {classId} has no schedule for {dayOfWeek}");
+                    return (0, 0, $"No class scheduled for {dayOfWeek}");
+                }
+                
+                var classEndTime = todaySchedule.SchedEndTime;
+                var currentTime = DateTime.Now.TimeOfDay;
+                
+                // Check if class has ended
+                bool classHasEnded = date.Date < DateTime.Today || 
+                                   (date.Date == DateTime.Today && currentTime > classEndTime);
+                
+                if (!classHasEnded)
+                {
+                    var classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+                    var currentTimeFormatted = DateTime.Today.Add(currentTime).ToString("hh:mm tt");
+                    _logger.LogWarning($"Class {classId} hasn't ended yet. Current: {currentTimeFormatted}, Ends: {classEndTimeFormatted}");
+                    return (0, 0, $"Class hasn't ended yet. Current time: {currentTimeFormatted}, Class ends: {classEndTimeFormatted}");
+                }
+                
+                _logger.LogInformation($"Processing Class {classId} - Ended at {DateTime.Today.Add(classEndTime):hh:mm tt}");
+                
+                var (forgotCount, validCount) = await ProcessClassForgotTimeoutAsync(classId, date, classEndTime);
+                
+                string message = forgotCount > 0 
+                    ? $"Marked {forgotCount} student(s) as absent (forgot to time out)"
+                    : "No students forgot to time out";
+                
+                _logger.LogInformation($"✅ Manual forgot timeout check complete: {message}");
+                
+                return (forgotCount, validCount, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error processing manual forgot timeout for Class {classId}");
+                return (0, 0, $"Error: {ex.Message}");
             }
         }
 

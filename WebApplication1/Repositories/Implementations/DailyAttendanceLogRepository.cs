@@ -20,6 +20,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
 
         public async Task<DailyAttendanceLog?> GetByStudentAndDateAsync(int studId, DateTime date)
         {
+            // ✅ CRITICAL FIX: Added class_id to SELECT statement
             var query = @"
                 SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
                        status, forgot_timeout, remarks, created_at, updated_at
@@ -75,7 +76,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<DailyAttendanceLog?> GetByIdAsync(int dailyAttendId)
         {
             var query = @"
-                SELECT daily_attend_id, stud_id, attend_date, time_in, time_out, 
+                SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
                        status, forgot_timeout, remarks, created_at, updated_at
                 FROM daily_attendance_log
                 WHERE daily_attend_id = @daily_attend_id";
@@ -97,7 +98,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<IEnumerable<DailyAttendanceLog>> GetByDateAsync(DateTime date)
         {
             var query = @"
-                SELECT daily_attend_id, stud_id, attend_date, time_in, time_out, 
+                SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
                        status, forgot_timeout, remarks, created_at, updated_at
                 FROM daily_attendance_log
                 WHERE attend_date = @attend_date
@@ -122,7 +123,7 @@ namespace Fingerprint_Attendance_System.Repositories.Implementations
         public async Task<IEnumerable<DailyAttendanceLog>> GetIncompleteRecordsAsync()
         {
             var query = @"
-                SELECT daily_attend_id, stud_id, attend_date, time_in, time_out, 
+                SELECT daily_attend_id, stud_id, class_id, attend_date, time_in, time_out, 
                        status, forgot_timeout, remarks, created_at, updated_at
                 FROM daily_attendance_log
                 WHERE attend_date < CURRENT_DATE 

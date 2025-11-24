@@ -24,6 +24,7 @@ $(document).ready(function () {
     $('#classSelect').on('change', handleClassChange);
     $('#dateSelect').on('change', handleDateChange);
     $('#btnMarkAllPresent').on('click', markAllPresent);
+    $('#btnProcessForgotTimeout').on('click', processForgotTimeout); // ✅ NEW: Forgot timeout button
     $('#btnUpdateAttendance').on('click', updateAttendance);
     $('#btnConfirmDelete').on('click', confirmDeleteAttendance);
 
@@ -92,6 +93,7 @@ function handleClassChange() {
     if (!classId) {
         showEmptyState();
         $('#btnMarkAllPresent').prop('disabled', true);
+        $('#btnProcessForgotTimeout').prop('disabled', true); // ✅ NEW: Disable forgot timeout button
         return;
     }
 
@@ -128,6 +130,7 @@ function loadAttendanceForDate() {
     const today = new Date().toISOString().split('T')[0];
     const isToday = selectedDate === today;
     $('#btnMarkAllPresent').prop('disabled', !isToday);
+    $('#btnProcessForgotTimeout').prop('disabled', false); // ✅ NEW: Enable forgot timeout button
 
     initializeDataTable(currentClassId, selectedDate);
 }
@@ -436,6 +439,41 @@ function markAllPresent() {
         },
         function () {
             resetButton($btn, 'Mark All Present');
+        }
+    );
+}
+
+/**
+ * Process forgot timeout
+ */
+function processForgotTimeout() {
+    if (!currentClassId) {
+        Toast.warning('Please select a class first');
+        return;
+    }
+
+    const $btn = $('#btnProcessForgotTimeout');
+    setButtonLoading($btn, 'Checking...');
+
+    ajaxPost('/FacultyAttendance/ProcessForgotTimeout', 
+        { 
+            classId: currentClassId,
+            date: selectedDate 
+        },
+        function (response) {
+            if (response.forgotCount > 0) {
+                Toast.success(response.message || `Marked ${response.forgotCount} student(s) as absent`);
+                attendanceTable.ajax.reload(null, false);
+            } else {
+                Toast.info(response.message || 'No students forgot to time out');
+            }
+            resetButton($btn, '<i data-lucide="alert-triangle" class="icon-sm"></i> Check Forgot Timeout');
+            // Reinitialize icons after button reset
+            initializeLucideIcons();
+        },
+        function () {
+            resetButton($btn, '<i data-lucide="alert-triangle" class="icon-sm"></i> Check Forgot Timeout');
+            initializeLucideIcons();
         }
     );
 }
