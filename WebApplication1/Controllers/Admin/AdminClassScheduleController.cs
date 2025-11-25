@@ -165,9 +165,35 @@ public class AdminClassScheduleController : Controller
                 });
             }
 
+            // ✅ NEW STEP 1.5: Check for faculty schedule conflicts
+            var classId = scheduleDtos[0].ClassId;
+            foreach (var dto in scheduleDtos)
+            {
+                if (!TimeSpan.TryParse(dto.SchedStartTime, out var startTime) ||
+                    !TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
+                {
+                    continue; // Skip validation for invalid times (will be caught later)
+                }
+
+                var (hasConflict, conflictingCourse) = await _classScheduleRepository
+                    .CheckFacultyScheduleConflictAsync(classId, dto.SchedDayOfWeek, startTime, endTime);
+
+                if (hasConflict)
+                {
+                    _logger.LogWarning($"Faculty conflict detected for {dto.SchedDayOfWeek} at {dto.SchedStartTime}-{dto.SchedEndTime}");
+                    return Json(new
+                    {
+                        success = false,
+                        message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
+                                 $"The faculty member is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
+                                 $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
+                                 $"Please choose a different time or assign a different faculty member."
+                    });
+                }
+            }
+
             // ✅ STEP 2: DELETE all existing schedules for this class (if editing)
             // This prevents conflicts with existing records
-            var classId = scheduleDtos[0].ClassId;
             var existingSchedules = await _classScheduleRepository.GetByClassIdAsync(classId);
             
             if (existingSchedules.Any())
@@ -268,6 +294,23 @@ public class AdminClassScheduleController : Controller
 
             if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
                 return Json(new { success = false, message = "Invalid end time format" });
+
+            // ✅ NEW: Check for faculty schedule conflicts (exclude current schedule ID)
+            var (hasConflict, conflictingCourse) = await _classScheduleRepository
+                .CheckFacultyScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
+
+            if (hasConflict)
+            {
+                _logger.LogWarning($"Faculty conflict detected when updating schedule {dto.SchedId}");
+                return Json(new
+                {
+                    success = false,
+                    message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
+                             $"The faculty member is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
+                             $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
+                             $"Please choose a different time or assign a different faculty member."
+                });
+            }
 
             var schedule = new ClassSchedule
             {

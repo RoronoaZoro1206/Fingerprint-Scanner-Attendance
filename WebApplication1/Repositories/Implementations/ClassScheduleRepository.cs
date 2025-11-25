@@ -289,4 +289,84 @@ public class ClassScheduleRepository : IClassScheduleRepository
         
         return await GetStudentScheduleForDateAsync(studId, targetDate);
     }
+    
+    // ============================================================
+    // ✅ NEW: FACULTY SCHEDULE CONFLICT VALIDATION
+    // ============================================================
+    
+    /// <summary>
+    /// Checks if a faculty member has a schedule conflict for the proposed time slot
+    /// Step A: Gets the faculty ID from the class
+    /// Step B: Checks for overlapping schedules for the same faculty on the same day
+    /// Step C: Returns conflict status and conflicting course name (if any)
+    /// </summary>
+    /// <param name="classId">The class being scheduled</param>
+    /// <param name="dayOfWeek">Day of week (e.g., "Monday")</param>
+    /// <param name="startTime">Proposed start time</param>
+    /// <param name="endTime">Proposed end time</param>
+    /// <param name="excludeSchedId">Schedule ID to exclude (for updates)</param>
+    /// <returns>Tuple with conflict status and conflicting course name</returns>
+    public async Task<(bool HasConflict, string ConflictingCourseName)> CheckFacultyScheduleConflictAsync(
+        int classId,
+        string dayOfWeek,
+        TimeSpan startTime,
+        TimeSpan endTime,
+        int? excludeSchedId = null)
+    {
+        // ✅ STEP A: Get the faculty ID from the class
+        // ✅ STEP B: Check for overlapping schedules
+        // Time overlap logic: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+        string query = @"
+            SELECT 
+                co.course_name,
+                cs.sched_start_time,
+                cs.sched_end_time
+            FROM class_schedules cs
+            INNER JOIN classes c ON cs.class_id = c.class_id
+            INNER JOIN courses co ON c.course_id = co.course_id
+            WHERE c.fac_id = (SELECT fac_id FROM classes WHERE class_id = @classId)
+              AND TRIM(cs.sched_day_of_week) = TRIM(@dayOfWeek)
+              AND cs.sched_start_time < @endTime
+              AND cs.sched_end_time > @startTime
+              AND cs.class_id != @classId";
+        
+        // If updating an existing schedule, exclude it from conflict check
+        if (excludeSchedId.HasValue)
+        {
+            query += " AND cs.sched_id != @excludeSchedId";
+        }
+        
+        query += " LIMIT 1;";
+        
+        var parameters = new Dictionary<string, object>
+        {
+            { "@classId", classId },
+            { "@dayOfWeek", dayOfWeek },
+            { "@startTime", startTime },
+            { "@endTime", endTime }
+        };
+        
+        if (excludeSchedId.HasValue)
+        {
+            parameters.Add("@excludeSchedId", excludeSchedId.Value);
+        }
+        
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        
+        if (dt.Rows.Count > 0)
+        {
+            var conflictingCourse = dt.Rows[0]["course_name"]?.ToString() ?? "Unknown Course";
+            var conflictStart = (TimeSpan)dt.Rows[0]["sched_start_time"];
+            var conflictEnd = (TimeSpan)dt.Rows[0]["sched_end_time"];
+            
+            Console.WriteLine($"[CONFLICT] Faculty conflict detected:");
+            Console.WriteLine($"  - Conflicting Course: {conflictingCourse}");
+            Console.WriteLine($"  - Conflict Time: {conflictStart:hh\\:mm} - {conflictEnd:hh\\:mm}");
+            Console.WriteLine($"  - Proposed Time: {startTime:hh\\:mm} - {endTime:hh\\:mm}");
+            
+            return (true, conflictingCourse);
+        }
+        
+        return (false, string.Empty);
+    }
 }

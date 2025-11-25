@@ -18,4 +18,12 @@ public interface IClassScheduleRepository
     // ? NEW: Schedule integration methods for Phase 4
     Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDateAsync(int studId, DateTime date);
     Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDayAsync(int studId, string dayOfWeek);
+    
+    // ✅ NEW: Faculty schedule conflict validation
+    Task<(bool HasConflict, string ConflictingCourseName)> CheckFacultyScheduleConflictAsync(
+        int classId, 
+        string dayOfWeek, 
+        TimeSpan startTime, 
+        TimeSpan endTime, 
+        int? excludeSchedId = null);
 }

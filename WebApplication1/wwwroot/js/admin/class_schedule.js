@@ -1,4 +1,3 @@
-
 /// <reference path="../global.d.ts" />
 
 let schedulesTable;
@@ -313,12 +312,80 @@ function saveSchedules() {
             if (response.success) {
                 Toast.success(response.message || 'Schedules created successfully');
                 $('#addScheduleModal').modal('hide');
-                // Delay reload to allow toast to display
                 setTimeout(function() {
                     location.reload();
                 }, 1000);
             } else {
-                Toast.error(response.message);
+                // ✨ FINAL: Standard SweetAlert2 error icon + red OK button + preserved content
+                const errorMessage = response.message || 'Failed to create schedules';
+                if (errorMessage.includes('\n')) {
+                    // Parse error message parts
+                    const messageParts = errorMessage.split('\n\n');
+                    const conflictHeader = messageParts[0] || '';
+                    const conflictDetails = messageParts[1] || '';
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Faculty Schedule Conflict',
+                        html: `
+                            <div style="text-align: left; margin-top: 0.75rem;">
+                                <!-- Compact Conflict Header -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    font-size: 0.9375rem;
+                                    font-weight: 600;
+                                    color: #991b1b;
+                                    line-height: 1.5;
+                                ">
+                                    ❌ ${conflictHeader.replace('❌ Faculty Schedule Conflict Detected!', 'Faculty Schedule Conflict Detected!')}
+                                </p>
+                                
+                                <!-- Conflict Details with Emoji -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fef2f2;
+                                    border-left: 3px solid #dc2626;
+                                    border-radius: 6px;
+                                    font-size: 0.9375rem;
+                                    line-height: 1.65;
+                                    color: #7f1d1d;
+                                ">
+                                    👨‍🏫 ${conflictDetails}
+                                </p>
+                                
+                                <!-- Solution with Emoji -->
+                                <p style="
+                                    margin: 0;
+                                    padding: 0.875rem;
+                                    background: #eff6ff;
+                                    border-left: 3px solid #3b82f6;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #1e40af;
+                                ">
+                                    💡 <strong>Solution:</strong> Choose a different time slot or assign a different faculty member.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#ef4444',
+                        width: '520px',
+                        padding: '1.75rem 2rem 2rem',
+                        customClass: {
+                            popup: 'faculty-conflict-standard',
+                            title: 'faculty-conflict-title-standard',
+                            htmlContainer: 'faculty-conflict-content-standard',
+                            confirmButton: 'faculty-conflict-button-standard'
+                        },
+                        buttonsStyling: false,
+                        allowOutsideClick: false
+                    });
+                } else {
+                    // Single-line error - use toast
+                    Toast.error(errorMessage);
+                }
                 $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Save Schedules');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
@@ -359,12 +426,80 @@ function updateSchedule() {
             if (response.success) {
                 Toast.updated('Schedule');
                 $('#editScheduleModal').modal('hide');
-                // Delay reload to allow toast to display
                 setTimeout(function() {
                     location.reload();
                 }, 1000);
             } else {
-                Toast.error(response.message);
+                // ✨ FINAL: Standard SweetAlert2 error icon + red OK button + preserved content
+                const errorMessage = response.message || 'Failed to update schedule';
+                if (errorMessage.includes('\n')) {
+                    // Parse error message parts
+                    const messageParts = errorMessage.split('\n\n');
+                    const conflictHeader = messageParts[0] || '';
+                    const conflictDetails = messageParts[1] || '';
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Faculty Schedule Conflict',
+                        html: `
+                            <div style="text-align: left; margin-top: 0.75rem;">
+                                <!-- Compact Conflict Header -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    font-size: 0.9375rem;
+                                    font-weight: 600;
+                                    color: #991b1b;
+                                    line-height: 1.5;
+                                ">
+                                    ❌ ${conflictHeader.replace('❌ Faculty Schedule Conflict Detected!', 'Faculty Schedule Conflict Detected!')}
+                                </p>
+                                
+                                <!-- Conflict Details with Emoji -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fef2f2;
+                                    border-left: 3px solid #dc2626;
+                                    border-radius: 6px;
+                                    font-size: 0.9375rem;
+                                    line-height: 1.65;
+                                    color: #7f1d1d;
+                                ">
+                                    👨‍🏫 ${conflictDetails}
+                                </p>
+                                
+                                <!-- Solution with Emoji -->
+                                <p style="
+                                    margin: 0;
+                                    padding: 0.875rem;
+                                    background: #eff6ff;
+                                    border-left: 3px solid #3b82f6;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #1e40af;
+                                ">
+                                    💡 <strong>Solution:</strong> Choose a different time slot or assign a different faculty member.
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#ef4444',
+                        width: '520px',
+                        padding: '1.75rem 2rem 2rem',
+                        customClass: {
+                            popup: 'faculty-conflict-standard',
+                            title: 'faculty-conflict-title-standard',
+                            htmlContainer: 'faculty-conflict-content-standard',
+                            confirmButton: 'faculty-conflict-button-standard'
+                        },
+                        buttonsStyling: false,
+                        allowOutsideClick: false
+                    });
+                } else {
+                    // Single-line error - use toast
+                    Toast.error(errorMessage);
+                }
                 $btn.prop('disabled', false).html('<i data-lucide="save" class="icon-sm"></i> Update');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }

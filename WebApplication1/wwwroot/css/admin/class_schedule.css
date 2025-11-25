@@ -124,3 +124,109 @@ td.dt-control {
 .schedule-entry .row {
     align-items: center;
 }
+
+/* ============================================================
+   ✨ STANDARD FACULTY CONFLICT MODAL - PRESERVED CONTENT
+   Uses standard SweetAlert2 error icon + red OK button
+   ============================================================ */
+
+/* Standard Modal Container */
+.faculty-conflict-standard {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Standard Title */
+.faculty-conflict-title-standard {
+    font-size: 1.375rem !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    padding: 0 !important;
+    margin: 0 0 0.5rem 0 !important;
+    text-align: center !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* Standard Content Container */
+.faculty-conflict-content-standard {
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: left !important;
+}
+
+/* Standard Red OK Button */
+.faculty-conflict-button-standard {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #ef4444 !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
+    margin-top: 0.5rem !important;
+}
+
+.faculty-conflict-button-standard:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4) !important;
+    background: #dc2626 !important;
+}
+
+.faculty-conflict-button-standard:active {
+    transform: translateY(0) !important;
+}
+
+.faculty-conflict-button-standard:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Standard SweetAlert2 Error Icon Styling */
+.faculty-conflict-standard .swal2-icon.swal2-error {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    width: 80px !important;
+    height: 80px !important;
+    margin: 1.25rem auto 1.25rem !important;
+}
+
+.faculty-conflict-standard .swal2-icon.swal2-error .swal2-x-mark {
+    animation: standardErrorPulse 0.6s ease-out !important;
+}
+
+.faculty-conflict-standard .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: #ef4444 !important;
+}
+
+@keyframes standardErrorPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+/* Responsive Design - Standard Modal */
+@media (max-width: 640px) {
+    .faculty-conflict-standard {
+        width: 95% !important;
+        padding: 1.5rem 1.25rem 1.75rem !important;
+    }
+    
+    .faculty-conflict-title-standard {
+        font-size: 1.25rem !important;
+    }
+    
+    .faculty-conflict-button-standard {
+        width: 100% !important;
+    }
+}
+
+/* Accessibility */
+.faculty-conflict-button-standard:focus-visible {
+    outline: 2px solid #ef4444 !important;
+    outline-offset: 2px !important;
+}
