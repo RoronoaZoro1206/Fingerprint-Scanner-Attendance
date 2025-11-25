@@ -33,8 +33,9 @@
 </div>
 
 @section Scripts {
-    <!-- ✅ FIX: Added Chart.js CDN and student_charts.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- ✅ SignalR Connection Manager (must be loaded before student scripts) -->
+    <script src="~/js/signalr-connection.js" asp-append-version="true"></script>
     <script src="~/js/student/student_charts.js" asp-append-version="true"></script>
 }
 

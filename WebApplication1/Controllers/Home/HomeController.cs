@@ -3,6 +3,8 @@ using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Services;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR; // ✅ NEW: For SignalR
+using Fingerprint_Attendance_System.Hubs; // ✅ NEW: For AttendanceHub
 using StudentModel = Fingerprint_Attendance_System.Models.Student;
 
 namespace Fingerprint_Attendance_System.Controllers.Home
@@ -23,8 +25,9 @@ namespace Fingerprint_Attendance_System.Controllers.Home
         private readonly IAttendanceRepository _attendanceRepository;
         private readonly AttendanceProcessingService _attendanceService;
         private readonly IScanLogRepository _scanLogRepo;
-        private readonly IProgramRepository _programRepo;  // ✅ NEW: For loading student program
-        private readonly ISectionRepository _sectionRepo;  // ✅ NEW: For loading student section
+        private readonly IProgramRepository _programRepo;
+        private readonly ISectionRepository _sectionRepo;
+        private readonly IHubContext<AttendanceHub> _hubContext; // ✅ NEW: SignalR Hub Context
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(
@@ -42,8 +45,9 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             IAttendanceRepository attendanceRepository,
             AttendanceProcessingService attendanceService,
             IScanLogRepository scanLogRepo,
-            IProgramRepository programRepo,      // ✅ NEW: For loading student program
-            ISectionRepository sectionRepo,      // ✅ NEW: For loading student section
+            IProgramRepository programRepo,
+            ISectionRepository sectionRepo,
+            IHubContext<AttendanceHub> hubContext, // ✅ NEW: Inject SignalR Hub Context
             ILogger<HomeController> logger)
         {
             _fingerprintService = fingerprintService;
@@ -60,8 +64,9 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             _attendanceRepository = attendanceRepository;
             _attendanceService = attendanceService;
             _scanLogRepo = scanLogRepo;
-            _programRepo = programRepo;          // ✅ NEW: Assign program repository
-            _sectionRepo = sectionRepo;          // ✅ NEW: Assign section repository
+            _programRepo = programRepo;
+            _sectionRepo = sectionRepo;
+            _hubContext = hubContext; // ✅ NEW: Store SignalR Hub Context
             _logger = logger;
         }
 
@@ -148,14 +153,12 @@ namespace Fingerprint_Attendance_System.Controllers.Home
 
         /// <summary>
         /// Process public fingerprint scan for attendance with intelligent schedule validation
-        /// ✅ ENHANCED: Prevents duplicate time-in after completing attendance for same class
-        /// ✅ NEW: Logs all scan events to scan_logs table for statistics tracking
+        /// ✅ ENHANCED: Now broadcasts real-time notifications via SignalR
         /// POST: /Home/ScanFingerprint
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> ScanFingerprint()
         {
-            // ✅ NEW: Track scan start time for logging
             var scanStartTime = DateTime.Now;
             int? matchedUserId = null;
             bool scanWasSuccessful = false;
@@ -582,21 +585,20 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                     _logger.LogWarning(syncEx, "Failed to sync attendance to attendance table (non-critical)");
                 }
 
-                _logger.LogInformation($"✅ Attendance recorded for {student.StudNumber}: {attendanceResponse.Action}");
-                
-                // ✅ NEW: Log successful time in
-                scanWasSuccessful = true;
-                scanLogMessage = $"TIME IN successful for {activeClassInfo.CourseCode} - Class: {activeClassInfo.CourseName}";
-                await LogScanEventAsync(matchedUserId, scanStartTime, true, scanLogMessage);
-
-                // Success feedback: green light + beep
-                _fingerprintService.SetLedLight("green", true);
-                _fingerprintService.Beep(true);
-                _ = Task.Delay(300).ContinueWith(_ =>
+                // After successful attendance processing
+                if (processingResult.Success && attendanceResponse != null)
                 {
-                    _fingerprintService.SetLedLight("green", false);
-                    _fingerprintService.Beep(false);
-                });
+                    // ✅ NEW: Broadcast real-time notification to all connected dashboards
+                    await BroadcastAttendanceUpdateAsync(
+                        student,
+                        activeClassInfo,
+                        attendanceResponse.Action!
+                    );
+                    
+                    _logger.LogInformation($"✅ Attendance recorded for {student.StudNumber}: {attendanceResponse.Action}");
+                    
+                    // ... existing success logic ...
+                }
 
                 return Json(new
                 {
@@ -628,7 +630,6 @@ namespace Fingerprint_Attendance_System.Controllers.Home
             {
                 _logger.LogError(ex, "Error during public fingerprint scan");
                 
-                // ✅ NEW: Log exception
                 scanLogMessage = $"Exception during scan: {ex.Message}";
                 await LogScanEventAsync(matchedUserId, scanStartTime, false, scanLogMessage);
                 
@@ -638,6 +639,51 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                     messageType = "exception",
                     message = "An error occurred during scanning. Please try again."
                 });
+            }
+        }
+
+        /// <summary>
+        /// ✅ NEW: Broadcast attendance update to all connected clients via SignalR
+        /// Sends notifications to:
+        /// 1. All connected clients (admin/faculty/student dashboards)
+        /// 2. Specific class group (faculty monitoring this class)
+        /// </summary>
+        private async Task BroadcastAttendanceUpdateAsync(
+            StudentModel student, 
+            ActiveClassInfo classInfo, 
+            string action)
+        {
+            try
+            {
+                var notification = new
+                {
+                    studentName = $"{student.User?.UserFirstName} {student.User?.UserLastName}",
+                    studentNumber = student.StudNumber,
+                    programName = student.Program?.ProgramName,
+                    sectionName = student.Section?.SectionName,
+                    courseCode = classInfo.CourseCode,
+                    courseName = classInfo.CourseName,
+                    facultyName = classInfo.FacultyName,
+                    roomCode = classInfo.RoomCode,
+                    action = action, // "time_in" or "time_out"
+                    timestamp = DateTime.Now.ToString("hh:mm:ss tt"),
+                    date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    classId = classInfo.ClassId
+                };
+
+                // Broadcast to ALL clients (admin, faculty, student dashboards)
+                await _hubContext.Clients.All.SendAsync("ReceiveAttendance", notification);
+                
+                // Broadcast to specific class group (for faculty monitoring this class)
+                string groupName = $"Class_{classInfo.ClassId}";
+                await _hubContext.Clients.Group(groupName).SendAsync("ReceiveClassAttendance", notification);
+                
+                _logger.LogInformation($"✅ SignalR broadcast sent - Student: {notification.studentName}, Action: {action}, Course: {classInfo.CourseCode}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to broadcast attendance update via SignalR (non-critical)");
+                // Don't fail the main operation if SignalR broadcast fails
             }
         }
 

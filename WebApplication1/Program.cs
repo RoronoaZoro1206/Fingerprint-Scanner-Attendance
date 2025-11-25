@@ -4,6 +4,7 @@ using Fingerprint_Attendance_System.Repositories.Implementations;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Services;
 using Fingerprint_Attendance_System.Middleware; // ? NEW: For GlobalExceptionHandlerMiddleware
+using Fingerprint_Attendance_System.Hubs; // ✅ NEW: For SignalR AttendanceHub
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,21 @@ builder.Services.AddControllersWithViews()
         options.JsonSerializerOptions.DefaultIgnoreCondition = 
             System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
+
+// ============================================================
+// ✅ STEP 3: REGISTER SIGNALR FOR REAL-TIME ATTENDANCE NOTIFICATIONS
+// ============================================================
+builder.Services.AddSignalR(options =>
+{
+    // Enable detailed error messages in development
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    
+    // Configure timeout settings
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(1);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+});
+
 builder.Services.AddSession(options =>
 {
     // ✅ FIX: Increased session timeout to 24 hours to prevent inactivity-based logout
@@ -178,6 +194,11 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+// ============================================================
+// ✅ STEP 3: MAP SIGNALR HUB ENDPOINT
+// ============================================================
+app.MapHub<AttendanceHub>("/attendanceHub");
 
 // CRITICAL FIX: Map API controller routes FIRST (attribute-based routing)
 // This ensures /api/* routes are handled by API controllers, not MVC convention routing

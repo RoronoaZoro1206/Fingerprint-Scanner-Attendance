@@ -13,6 +13,10 @@
 <body data-role-id="@Context.Session.GetInt32("RoleId")" 
       data-user-id="@Context.Session.GetInt32("UserId")" 
       data-user-email="@Context.Session.GetString("UserEmail")">
+    
+    <!-- ✅ NEW: SignalR Connection Status Indicator -->
+    <div id="signalr-status" class="signalr-status"></div>
+    
     <div class="app-container">
         <!-- Sidebar -->
         @{

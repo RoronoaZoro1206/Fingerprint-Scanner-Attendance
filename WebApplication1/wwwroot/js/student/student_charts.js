@@ -1,17 +1,46 @@
 /**
  * Student Dashboard Charts using Chart.js
  * Displays personal attendance overview, punctuality trend, and course-wise attendance
+ * ✅ ENHANCED: Now includes SignalR real-time connection status
+ * ? Always renders charts, even with empty data
  */
 
 let attendanceOverviewChart = null;
 let punctualityTrendChart = null;
 let courseAttendanceChart = null;
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     // Load all charts
     loadAttendanceOverviewChart();
     loadPunctualityTrendChart();
     loadCourseAttendanceChart();
+
+    // ✅ NEW: Initialize SignalR connection for real-time updates
+    try {
+        await signalRConnection.initialize();
+        console.log('✅ SignalR connected - Student Dashboard ready for real-time updates');
+
+        // ✅ Listen for real-time attendance updates
+        signalRConnection.onAttendanceUpdate((data) => {
+            console.log('📡 Real-time attendance notification received:', data);
+            
+            // Show toast notification
+            const actionText = data.action === 'time_in' ? 'Time In' : 'Time Out';
+            Toast.success(`${data.studentName} - ${actionText} (${data.courseCode})`);
+            
+            // Refresh charts (attendance data updated)
+            setTimeout(() => {
+                loadAttendanceOverviewChart();
+                loadPunctualityTrendChart();
+                loadCourseAttendanceChart();
+            }, 1000);
+        });
+
+        console.log('✅ SignalR attendance listener registered');
+    } catch (error) {
+        console.error('❌ SignalR connection failed (non-critical):', error);
+        // Dashboard will still work without real-time updates
+    }
 
     // Refresh charts every 5 minutes
     setInterval(loadAttendanceOverviewChart, 300000);

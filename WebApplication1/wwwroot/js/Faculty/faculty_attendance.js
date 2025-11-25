@@ -1,5 +1,6 @@
 /**
  * Faculty Attendance - Refactored to use common utilities
+ * ✅ ENHANCED: Now receives real-time SignalR notifications for class attendance
  * Monitor and manage class attendance with DataTables
  */
 
@@ -7,15 +8,64 @@ let attendanceTable;
 let currentClassId = null;
 let selectedDate = null;
 
-$(document).ready(function () {
+$(document).ready(async function () {
     // Initialize icons
     initializeLucideIcons();
 
     // Set default date to today and prevent future dates
     const today = new Date().toISOString().split('T')[0];
     $('#dateSelect').val(today);
-    $('#dateSelect').attr('max', today); // ✅ NEW: Prevent future date selection
+    $('#dateSelect').attr('max', today);
     selectedDate = today;
+
+    // ✅ NEW: Initialize SignalR connection for real-time updates
+    try {
+        await signalRConnection.initialize();
+        console.log('✅ SignalR connected - Faculty Attendance ready for real-time updates');
+
+        // ✅ Listen for class-specific attendance updates
+        signalRConnection.onClassAttendanceUpdate((data) => {
+            console.log('📡 Class attendance update received:', data);
+            
+            // ✅ Only reload if it's for the current selected class
+            if (currentClassId && data.classId === currentClassId) {
+                // Check if viewing today
+                const viewingToday = selectedDate === today;
+                
+                if (viewingToday) {
+                    console.log('✅ Reloading attendance table for current class');
+                    
+                    // Reload the table
+                    if (attendanceTable) {
+                        attendanceTable.ajax.reload(null, false);
+                    }
+                    
+                    // Show toast notification
+                    const actionText = data.action === 'time_in' ? 'Time In' : 'Time Out';
+                    Toast.success(`${data.studentName} - ${actionText}`);
+                } else {
+                    console.log('⚠️ Not viewing today, skipping reload');
+                }
+            }
+        });
+
+        // ✅ Also listen for global attendance updates (fallback)
+        signalRConnection.onAttendanceUpdate((data) => {
+            console.log('📡 Global attendance update received:', data);
+            
+            // Only reload if it's for current class and viewing today
+            if (currentClassId && data.classId === currentClassId && selectedDate === today) {
+                if (attendanceTable) {
+                    attendanceTable.ajax.reload(null, false);
+                }
+            }
+        });
+
+        console.log('✅ SignalR attendance listeners registered');
+    } catch (error) {
+        console.error('❌ SignalR connection failed (non-critical):', error);
+        // Attendance page will still work with polling fallback
+    }
 
     // Load faculty classes for dropdown
     loadClassesDropdown();
@@ -24,7 +74,7 @@ $(document).ready(function () {
     $('#classSelect').on('change', handleClassChange);
     $('#dateSelect').on('change', handleDateChange);
     $('#btnMarkAllPresent').on('click', markAllPresent);
-    $('#btnProcessForgotTimeout').on('click', processForgotTimeout); // ✅ NEW: Forgot timeout button
+    $('#btnProcessForgotTimeout').on('click', processForgotTimeout);
     $('#btnUpdateAttendance').on('click', updateAttendance);
     $('#btnConfirmDelete').on('click', confirmDeleteAttendance);
 
@@ -85,22 +135,36 @@ function populateClassDropdown(classes) {
 }
 
 /**
- * Handle class selection change
+ * ✅ ENHANCED: Handle class selection change with SignalR group joining
  */
-function handleClassChange() {
+async function handleClassChange() {
     const classId = $('#classSelect').val();
 
     if (!classId) {
+        // ✅ Leave previous SignalR group if any
+        if (currentClassId) {
+            await signalRConnection.leaveClassGroup(currentClassId);
+            currentClassId = null;
+        }
+        
         showEmptyState();
         $('#btnMarkAllPresent').prop('disabled', true);
-        $('#btnProcessForgotTimeout').prop('disabled', true); // ✅ NEW: Disable forgot timeout button
+        $('#btnProcessForgotTimeout').prop('disabled', true);
         return;
+    }
+
+    // ✅ Leave previous class group and join new one
+    if (currentClassId && currentClassId !== parseInt(classId)) {
+        await signalRConnection.leaveClassGroup(currentClassId);
     }
 
     currentClassId = parseInt(classId);
     
-    // ✅ CRITICAL FIX: Always use current date from picker (don't use cached value)
-    // This ensures the date is TODAY when coming from My Classes page
+    // ✅ Join SignalR group for this class
+    await signalRConnection.joinClassGroup(currentClassId);
+    console.log(`✅ Joined SignalR group for Class ${currentClassId}`);
+    
+    // Always use current date from picker
     selectedDate = $('#dateSelect').val();
     console.log(`✅ Loading attendance for class ${classId} on date: ${selectedDate}`);
     
@@ -130,7 +194,7 @@ function loadAttendanceForDate() {
     const today = new Date().toISOString().split('T')[0];
     const isToday = selectedDate === today;
     $('#btnMarkAllPresent').prop('disabled', !isToday);
-    $('#btnProcessForgotTimeout').prop('disabled', false); // ✅ NEW: Enable forgot timeout button
+    $('#btnProcessForgotTimeout').prop('disabled', false);
 
     initializeDataTable(currentClassId, selectedDate);
 }

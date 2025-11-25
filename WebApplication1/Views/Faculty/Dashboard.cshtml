@@ -3,7 +3,7 @@
 }
 
 <div class="page-header">
- <h1 class="page-title">My Dashboard</h1>
+    <h1 class="page-title">My Dashboard</h1>
 </div>
 
 <!-- Charts Section - Always Rendered -->
@@ -11,7 +11,7 @@
     <!-- Today's Attendance Status Chart -->
     <div class="card">
         <div class="chart-container" style="position: relative; height: 300px;">
-       <canvas id="todayAttendanceChart"></canvas>
+            <canvas id="todayAttendanceChart"></canvas>
         </div>
     </div>
 
@@ -27,13 +27,15 @@
 <div class="content-grid" style="margin-bottom: 2rem;">
     <div class="card" style="grid-column: 1 / -1;">
         <div class="chart-container" style="position: relative; height: 350px;">
-        <canvas id="weeklyAttendanceChart"></canvas>
+            <canvas id="weeklyAttendanceChart"></canvas>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- ✅ SignalR Connection Manager (must be loaded before faculty scripts) -->
+    <script src="~/js/signalr-connection.js" asp-append-version="true"></script>
     <script src="~/js/faculty/faculty_charts.js" asp-append-version="true"></script>
 }
 

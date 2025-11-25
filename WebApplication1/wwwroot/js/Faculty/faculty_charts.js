@@ -1,6 +1,7 @@
 /**
  * Faculty Dashboard Charts using Chart.js
  * Displays today's attendance, weekly trend, and punctuality analysis
+ * ✅ ENHANCED: Now includes SignalR real-time connection status
  * ? Always renders charts, even with empty data
  */
 
@@ -8,16 +9,42 @@ let todayAttendanceChart = null;
 let weeklyAttendanceChart = null;
 let punctualityChart = null;
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     // Load all charts
     loadTodayAttendanceChart();
- loadWeeklyAttendanceChart();
-  loadPunctualityChart();
+    loadWeeklyAttendanceChart();
+    loadPunctualityChart();
+
+    // ✅ NEW: Initialize SignalR connection for real-time updates
+    try {
+        await signalRConnection.initialize();
+        console.log('✅ SignalR connected - Faculty Dashboard ready for real-time updates');
+
+        // ✅ Listen for real-time attendance updates
+        signalRConnection.onAttendanceUpdate((data) => {
+            console.log('📡 Real-time attendance notification received:', data);
+            
+            // Show toast notification
+            const actionText = data.action === 'time_in' ? 'Time In' : 'Time Out';
+            Toast.success(`${data.studentName} - ${actionText} (${data.courseCode})`);
+            
+            // Refresh charts (attendance data updated)
+            setTimeout(() => {
+                loadTodayAttendanceChart();
+                loadWeeklyAttendanceChart();
+            }, 1000);
+        });
+
+        console.log('✅ SignalR attendance listener registered');
+    } catch (error) {
+        console.error('❌ SignalR connection failed (non-critical):', error);
+        // Dashboard will still work without real-time updates
+    }
 
     // Refresh charts every 5 minutes
     setInterval(loadTodayAttendanceChart, 300000);
     setInterval(loadWeeklyAttendanceChart, 300000);
- setInterval(loadPunctualityChart, 300000);
+    setInterval(loadPunctualityChart, 300000);
 });
 
 /**
@@ -350,18 +377,18 @@ async function loadPunctualityChart() {
     try {
         const response = await fetch('/api/faculty/chart/punctuality');
         
-   let data = { labels: [], data: [] };
+        let data = { labels: [], data: [] };
         
-if (response.ok) {
+        if (response.ok) {
             data = await response.json();
         } else {
-       console.warn(`Punctuality API returned status: ${response.status}`);
+            console.warn(`Punctuality API returned status: ${response.status}`);
             // Use default empty structure
-  data = { 
-         labels: ['On Time', 'Late'], 
-    data: [0, 0] 
+            data = { 
+                labels: ['On Time', 'Late'], 
+                data: [0, 0] 
             };
-    }
+        }
  
         const ctx = document.getElementById('punctualityChart');
         if (!ctx) return;
@@ -373,65 +400,65 @@ if (response.ok) {
  
         // ? Always create chart, even with empty data
         punctualityChart = new Chart(ctx, {
-     type: 'bar',
+            type: 'bar',
             data: {
                 labels: data.labels,
-     datasets: [{
-          label: 'Students',
-   data: data.data,
-       backgroundColor: [
-     'rgba(34, 197, 94, 0.8)',   // On Time - Green
-  'rgba(234, 179, 8, 0.8)'    // Late - Yellow
-            ],
-         borderColor: [
-             'rgb(34, 197, 94)',
-     'rgb(234, 179, 8)'
-          ],
-          borderWidth: 2,
-    borderRadius: 6
-    }]
-       },
-          options: {
-          responsive: true,
-         maintainAspectRatio: false,
-           plugins: {
-    legend: {
-      display: false
-       },
-       title: {
-    display: true,
-    text: 'Student Punctuality (Last 7 Days)',
-          font: {
-     size: 16,
-  weight: 'bold'
-             },
-       padding: {
-    bottom: 20
-      }
-     },
-      tooltip: {
-  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-           padding: 12,
-       displayColors: false
-     }
-       },
+                datasets: [{
+                    label: 'Students',
+                    data: data.data,
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',   // On Time - Green
+                        'rgba(234, 179, 8, 0.8)'    // Late - Yellow
+                    ],
+                    borderColor: [
+                        'rgb(34, 197, 94)',
+                        'rgb(234, 179, 8)'
+                    ],
+                    borderWidth: 2,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Student Punctuality (Last 7 Days)',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: {
+                            bottom: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        displayColors: false
+                    }
+                },
                 scales: {
-       y: {
-   beginAtZero: true,
-               ticks: {
- precision: 0
-    },
-     grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
-      }
-       },
-   x: {
-          grid: {
-          display: false
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
                 }
-           }
-                }
-  }
+            }
         });
         
         console.log('Punctuality chart loaded');
@@ -439,36 +466,36 @@ if (response.ok) {
         console.error('Error loading punctuality chart:', error);
         
         // ? Still create chart with empty data on error
-     const ctx = document.getElementById('punctualityChart');
-  if (ctx && !punctualityChart) {
-        punctualityChart = new Chart(ctx, {
-           type: 'bar',
-        data: {
-            labels: ['On Time', 'Late'],
-            datasets: [{
-        label: 'Students',
-       data: [0, 0],
-         backgroundColor: [
-               'rgba(34, 197, 94, 0.8)',
-              'rgba(234, 179, 8, 0.8)'
-            ]
-          }]
-              },
-    options: {
-        responsive: true,
-         maintainAspectRatio: false,
-      plugins: {
-          title: {
-        display: true,
-             text: 'Student Punctuality (No Data)',
-       font: { size: 16, weight: 'bold' }
-      }
-        },
-        scales: {
-   y: { beginAtZero: true }
-        }
-      }
+        const ctx = document.getElementById('punctualityChart');
+        if (ctx && !punctualityChart) {
+            punctualityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['On Time', 'Late'],
+                    datasets: [{
+                        label: 'Students',
+                        data: [0, 0],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(234, 179, 8, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Student Punctuality (No Data)',
+                            font: { size: 16, weight: 'bold' }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
             });
-      }
+        }
     }
 }

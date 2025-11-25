@@ -95,7 +95,9 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="~/js/admin/admin_overview.js"></script>
+    <!-- ✅ NEW: SignalR Connection Manager (must be loaded before admin scripts) -->
+    <script src="~/js/signalr-connection.js" asp-append-version="true"></script>
+    <script src="~/js/admin/admin_overview.js" asp-append-version="true"></script>
     <script src="~/js/admin/admin_charts.js" asp-append-version="true"></script>
 }
 
