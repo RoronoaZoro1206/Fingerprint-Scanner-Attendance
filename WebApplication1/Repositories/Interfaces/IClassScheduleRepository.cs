@@ -15,12 +15,15 @@ public interface IClassScheduleRepository
     // Optimized methods to reduce N+1 queries
     Task<IEnumerable<ClassScheduleDetailDto>> GetAllWithDetailsAsync();
     
-    // ? NEW: Schedule integration methods for Phase 4
+    // ✅ NEW: Get only classes without schedules (TBA)
+    Task<IEnumerable<AvailableClassDto>> GetUnscheduledClassesAsync();
+    
+    // 📅 NEW: Schedule integration methods for Phase 4
     Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDateAsync(int studId, DateTime date);
     Task<IEnumerable<StudentScheduleDto>> GetStudentScheduleForDayAsync(int studId, string dayOfWeek);
     
-    // ✅ NEW: Faculty schedule conflict validation
-    Task<(bool HasConflict, string ConflictingCourseName)> CheckFacultyScheduleConflictAsync(
+    // ✅ NEW: Faculty schedule conflict validation (returns faculty name too)
+    Task<(bool HasConflict, string ConflictingCourseName, string FacultyName)> CheckFacultyScheduleConflictAsync(
         int classId, 
         string dayOfWeek, 
         TimeSpan startTime, 

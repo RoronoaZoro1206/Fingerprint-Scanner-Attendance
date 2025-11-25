@@ -324,6 +324,9 @@ function saveSchedules() {
                     const conflictHeader = messageParts[0] || '';
                     const conflictDetails = messageParts[1] || '';
                     
+                    // ✅ NEW: Extract faculty name if provided in response
+                    const facultyName = response.facultyName || 'The faculty member';
+                    
                     Swal.fire({
                         icon: 'error',
                         title: 'Faculty Schedule Conflict',
@@ -340,7 +343,7 @@ function saveSchedules() {
                                     ❌ ${conflictHeader.replace('❌ Faculty Schedule Conflict Detected!', 'Faculty Schedule Conflict Detected!')}
                                 </p>
                                 
-                                <!-- Conflict Details with Emoji -->
+                                <!-- Conflict Details with Emoji and Faculty Name -->
                                 <p style="
                                     margin: 0 0 1rem 0;
                                     padding: 0.875rem;
@@ -437,6 +440,9 @@ function updateSchedule() {
                     const messageParts = errorMessage.split('\n\n');
                     const conflictHeader = messageParts[0] || '';
                     const conflictDetails = messageParts[1] || '';
+                    
+                    // ✅ NEW: Extract faculty name if provided in response
+                    const facultyName = response.facultyName || 'The faculty member';
                     
                     Swal.fire({
                         icon: 'error',

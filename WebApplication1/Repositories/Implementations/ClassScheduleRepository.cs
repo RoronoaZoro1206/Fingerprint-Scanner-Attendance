@@ -290,40 +290,84 @@ public class ClassScheduleRepository : IClassScheduleRepository
         return await GetStudentScheduleForDateAsync(studId, targetDate);
     }
     
+    /// <summary>
+    /// ✅ NEW: Gets only classes that have NO schedules assigned (TBA classes)
+    /// This is used for the "Add Schedule" dropdown to show only classes that need scheduling
+    /// Excludes any class that already has at least one schedule entry
+    /// </summary>
+    public async Task<IEnumerable<AvailableClassDto>> GetUnscheduledClassesAsync()
+    {
+        string query = @"
+            SELECT 
+                c.class_id,
+                COALESCE(co.course_code, 'N/A') as course_code,
+                COALESCE(co.course_name, 'N/A') as course_name
+            FROM classes c
+            LEFT JOIN courses co ON c.course_id = co.course_id
+            WHERE NOT EXISTS (
+                -- Exclude classes that already have schedules
+                SELECT 1 
+                FROM class_schedules cs 
+                WHERE cs.class_id = c.class_id
+            )
+            ORDER BY co.course_code;";
+        
+        var dt = await _db.ExecuteQueryAsync(query);
+        
+        return dt.AsEnumerable().Select(row => new AvailableClassDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "N/A",
+            CourseName = row["course_name"]?.ToString() ?? "N/A",
+            FacultyName = "", // Not needed for dropdown
+            Schedule = "TBA", // These are all TBA classes
+            RoomCode = "" // Not needed for dropdown
+        });
+    }
+
     // ============================================================
-    // ✅ NEW: FACULTY SCHEDULE CONFLICT VALIDATION
+    // ✅ UPDATED: FACULTY SCHEDULE CONFLICT VALIDATION WITH FACULTY NAME
     // ============================================================
     
     /// <summary>
     /// Checks if a faculty member has a schedule conflict for the proposed time slot
-    /// Step A: Gets the faculty ID from the class
+    /// ✅ UPDATED: Now also returns the faculty member's name for personalized error messages
+    /// Step A: Gets the faculty ID and name from the class
     /// Step B: Checks for overlapping schedules for the same faculty on the same day
-    /// Step C: Returns conflict status and conflicting course name (if any)
+    /// Step C: Returns conflict status, conflicting course name, AND faculty name
     /// </summary>
     /// <param name="classId">The class being scheduled</param>
     /// <param name="dayOfWeek">Day of week (e.g., "Monday")</param>
     /// <param name="startTime">Proposed start time</param>
     /// <param name="endTime">Proposed end time</param>
     /// <param name="excludeSchedId">Schedule ID to exclude (for updates)</param>
-    /// <returns>Tuple with conflict status and conflicting course name</returns>
-    public async Task<(bool HasConflict, string ConflictingCourseName)> CheckFacultyScheduleConflictAsync(
+    /// <returns>Tuple with conflict status, conflicting course name, and faculty name</returns>
+    public async Task<(bool HasConflict, string ConflictingCourseName, string FacultyName)> CheckFacultyScheduleConflictAsync(
         int classId,
         string dayOfWeek,
         TimeSpan startTime,
         TimeSpan endTime,
         int? excludeSchedId = null)
     {
-        // ✅ STEP A: Get the faculty ID from the class
+        // ✅ STEP A: Get the faculty ID and NAME from the class
         // ✅ STEP B: Check for overlapping schedules
         // Time overlap logic: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
         string query = @"
             SELECT 
                 co.course_name,
                 cs.sched_start_time,
-                cs.sched_end_time
+                cs.sched_end_time,
+                -- ✅ NEW: Get faculty name for personalized error message
+                COALESCE(
+                    CONCAT(u.user_first_name, ' ', u.user_last_name, ' (FACULTY)'),
+                    'The faculty member'
+                ) as faculty_name
             FROM class_schedules cs
             INNER JOIN classes c ON cs.class_id = c.class_id
             INNER JOIN courses co ON c.course_id = co.course_id
+            -- ✅ NEW: Join to get faculty name
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
             WHERE c.fac_id = (SELECT fac_id FROM classes WHERE class_id = @classId)
               AND TRIM(cs.sched_day_of_week) = TRIM(@dayOfWeek)
               AND cs.sched_start_time < @endTime
@@ -356,17 +400,19 @@ public class ClassScheduleRepository : IClassScheduleRepository
         if (dt.Rows.Count > 0)
         {
             var conflictingCourse = dt.Rows[0]["course_name"]?.ToString() ?? "Unknown Course";
+            var facultyName = dt.Rows[0]["faculty_name"]?.ToString() ?? "The faculty member";
             var conflictStart = (TimeSpan)dt.Rows[0]["sched_start_time"];
             var conflictEnd = (TimeSpan)dt.Rows[0]["sched_end_time"];
             
             Console.WriteLine($"[CONFLICT] Faculty conflict detected:");
+            Console.WriteLine($"  - Faculty: {facultyName}");
             Console.WriteLine($"  - Conflicting Course: {conflictingCourse}");
             Console.WriteLine($"  - Conflict Time: {conflictStart:hh\\:mm} - {conflictEnd:hh\\:mm}");
             Console.WriteLine($"  - Proposed Time: {startTime:hh\\:mm} - {endTime:hh\\:mm}");
             
-            return (true, conflictingCourse);
+            return (true, conflictingCourse, facultyName);
         }
         
-        return (false, string.Empty);
+        return (false, string.Empty, string.Empty);
     }
 }

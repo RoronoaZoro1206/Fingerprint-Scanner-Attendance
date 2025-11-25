@@ -79,18 +79,22 @@ public class AdminClassScheduleController : Controller
     {
         try
         {
-            var classes = await _classRepository.GetAllWithDetailsAsync();
-            // ? FIX: Explicitly format response with PascalCase to match other endpoints
+            // ✅ CHANGED: Use new method to get only unscheduled (TBA) classes
+            var classes = await _classScheduleRepository.GetUnscheduledClassesAsync();
+            
+            // Format response with PascalCase
             var classList = classes.Select(c => new
             {
                 ClassId = c.ClassId,
-                CourseName = c.Course?.CourseName ?? "N/A"
+                CourseName = c.CourseName
             });
+            
+            _logger.LogInformation($"Returning {classList.Count()} unscheduled classes for dropdown");
             return Json(new { success = true, data = classList });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching classes");
+            _logger.LogError(ex, "Error fetching unscheduled classes");
             return Json(new { success = false, message = "Failed to fetch classes" });
         }
     }
@@ -175,7 +179,7 @@ public class AdminClassScheduleController : Controller
                     continue; // Skip validation for invalid times (will be caught later)
                 }
 
-                var (hasConflict, conflictingCourse) = await _classScheduleRepository
+                var (hasConflict, conflictingCourse, facultyName) = await _classScheduleRepository
                     .CheckFacultyScheduleConflictAsync(classId, dto.SchedDayOfWeek, startTime, endTime);
 
                 if (hasConflict)
@@ -185,9 +189,10 @@ public class AdminClassScheduleController : Controller
                     {
                         success = false,
                         message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
-                                 $"The faculty member is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
+                                 $"{facultyName} is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
                                  $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
-                                 $"Please choose a different time or assign a different faculty member."
+                                 $"Please choose a different time or assign a different faculty member.",
+                        facultyName = facultyName  // ✅ NEW: Pass faculty name to frontend
                     });
                 }
             }
@@ -296,7 +301,7 @@ public class AdminClassScheduleController : Controller
                 return Json(new { success = false, message = "Invalid end time format" });
 
             // ✅ NEW: Check for faculty schedule conflicts (exclude current schedule ID)
-            var (hasConflict, conflictingCourse) = await _classScheduleRepository
+            var (hasConflict, conflictingCourse, facultyName) = await _classScheduleRepository
                 .CheckFacultyScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
 
             if (hasConflict)
@@ -306,9 +311,10 @@ public class AdminClassScheduleController : Controller
                 {
                     success = false,
                     message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
-                             $"The faculty member is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
+                             $"{facultyName} is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
                              $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
-                             $"Please choose a different time or assign a different faculty member."
+                             $"Please choose a different time or assign a different faculty member.",
+                    facultyName = facultyName  // ✅ NEW: Pass faculty name to frontend
                 });
             }
 
