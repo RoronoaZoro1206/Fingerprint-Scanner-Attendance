@@ -9,6 +9,7 @@ namespace Fingerprint_Attendance_System.Models.DTOs
         public string CourseCode { get; set; } = string.Empty;
         public string CourseName { get; set; } = string.Empty;
         public string RoomName { get; set; } = string.Empty;
+        public string RoomCode { get; set; } = string.Empty;  // ✅ ADDED: Missing property
         public string Schedule { get; set; } = string.Empty;
         public int StudentCount { get; set; }
         public string TermName { get; set; } = string.Empty;

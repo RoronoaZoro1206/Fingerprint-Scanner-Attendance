@@ -245,7 +245,7 @@ function displayAvailableClasses(classes) {
 
 /**
  * Enroll in a class
- * ✅ FIXED: Added classId validation and better error handling
+ * ✅ UPDATED: Uses SweetAlert2 for all blocked scenarios with consistent Faculty-style design
  */
 function enrollInClass(classId) {
     // ✅ FIX: Validate classId
@@ -271,7 +271,176 @@ function enrollInClass(classId) {
                 loadCurrentEnrollments();
                 loadAvailableClasses();
             } else {
-                Toast.error(response.message || 'Failed to enroll in class');
+                // ✅ REFACTORED: Check if this is a TBA error (Scenario #6)
+                if (response.isTbaError) {
+                    // Parse TBA error message
+                    const messageParts = response.message.split('\n\n');
+                    const tbaHeader = messageParts[0] || '';
+                    const tbaDetails = messageParts[1] || '';
+                    const tbaReason = messageParts[2] || '';
+                    const tbaSolution = messageParts[3] || '';
+                    
+                    // Show SweetAlert2 modal for TBA with Faculty-style design
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'TBA Schedule Not Allowed',
+                        html: `
+                            <div style="text-align: left; margin-top: 0.75rem;">
+                                <!-- TBA Header -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    font-size: 0.9375rem;
+                                    font-weight: 600;
+                                    color: #991b1b;
+                                    line-height: 1.5;
+                                ">
+                                    ⚠️ ${tbaHeader.replace('⚠️ TBA Schedule Not Allowed', 'TBA Schedule Not Allowed')}
+                                </p>
+                                
+                                <!-- TBA Details -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fef2f2;
+                                    border-left: 3px solid #dc2626;
+                                    border-radius: 6px;
+                                    font-size: 0.9375rem;
+                                    line-height: 1.65;
+                                    color: #7f1d1d;
+                                ">
+                                    ${tbaDetails}
+                                </p>
+                                
+                                <!-- Reason -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fefce8;
+                                    border-left: 3px solid #f59e0b;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #78350f;
+                                ">
+                                    ${tbaReason}
+                                </p>
+                                
+                                <!-- Solution -->
+                                <p style="
+                                    margin: 0;
+                                    padding: 0.875rem;
+                                    background: #eff6ff;
+                                    border-left: 3px solid #3b82f6;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #1e40af;
+                                ">
+                                    ${tbaSolution}
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#d33',
+                        width: '580px',
+                        padding: '1.75rem 2rem 2rem',
+                        customClass: {
+                            popup: 'enrollment-error-modal',
+                            title: 'enrollment-error-title',
+                            htmlContainer: 'enrollment-error-content',
+                            confirmButton: 'enrollment-error-button'
+                        },
+                        buttonsStyling: false,
+                        allowOutsideClick: false
+                    });
+                }
+                // ✅ REFACTORED: Check if this is a time conflict error (Scenarios #1, #4, #5)
+                else if (response.isConflict) {
+                    // Parse schedule conflict message
+                    const messageParts = response.message.split('\n\n');
+                    const conflictHeader = messageParts[0] || '';
+                    const conflictDetails = messageParts[1] || '';
+                    const conflictNewClass = messageParts[2] || '';
+                    const conflictSolution = messageParts[3] || '';
+                    
+                    // Show SweetAlert2 modal for time conflicts with Faculty-style design
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Schedule Conflict Detected',
+                        html: `
+                            <div style="text-align: left; margin-top: 0.75rem;">
+                                <!-- Conflict Header -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    font-size: 0.9375rem;
+                                    font-weight: 600;
+                                    color: #991b1b;
+                                    line-height: 1.5;
+                                ">
+                                    ⚠️ ${conflictHeader.replace('⚠️ Schedule Conflict Detected!', 'Schedule Conflict Detected!')}
+                                </p>
+                                
+                                <!-- Existing Class Details -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fef2f2;
+                                    border-left: 3px solid #dc2626;
+                                    border-radius: 6px;
+                                    font-size: 0.9375rem;
+                                    line-height: 1.65;
+                                    color: #7f1d1d;
+                                ">
+                                    📚 ${conflictDetails}
+                                </p>
+                                
+                                <!-- New Class Details -->
+                                <p style="
+                                    margin: 0 0 1rem 0;
+                                    padding: 0.875rem;
+                                    background: #fefce8;
+                                    border-left: 3px solid #f59e0b;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #78350f;
+                                ">
+                                    ${conflictNewClass}
+                                </p>
+                                
+                                <!-- Solution -->
+                                <p style="
+                                    margin: 0;
+                                    padding: 0.875rem;
+                                    background: #eff6ff;
+                                    border-left: 3px solid #3b82f6;
+                                    border-radius: 6px;
+                                    font-size: 0.875rem;
+                                    line-height: 1.6;
+                                    color: #1e40af;
+                                ">
+                                    ${conflictSolution}
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#d33',
+                        width: '580px',
+                        padding: '1.75rem 2rem 2rem',
+                        customClass: {
+                            popup: 'enrollment-error-modal',
+                            title: 'enrollment-error-title',
+                            htmlContainer: 'enrollment-error-content',
+                            confirmButton: 'enrollment-error-button'
+                        },
+                        buttonsStyling: false,
+                        allowOutsideClick: false
+                    });
+                } else {
+                    // Regular error - use toast
+                    Toast.error(response.message || 'Failed to enroll in class');
+                }
+                
                 $btn.disabled = false;
                 $btn.innerHTML = originalHtml;
                 initializeLucideIcons();

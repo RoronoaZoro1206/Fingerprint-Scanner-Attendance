@@ -319,21 +319,20 @@ public class ClassRepository : IClassRepository
 
     public async Task<IEnumerable<FacultyClassDto>> GetFacultyClassesAsync(int facId)
     {
-        // ✅ FIX: Changed from MIN(sched_id) subquery to STRING_AGG to include ALL schedules
         string query = @"
             SELECT 
                 c.class_id,
-                COALESCE(co.course_code, 'N/A') AS course_code,
-                COALESCE(co.course_name, 'N/A') AS course_name,
-                COALESCE(r.room_code, 'N/A') AS room_name,
-                COALESCE(t.term_name, 'N/A') AS term_name,
+                COALESCE(co.course_code, 'N/A') as course_code,
+                COALESCE(co.course_name, 'N/A') as course_name,
+                COALESCE(r.room_code, 'N/A') as room_code,
+                COUNT(DISTINCT e.stud_id) as student_count,
                 COALESCE(
                     STRING_AGG(
-                        cs.sched_day_of_week || ' ' || 
-                        TO_CHAR(cs.sched_start_time, 'HH12:MI') || ' - ' || 
-                        TO_CHAR(cs.sched_end_time, 'HH12:MI'), 
+                        TRIM(cs.sched_day_of_week) || ' ' || 
+                        TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
+                        TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
                         ', ' ORDER BY 
-                            CASE cs.sched_day_of_week
+                            CASE TRIM(cs.sched_day_of_week)
                                 WHEN 'Monday' THEN 1
                                 WHEN 'Tuesday' THEN 2
                                 WHEN 'Wednesday' THEN 3
@@ -343,21 +342,17 @@ public class ClassRepository : IClassRepository
                                 WHEN 'Sunday' THEN 7
                             END,
                             cs.sched_start_time
-                    ),
-                    ''
-                ) AS schedule,
-                COALESCE(
-                    (SELECT COUNT(*) FROM enrollment e WHERE e.class_id = c.class_id),
-                    0
-                ) AS student_count
+                    ), 
+                    'TBA'
+                ) as schedule
             FROM classes c
             LEFT JOIN courses co ON c.course_id = co.course_id
             LEFT JOIN rooms r ON c.room_id = r.room_id
-            LEFT JOIN academic_terms t ON c.term_id = t.term_id
             LEFT JOIN class_schedules cs ON c.class_id = cs.class_id
+            LEFT JOIN enrollment e ON c.class_id = e.class_id
             WHERE c.fac_id = @facId
-            GROUP BY c.class_id, co.course_code, co.course_name, r.room_code, t.term_name
-            ORDER BY c.class_id;";
+            GROUP BY c.class_id, co.course_code, co.course_name, r.room_code
+            ORDER BY co.course_code;";
 
         var parameters = new Dictionary<string, object> { { "@facId", facId } };
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -367,10 +362,48 @@ public class ClassRepository : IClassRepository
             ClassId = Convert.ToInt32(row["class_id"]),
             CourseCode = row["course_code"]?.ToString() ?? "N/A",
             CourseName = row["course_name"]?.ToString() ?? "N/A",
-            RoomName = row["room_name"]?.ToString() ?? "N/A",
-            Schedule = row["schedule"]?.ToString() ?? "",
+            RoomCode = row["room_code"]?.ToString() ?? "N/A",
             StudentCount = Convert.ToInt32(row["student_count"]),
-            TermName = row["term_name"]?.ToString() ?? "N/A"
+            Schedule = row["schedule"]?.ToString() ?? "TBA"
+        });
+    }
+
+    /// <summary>
+    /// ✅ NEW: Gets individual class schedules for conflict detection
+    /// Returns separate rows for each day/time the class meets
+    /// </summary>
+    public async Task<IEnumerable<ClassScheduleDto>> GetClassSchedulesAsync(int classId)
+    {
+        string query = @"
+            SELECT 
+                sched_id,
+                TRIM(sched_day_of_week) as day_of_week,
+                TO_CHAR(sched_start_time, 'HH24:MI:SS') as start_time,
+                TO_CHAR(sched_end_time, 'HH24:MI:SS') as end_time
+            FROM class_schedules
+            WHERE class_id = @classId
+              AND TRIM(sched_day_of_week) != ''
+            ORDER BY 
+                CASE TRIM(sched_day_of_week)
+                    WHEN 'Monday' THEN 1
+                    WHEN 'Tuesday' THEN 2
+                    WHEN 'Wednesday' THEN 3
+                    WHEN 'Thursday' THEN 4
+                    WHEN 'Friday' THEN 5
+                    WHEN 'Saturday' THEN 6
+                    WHEN 'Sunday' THEN 7
+                END,
+                sched_start_time;";
+
+        var parameters = new Dictionary<string, object> { { "@classId", classId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new ClassScheduleDto
+        {
+            SchedId = Convert.ToInt32(row["sched_id"]),
+            DayOfWeek = row["day_of_week"]?.ToString() ?? "",
+            StartTime = row["start_time"]?.ToString() ?? "",
+            EndTime = row["end_time"]?.ToString() ?? ""
         });
     }
 }

@@ -17,4 +17,7 @@ public interface IClassRepository
     Task<IEnumerable<ClassListDto>> GetAllClassListAsync();
     Task<ClassDetailDto?> GetClassDetailByIdAsync(int classId);
     Task<IEnumerable<FacultyClassDto>> GetFacultyClassesAsync(int facId);
+    
+    // ✅ NEW: Get class schedules for conflict detection
+    Task<IEnumerable<ClassScheduleDto>> GetClassSchedulesAsync(int classId);
 }

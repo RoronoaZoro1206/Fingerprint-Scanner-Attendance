@@ -217,6 +217,111 @@ public class StudentEnrollmentController : Controller
                 return Json(new { success = false, message = "You are already enrolled in this class" });
             }
 
+            // Get new class schedule details
+            var newClass = await _classRepository.GetByIdAsync(request.ClassId);
+            if (newClass?.CourseId == null)
+            {
+                _logger.LogError($"Enroll - Class {request.ClassId} not found or has no course");
+                return Json(new { success = false, message = "Invalid class selection" });
+            }
+
+            var newCourse = await _courseRepository.GetByIdAsync(newClass.CourseId.Value);
+            var newSchedules = await _classRepository.GetClassSchedulesAsync(request.ClassId);
+
+            // ✅ CRITICAL CHANGE: BLOCK TBA schedules
+            if (!newSchedules.Any())
+            {
+                _logger.LogWarning($"Enroll - Class {request.ClassId} has TBA schedule, blocking enrollment");
+                
+                return Json(new 
+                { 
+                    success = false, 
+                    message = $"⚠️ TBA Schedule Not Allowed\n\n" +
+                             $"📚 Cannot enroll in '{newCourse?.CourseName ?? "this class"}' ({newCourse?.CourseCode ?? "N/A"}) " +
+                             $"because it has a TBA (To Be Announced) schedule.\n\n" +
+                             $"🔄 This restriction prevents future schedule conflicts. If an admin later assigns a specific time to this class, " +
+                             $"it may conflict with your existing enrolled classes.\n\n" +
+                             $"💡 Solution: Please wait for a class schedule to be assigned, or contact your academic advisor to request schedule information.",
+                    isTbaError = true  // ✅ NEW: Flag to trigger specific UI handling
+                });
+            }
+
+            // ✅ Schedule Conflict Detection (existing logic)
+            _logger.LogInformation($"Enroll - Checking schedule conflicts for student {studentInfo.StudId} enrolling in class {request.ClassId}");
+            
+            // Get student's current enrollments with schedules
+            var studentSchedules = await _enrollmentRepository.GetStudentEnrollmentsWithSchedulesAsync(studentInfo.StudId);
+
+            // Check each new schedule against existing schedules
+            foreach (var newSched in newSchedules)
+            {
+                // Parse new schedule times (format: "HH:mm:ss" from database)
+                if (!TimeSpan.TryParse(newSched.StartTime, out var newStart) ||
+                    !TimeSpan.TryParse(newSched.EndTime, out var newEnd))
+                {
+                    _logger.LogWarning($"Enroll - Could not parse new class schedule times: {newSched.StartTime} - {newSched.EndTime}");
+                    continue; // Skip this schedule if times can't be parsed
+                }
+
+                var newDay = newSched.DayOfWeek?.Trim();
+                if (string.IsNullOrEmpty(newDay))
+                {
+                    _logger.LogWarning("Enroll - New class schedule has empty day of week");
+                    continue; // Skip schedules with no day
+                }
+
+                // Check against all existing schedules
+                foreach (var existingSched in studentSchedules)
+                {
+                    var existingDay = existingSched.DayOfWeek?.Trim();
+                    
+                    // Skip if days don't match
+                    if (string.IsNullOrEmpty(existingDay) || 
+                        !existingDay.Equals(newDay, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    // Parse existing schedule times (format: "HH:MM" from database)
+                    if (!TimeSpan.TryParse(existingSched.StartTime, out var existingStart) ||
+                        !TimeSpan.TryParse(existingSched.EndTime, out var existingEnd))
+                    {
+                        _logger.LogWarning($"Enroll - Could not parse existing schedule times: {existingSched.StartTime} - {existingSched.EndTime}");
+                        continue;
+                    }
+
+                    // ✅ CRITICAL: Time Overlap Detection Logic
+                    // Two time ranges overlap if: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+                    bool hasTimeOverlap = (newStart < existingEnd) && (newEnd > existingStart);
+
+                    if (hasTimeOverlap)
+                    {
+                        // Format times for user-friendly display
+                        var newStartFormatted = newStart.ToString(@"hh\:mm");
+                        var newEndFormatted = newEnd.ToString(@"hh\:mm");
+                        var existingStartFormatted = existingStart.ToString(@"hh\:mm");
+                        var existingEndFormatted = existingEnd.ToString(@"hh\:mm");
+
+                        var conflictMessage = $"⚠️ Schedule Conflict Detected!\n\n" +
+                                            $"📚 You are already enrolled in '{existingSched.CourseName}' ({existingSched.CourseCode}) " +
+                                            $"on {existingDay} from {existingStartFormatted} to {existingEndFormatted}.\n\n" +
+                                            $"The new class '{newCourse?.CourseName}' is scheduled on {newDay} " +
+                                            $"from {newStartFormatted} to {newEndFormatted}, which overlaps with your existing schedule.\n\n" +
+                                            $"💡 Solution: Please choose a different class or contact your academic advisor.";
+
+                        _logger.LogWarning($"Enroll - Schedule conflict detected: {conflictMessage}");
+                        
+                        return Json(new 
+                        { 
+                            success = false, 
+                            message = conflictMessage,
+                            isConflict = true  // Flag to trigger specific UI handling
+                        });
+                    }
+                }
+            }
+
+            // No conflicts found, proceed with enrollment
             var enrollment = new Enrollment
             {
                 StudId = studentInfo.StudId,

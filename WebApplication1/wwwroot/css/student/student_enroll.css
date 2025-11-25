@@ -173,28 +173,304 @@
     cursor: not-allowed;
 }
 
+/* ============================================================
+   ✨ STANDARD SCHEDULE CONFLICT MODAL - MATCHES FACULTY DESIGN
+   Uses standard SweetAlert2 error icon + red OK button
+   ============================================================ */
 
+/* Standard Modal Container */
+.schedule-conflict-standard {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+}
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .enrollment-header {
-        flex-direction: column;
-        align-items: stretch;
+/* Standard Title */
+.schedule-conflict-title {
+    font-size: 1.375rem !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    padding: 0 !important;
+    margin: 0 0 0.5rem 0 !important;
+    text-align: center !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* Standard Content Container */
+.schedule-conflict-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: center !important;
+    color: #374151 !important;
+    font-size: 0.9375rem !important;
+    line-height: 1.6 !important;
+    white-space: pre-line !important;
+}
+
+/* Standard Red OK Button */
+.schedule-conflict-button {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #d33 !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 6px rgba(221, 51, 51, 0.3) !important;
+    margin-top: 0.5rem !important;
+}
+
+.schedule-conflict-button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(221, 51, 51, 0.4) !important;
+    background: #b82828 !important;
+}
+
+.schedule-conflict-button:active {
+    transform: translateY(0) !important;
+}
+
+.schedule-conflict-button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(221, 51, 51, 0.3) !important;
+}
+
+/* Standard SweetAlert2 Error Icon Styling */
+.schedule-conflict-standard .swal2-icon.swal2-error {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    width: 80px !important;
+    height: 80px !important;
+    margin: 1.25rem auto 1.25rem !important;
+}
+
+.schedule-conflict-standard .swal2-icon.swal2-error .swal2-x-mark {
+    animation: scheduleConflictErrorPulse 0.6s ease-out !important;
+}
+
+.schedule-conflict-standard .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: #ef4444 !important;
+}
+
+@keyframes scheduleConflictErrorPulse {
+    0%, 100% {
+        transform: scale(1);
     }
-
-    .btn-enroll,
-    .btn-unenroll {
-        width: 100%;
-        justify-content: center;
+    50% {
+        transform: scale(1.08);
     }
+}
 
-    .enrollment-details {
-        grid-template-columns: 1fr;
-    }
+/* ============================================================
+   ✨ TBA ERROR MODAL - MATCHES FACULTY CONFLICT DESIGN
+   Uses standard SweetAlert2 error icon + red OK button
+   ============================================================ */
 
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
+/* TBA Modal Container */
+.tba-error-standard {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* TBA Title */
+.tba-error-title-standard {
+    font-size: 1.375rem !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    padding: 0 !important;
+    margin: 0 0 0.5rem 0 !important;
+    text-align: center !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* TBA Content Container */
+.tba-error-content-standard {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* TBA Red OK Button */
+.tba-error-button-standard {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #ef4444 !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
+    margin-top: 0.5rem !important;
+}
+
+.tba-error-button-standard:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4) !important;
+    background: #dc2626 !important;
+}
+
+.tba-error-button-standard:active {
+    transform: translateY(0) !important;
+}
+
+.tba-error-button-standard:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* TBA SweetAlert2 Error Icon Styling */
+.tba-error-standard .swal2-icon.swal2-error {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    width: 80px !important;
+    height: 80px !important;
+    margin: 1.25rem auto 1.25rem !important;
+}
+
+.tba-error-standard .swal2-icon.swal2-error .swal2-x-mark {
+    animation: tbaErrorPulse 0.6s ease-out !important;
+}
+
+.tba-error-standard .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: #ef4444 !important;
+}
+
+@keyframes tbaErrorPulse {
+    0%, 100% {
+        transform: scale(1);
     }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+/* Responsive Design - Standard Modal */
+@media (max-width: 640px) {
+    .schedule-conflict-standard,
+    .tba-error-standard {
+        width: 95% !important;
+        padding: 1.5rem 1.25rem 1.75rem !important;
+    }
+    
+    .schedule-conflict-title,
+    .tba-error-title-standard {
+        font-size: 1.25rem !important;
+    }
+    
+    .schedule-conflict-button,
+    .tba-error-button-standard {
+        width: 100% !important;
+    }
+}
+
+/* Accessibility */
+.schedule-conflict-button:focus-visible,
+.tba-error-button-standard:focus-visible {
+    outline: 2px solid #ef4444 !important;
+    outline-offset: 2px !important;
+}
+
+/* ============================================================
+   ✨ ENROLLMENT ERROR MODALS - MATCHES FACULTY DESIGN
+   Uses standard SweetAlert2 error icon + red OK button
+   ============================================================ */
+
+/* Standard Modal Container */
+.enrollment-error-modal {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Standard Title */
+.enrollment-error-title {
+    font-size: 1.375rem !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    padding: 0 !important;
+    margin: 0 0 0.5rem 0 !important;
+    text-align: center !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* Standard Content Container */
+.enrollment-error-content {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Standard Red OK Button */
+.enrollment-error-button {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #d33 !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 6px rgba(221, 51, 51, 0.3) !important;
+    margin-top: 0.5rem !important;
+}
+
+.enrollment-error-button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(221, 51, 51, 0.4) !important;
+    background: #b82828 !important;
+}
+
+.enrollment-error-button:active {
+    transform: translateY(0) !important;
+}
+
+.enrollment-error-button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(221, 51, 51, 0.3) !important;
+}
+
+/* Standard SweetAlert2 Error Icon Styling */
+.enrollment-error-modal .swal2-icon.swal2-error {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    width: 80px !important;
+    height: 80px !important;
+    margin: 1.25rem auto 1.25rem !important;
+}
+
+.enrollment-error-modal .swal2-icon.swal2-error .swal2-x-mark {
+    animation: enrollmentErrorPulse 0.6s ease-out !important;
+}
+
+.enrollment-error-modal .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: #ef4444 !important;
+}
+
+@keyframes enrollmentErrorPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+/* Responsive Design - Standard Modal */
+@media (max-width: 640px) {
+    .enrollment-error-modal {
+        width: 95% !important;
+        padding: 1.5rem 1.25rem 1.75rem !important;
+    }
+    
+    .enrollment-error-title {
+        font-size: 1.25rem !important;
+    }
+    
+    .enrollment-error-button {
+        width: 100% !important;
+    }
+}
+
+/* Accessibility */
+.enrollment-error-button:focus-visible {
+    outline: 2px solid #ef4444 !important;
+    outline-offset: 2px !important;
 }

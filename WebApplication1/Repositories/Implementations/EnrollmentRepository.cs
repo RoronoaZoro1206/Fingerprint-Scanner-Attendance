@@ -130,7 +130,7 @@ public class EnrollmentRepository : IEnrollmentRepository
     /// <summary>
     /// Gets student enrollments with all related details in a single optimized query
     /// Eliminates N+1 query problem by using JOINs instead of multiple repository calls
-    /// ? FIXED: Added NULL value handling with COALESCE
+    /// ✅ FIXED: Added NULL value handling with COALESCE
     /// </summary>
     public async Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId)
     {
@@ -189,9 +189,47 @@ public class EnrollmentRepository : IEnrollmentRepository
     }
 
     /// <summary>
+    /// ✅ NEW: Gets student enrollments with individual schedule rows for conflict detection
+    /// Returns one row per schedule (not aggregated) so we can check day/time overlaps
+    /// Filters out TBA schedules as they cannot conflict
+    /// </summary>
+    public async Task<IEnumerable<StudentEnrollmentScheduleDto>> GetStudentEnrollmentsWithSchedulesAsync(int studId)
+    {
+        string query = @"
+            SELECT 
+                cl.class_id,
+                COALESCE(co.course_code, 'UNKNOWN') as course_code,
+                COALESCE(co.course_name, 'Unknown Course') as course_name,
+                COALESCE(TRIM(cs.sched_day_of_week), '') as day_of_week,
+                COALESCE(TO_CHAR(cs.sched_start_time, 'HH24:MI'), '') as start_time,
+                COALESCE(TO_CHAR(cs.sched_end_time, 'HH24:MI'), '') as end_time
+            FROM enrollment e
+            INNER JOIN classes cl ON e.class_id = cl.class_id
+            LEFT JOIN courses co ON cl.course_id = co.course_id
+            LEFT JOIN class_schedules cs ON cl.class_id = cs.class_id
+            WHERE e.stud_id = @studId
+              AND cs.sched_id IS NOT NULL  -- Only get classes with schedules
+              AND TRIM(cs.sched_day_of_week) != ''  -- Exclude empty day
+            ORDER BY co.course_code, cs.sched_day_of_week, cs.sched_start_time;";
+        
+        var parameters = new Dictionary<string, object> { { "@studId", studId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        
+        return dt.AsEnumerable().Select(row => new StudentEnrollmentScheduleDto
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseCode = row["course_code"]?.ToString() ?? "UNKNOWN",
+            CourseName = row["course_name"]?.ToString() ?? "Unknown Course",
+            DayOfWeek = row["day_of_week"]?.ToString()?.Trim() ?? "",
+            StartTime = row["start_time"]?.ToString() ?? "",
+            EndTime = row["end_time"]?.ToString() ?? ""
+        });
+    }
+
+    /// <summary>
     /// Gets available classes for a student to enroll in with all details in a single query
     /// Filters out already enrolled classes and matches student's program
-    /// ? FIXED: Added NULL value handling, active term filtering, and better error handling
+    /// ✅ FIXED: Added NULL value handling, active term filtering, and better error handling
     /// </summary>
     public async Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId)
     {
@@ -208,7 +246,7 @@ public class EnrollmentRepository : IEnrollmentRepository
                         TO_CHAR(cs.sched_start_time, 'HH12:MI AM') || '-' || 
                         TO_CHAR(cs.sched_end_time, 'HH12:MI AM'), 
                         ', ' ORDER BY 
-                            CASE cs.sched_day_of_WEEK
+                            CASE cs.sched_day_of_week
                                 WHEN 'Monday' THEN 1
                                 WHEN 'Tuesday' THEN 2
                                 WHEN 'Wednesday' THEN 3

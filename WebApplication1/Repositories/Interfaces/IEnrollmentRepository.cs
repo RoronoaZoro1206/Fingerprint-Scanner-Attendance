@@ -17,4 +17,7 @@ public interface IEnrollmentRepository
     Task<IEnumerable<EnrollmentDetailDto>> GetStudentEnrollmentsWithDetailsAsync(int studId);
     Task<IEnumerable<AvailableClassDto>> GetAvailableClassesForStudentAsync(int studId, int programId);
     Task<IEnumerable<StudentClassDto>> GetStudentClassesAsync(int studId);
+    
+    // ✅ NEW: Get student enrollments with schedule details for conflict detection
+    Task<IEnumerable<StudentEnrollmentScheduleDto>> GetStudentEnrollmentsWithSchedulesAsync(int studId);
 }
