@@ -20,4 +20,10 @@ public interface IClassRepository
     
     // ✅ NEW: Get class schedules for conflict detection
     Task<IEnumerable<ClassScheduleDto>> GetClassSchedulesAsync(int classId);
+    
+    // ✅ NEW: Check for duplicate class (same course + faculty + term)
+    Task<Class?> GetDuplicateClassAsync(int? courseId, int? facId, int? termId, int? excludeClassId = null);
+    
+    // ✅ NEW: Get enrolled students for a class (for faculty student management)
+    Task<IEnumerable<EnrolledStudentDto>> GetEnrolledStudentsForClassAsync(int classId);
 }

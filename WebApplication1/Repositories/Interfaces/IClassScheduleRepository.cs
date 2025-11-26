@@ -29,4 +29,13 @@ public interface IClassScheduleRepository
         TimeSpan startTime, 
         TimeSpan endTime, 
         int? excludeSchedId = null);
+    
+    // ✅ NEW: Room schedule conflict validation
+    // Checks if the room assigned to a class is already booked by another class at the same time
+    Task<(bool HasConflict, string ConflictingCourseName, string ConflictingFacultyName, string RoomCode)> CheckRoomScheduleConflictAsync(
+        int classId,
+        string dayOfWeek,
+        TimeSpan startTime,
+        TimeSpan endTime,
+        int? excludeSchedId = null);
 }

@@ -37,6 +37,7 @@ function loadStudentInfo() {
                 $('#availableDescription').text(`Classes available for enrollment (filtered by ${studentInfo.programName} program)`);
                 loadCurrentEnrollments();
                 loadAvailableClasses();
+                loadBlockedClasses(); // ✅ NEW: Load blocked classes
             } else {
                 showNoProfileMessage(response.message);
             }
@@ -243,9 +244,13 @@ function displayAvailableClasses(classes) {
     }
 }
 
+// ✅ CRITICAL FIX: Global flag to prevent concurrent enrollment requests (race condition)
+let isEnrollmentInProgress = false;
+
 /**
  * Enroll in a class
  * ✅ UPDATED: Uses SweetAlert2 for all blocked scenarios with consistent Faculty-style design
+ * ✅ FIXED: Added global lock to prevent race conditions when clicking multiple enroll buttons
  */
 function enrollInClass(classId) {
     // ✅ FIX: Validate classId
@@ -255,9 +260,23 @@ function enrollInClass(classId) {
         return;
     }
 
+    // ✅ CRITICAL FIX: Prevent concurrent enrollment requests
+    if (isEnrollmentInProgress) {
+        Toast.warning('Please wait for the current enrollment to complete.');
+        console.warn('Enrollment already in progress, blocking concurrent request');
+        return;
+    }
+
+    // Set global lock
+    isEnrollmentInProgress = true;
+
     const $btn = window.event.target.closest('button');
     const originalHtml = $btn.innerHTML;
-    $btn.disabled = true;
+    
+    // ✅ CRITICAL FIX: Disable ALL enroll buttons to prevent race conditions
+    const $allEnrollBtns = $('.btn-enroll');
+    $allEnrollBtns.prop('disabled', true);
+    
     $btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enrolling...';
 
     $.ajax({
@@ -266,6 +285,9 @@ function enrollInClass(classId) {
         contentType: 'application/json',
         data: JSON.stringify({ ClassId: parseInt(classId) }),
         success: function (response) {
+            // ✅ CRITICAL FIX: Release global lock on success
+            isEnrollmentInProgress = false;
+            
             if (response.success) {
                 Toast.success(response.message || 'Successfully enrolled in class');
                 loadCurrentEnrollments();
@@ -441,12 +463,15 @@ function enrollInClass(classId) {
                     Toast.error(response.message || 'Failed to enroll in class');
                 }
                 
-                $btn.disabled = false;
+                // ✅ Re-enable all enroll buttons on error
+                $allEnrollBtns.prop('disabled', false);
                 $btn.innerHTML = originalHtml;
                 initializeLucideIcons();
             }
         },
         error: function (xhr, status, error) {
+            // ✅ CRITICAL FIX: Release global lock on error
+            isEnrollmentInProgress = false;
             console.error('Enrollment error:', error);
             console.error('Response:', xhr.responseText);
             console.error('Status:', xhr.status);
@@ -460,11 +485,112 @@ function enrollInClass(classId) {
             }
             
             Toast.error(errorMessage);
-            $btn.disabled = false;
+            // ✅ Re-enable all enroll buttons on error
+            $allEnrollBtns.prop('disabled', false);
             $btn.innerHTML = originalHtml;
             initializeLucideIcons();
         }
     });
+}
+
+/**
+ * ✅ NEW: Load blocked/rejected classes
+ */
+function loadBlockedClasses() {
+    $.ajax({
+        url: '/StudentEnrollment/GetBlockedClasses',
+        type: 'GET',
+        success: function (response) {
+            console.log('GetBlockedClasses response:', response);
+            if (response.success) {
+                if (response.data && response.data.length > 0) {
+                    console.log('First blocked class:', response.data[0]);
+                    console.log('Property names:', Object.keys(response.data[0]));
+                }
+                displayBlockedClasses(response.data);
+            }
+        },
+        error: function () {
+            console.error('Error loading blocked classes');
+        }
+    });
+}
+
+/**
+ * ✅ NEW: Display blocked/rejected classes
+ * ✅ FIXED: Handle both camelCase and PascalCase property names from API
+ */
+function displayBlockedClasses(blockedClasses) {
+    const container = $('#blockedClasses');
+    const section = $('#blockedSection');
+    
+    if (!blockedClasses || blockedClasses.length === 0) {
+        section.hide();
+        return;
+    }
+    
+    section.show();
+    $('#blockedCount').text(`${blockedClasses.length} ${blockedClasses.length === 1 ? 'Class' : 'Classes'}`);
+    
+    let html = '';
+    blockedClasses.forEach(blocked => {
+        // ✅ FIX: Handle both camelCase and PascalCase with null/undefined checks
+        const blockedAtValue = blocked.BlockedAt || blocked.blockedAt;
+        const blockedDate = blockedAtValue ? new Date(blockedAtValue).toLocaleDateString() : 'Invalid Date';
+        
+        // Get course info - check for actual values vs fallback values
+        let courseCode = blocked.CourseCode || blocked.courseCode || '';
+        let courseName = blocked.CourseName || blocked.courseName || '';
+        
+        // If course info is missing or is the fallback value, show a more helpful message
+        const isCourseUnknown = !courseCode || courseCode === 'UNKNOWN' || courseCode === '';
+        if (isCourseUnknown) {
+            courseCode = 'Class #' + (blocked.ClassId || blocked.classId || '?');
+            courseName = 'Course information unavailable';
+        }
+        
+        const facultyName = blocked.FacultyName || blocked.facultyName || 'N/A';
+        const roomCode = blocked.RoomCode || blocked.roomCode || 'TBA';
+        const schedule = blocked.Schedule || blocked.schedule || 'TBA';
+        const reason = blocked.BlockReason || blocked.blockReason || 'No reason provided';
+        
+        html += `
+            <div class="enrollment-card blocked-card">
+                <div class="enrollment-header">
+                    <div class="course-info">
+                        <div class="course-code">${courseCode}</div>
+                        <h3 class="course-name">${courseName}</h3>
+                    </div>
+                    <span class="blocked-badge">
+                        <i data-lucide="ban" class="icon-sm"></i>
+                        Blocked
+                    </span>
+                </div>
+                <div class="enrollment-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Faculty</span>
+                        <span class="detail-value">${facultyName}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Schedule</span>
+                        <span class="detail-value">${schedule}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Room</span>
+                        <span class="detail-value">${roomCode}</span>
+                    </div>
+                </div>
+                <div class="blocked-reason">
+                    <i data-lucide="info" class="icon-sm"></i>
+                    <span><strong>Reason:</strong> ${reason}</span>
+                    <span class="blocked-date">Blocked on ${blockedDate}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.html(html);
+    initializeLucideIcons();
 }
 
 /**

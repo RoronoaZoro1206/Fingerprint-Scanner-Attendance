@@ -76,9 +76,13 @@ function populateForm(data) {
     $('#email').val(data.email || '');
 
     // ✅ FIX: Update profile picture with proper fallback to templates/default_profile.png
-    const profileImagePath = data.profileImage && data.profileImage !== 'templates/default_profile.png' 
-        ? `/images/profile/${data.profileImage}?v=${Date.now()}` 
-        : '/images/profile/templates/default_profile.png';
+    // Also handle legacy 'default_profile.png' without templates prefix
+    let profileImagePath;
+    if (!data.profileImage || data.profileImage === 'templates/default_profile.png' || data.profileImage === 'default_profile.png') {
+        profileImagePath = '/images/profile/templates/default_profile.png';
+    } else {
+        profileImagePath = `/images/profile/${data.profileImage}?v=${Date.now()}`;
+    }
     
     $('#profilePicturePreview').attr('src', profileImagePath);
     console.log('[Profile] Setting profile picture:', profileImagePath);
@@ -130,7 +134,8 @@ function uploadProfilePicture(file) {
             } else {
                 Toast.error(response.message);
                 // ✅ FIX: Revert to original image or templates/default_profile.png
-                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
+                // Also handle legacy 'default_profile.png' without templates prefix
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png' && originalData.profileImage !== 'default_profile.png'
                     ? `/images/profile/${originalData.profileImage}`
                     : '/images/profile/templates/default_profile.png';
                 $('#profilePicturePreview').attr('src', fallbackImage);
@@ -140,7 +145,8 @@ function uploadProfilePicture(file) {
             console.error('Error uploading profile picture:', error);
             Toast.error('Failed to upload profile picture');
             // ✅ FIX: Revert to original image or templates/default_profile.png
-            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
+            // Also handle legacy 'default_profile.png' without templates prefix
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png' && originalData.profileImage !== 'default_profile.png'
                 ? `/images/profile/${originalData.profileImage}`
                 : '/images/profile/templates/default_profile.png';
             $('#profilePicturePreview').attr('src', fallbackImage);
@@ -178,7 +184,8 @@ function setProfilePictureFromServer(imageName) {
             } else {
                 Toast.error(response.message);
                 // ✅ FIX: Revert to original image or templates/default_profile.png
-                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
+                // Also handle legacy 'default_profile.png' without templates prefix
+                const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png' && originalData.profileImage !== 'default_profile.png'
                     ? `/images/profile/${originalData.profileImage}`
                     : '/images/profile/templates/default_profile.png';
                 $('#profilePicturePreview').attr('src', fallbackImage);
@@ -188,7 +195,8 @@ function setProfilePictureFromServer(imageName) {
             console.error('Error setting profile picture from server:', error);
             Toast.error('Failed to update profile picture');
             // ✅ FIX: Revert to original image or templates/default_profile.png
-            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png'
+            // Also handle legacy 'default_profile.png' without templates prefix
+            const fallbackImage = originalData.profileImage && originalData.profileImage !== 'templates/default_profile.png' && originalData.profileImage !== 'default_profile.png'
                 ? `/images/profile/${originalData.profileImage}`
                 : '/images/profile/templates/default_profile.png';
             $('#profilePicturePreview').attr('src', fallbackImage);

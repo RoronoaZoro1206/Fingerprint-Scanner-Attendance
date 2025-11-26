@@ -38,6 +38,22 @@
     </div>
 </div>
 
+<!-- Blocked/Rejected Classes Section -->
+<div class="enrollment-section" id="blockedSection" style="display: none;">
+    <div class="section-header">
+        <div class="section-title">
+            <i data-lucide="ban" class="section-icon" style="color: #dc2626;"></i>
+            <span style="color: #dc2626;">Rejected/Blocked Classes</span>
+        </div>
+        <span class="enrollment-count" id="blockedCount" style="background: #fef2f2; color: #dc2626;">0 Classes</span>
+    </div>
+    <p class="section-description">Classes you have been removed from and cannot re-enroll in</p>
+
+    <div id="blockedClasses" class="enrollments-container">
+        <!-- Blocked classes will be loaded here -->
+    </div>
+</div>
+
 <!-- Unenroll Confirmation Modal -->
 <div class="modal fade" id="unenrollModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

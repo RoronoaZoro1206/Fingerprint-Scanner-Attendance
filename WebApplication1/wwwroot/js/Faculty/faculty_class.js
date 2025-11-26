@@ -1,6 +1,6 @@
 /**
- * Faculty Classes - Refactored to use common utilities
- * Display faculty's assigned classes in a grid layout
+ * Faculty Classes - Display faculty's assigned classes in a grid layout
+ * Manage Students functionality moved to dedicated page: /Faculty/ManageStudents
  */
 
 $(document).ready(function () {
@@ -60,6 +60,7 @@ function displayClasses(classes) {
 
 /**
  * Create class card HTML
+ * ✅ UPDATED: Added "Manage Students" button
  */
 function createClassCard(cls) {
     return `
@@ -85,6 +86,10 @@ function createClassCard(cls) {
             </div>
             
             <div class="class-actions">
+                <button class="btn-manage-students" onclick="openManageStudents(${cls.classId})">
+                    <i data-lucide="users"></i>
+                    Manage Students
+                </button>
                 <button class="btn-attendance" onclick="goToAttendance(${cls.classId})">
                     <i data-lucide="user-check"></i>
                     Attendance
@@ -116,4 +121,12 @@ function showEmptyState() {
  */
 function goToAttendance(classId) {
     window.location.href = `/Faculty/FacultyAttendance?classId=${classId}`;
+}
+
+/**
+ * Navigate to Manage Students page
+ * Redirects to a dedicated page instead of opening a modal
+ */
+function openManageStudents(classId) {
+    window.location.href = `/Faculty/ManageStudents?classId=${classId}`;
 }

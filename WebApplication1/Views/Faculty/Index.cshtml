@@ -1,5 +1,6 @@
 ﻿@{
     ViewData["Title"] = "My Classes";
+    ViewData["ActiveNav"] = "my-classes";
 }
 
 <div class="page-header">
@@ -11,6 +12,8 @@
     <!-- Classes will be loaded here via JavaScript -->
 </div>
 
+<!-- Modals removed - Manage Students now uses a dedicated page at /Faculty/ManageStudents -->
+
 @section Scripts {
     <script src="~/js/faculty/faculty_class.js" asp-append-version="true"></script>
 }
@@ -20,18 +23,18 @@
 <style>
     .content-grid {
         display: grid;
- grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 1.5rem;
     }
     
     .card {
- background: white;
+        background: white;
         border-radius: 12px;
-    padding: 1.5rem;
-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
   
     .chart-container {
-  position: relative;
+        position: relative;
     }
 </style>

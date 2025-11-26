@@ -23,9 +23,14 @@
             <span>Dashboard</span>
         </a>
         
-        <a href="@Url.Action("Index", "Faculty")" class="sidebar-link">
+        <a href="@Url.Action("Index", "FacultyClass")" class="sidebar-link" data-nav-key="my-classes">
             <i data-lucide="book-open"></i>
             <span>My Classes</span>
+        </a>
+        
+        <a href="@Url.Action("ManageStudentsIndex", "Faculty")" class="sidebar-link" data-nav-key="manage-students">
+            <i data-lucide="users"></i>
+            <span>Manage Students</span>
         </a>
         
         <a href="@Url.Action("FacultyAttendance", "Faculty")" class="sidebar-link">
@@ -72,9 +77,14 @@
                 <span>Dashboard</span>
             </a>
             
-            <a href="@Url.Action("Index", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">
+            <a href="@Url.Action("Index", "FacultyClass")" class="sidebar-link" data-bs-dismiss="offcanvas" data-nav-key="my-classes">
                 <i data-lucide="book-open"></i>
                 <span>My Classes</span>
+            </a>
+            
+            <a href="@Url.Action("ManageStudentsIndex", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas" data-nav-key="manage-students">
+                <i data-lucide="users"></i>
+                <span>Manage Students</span>
             </a>
             
             <a href="@Url.Action("FacultyAttendance", "Faculty")" class="sidebar-link" data-bs-dismiss="offcanvas">

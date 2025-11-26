@@ -155,7 +155,8 @@ function handleAddUserProfileSelected(selection = {}) {
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
-        const imagePath = `/images/profile/${selection.imageName}`;
+        // ✅ FIX: Template images are in the templates folder
+        const imagePath = `/images/profile/templates/${selection.imageName}`;
         $('#addUserProfilePreview').attr('src', imagePath);
         console.log('[Add User] Profile picture preview loaded from server:', imagePath);
     }
@@ -182,7 +183,8 @@ function handleEditUserProfileSelected(selection = {}) {
         };
         reader.readAsDataURL(selection.file);
     } else if (selection.type === 'server') {
-        const imagePath = `/images/profile/${selection.imageName}`;
+        // ✅ FIX: Template images are in the templates folder
+        const imagePath = `/images/profile/templates/${selection.imageName}`;
         $('#editUserProfilePreview').attr('src', imagePath);
         console.log('[Edit User] Profile picture preview loaded from server:', imagePath);
     }
@@ -320,7 +322,11 @@ function initializeDataTable() {
                 width: '30%',
                 render: function (data, type, row) {
                     if (type === 'display') {
-                        const profileImage = row.UserProfileImage || 'templates/default_profile.png';
+                        // Handle legacy 'default_profile.png' without templates prefix
+                        let profileImage = row.UserProfileImage || 'templates/default_profile.png';
+                        if (profileImage === 'default_profile.png') {
+                            profileImage = 'templates/default_profile.png';
+                        }
                         const imagePath = `/images/profile/${profileImage}`;
                         return `
                             <div class="d-flex align-items-center">
@@ -426,9 +432,13 @@ function showEditModal(userId) {
             $('#editUserPassword').val('');
             
             // ✅ FIX BUG #2: Proper fallback to templates/default_profile.png with cache-busting
-            const profileImage = user.UserProfileImage && user.UserProfileImage !== 'templates/default_profile.png'
-                ? `/images/profile/${user.UserProfileImage}?v=${Date.now()}`
-                : '/images/profile/templates/default_profile.png';
+            // Also handle legacy 'default_profile.png' without templates prefix
+            let profileImage;
+            if (!user.UserProfileImage || user.UserProfileImage === 'templates/default_profile.png' || user.UserProfileImage === 'default_profile.png') {
+                profileImage = '/images/profile/templates/default_profile.png';
+            } else {
+                profileImage = `/images/profile/${user.UserProfileImage}?v=${Date.now()}`;
+            }
             
             $('#editUserProfilePreview').attr('src', profileImage);
             console.log('[Edit User] Setting profile picture:', profileImage);

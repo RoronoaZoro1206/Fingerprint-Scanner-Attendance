@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting; // ✅ NEW: For Rate Limiting
 using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
@@ -36,6 +37,7 @@ namespace Fingerprint_Attendance_System.Controllers.Auth
 
         // POST: Authenticate user with fingerprint
         [HttpPost]
+        [EnableRateLimiting("login")] // ✅ NEW: Rate limiting - 5 attempts per 1 minute
         public async Task<IActionResult> AuthenticateWithFingerprint()
      {
         try

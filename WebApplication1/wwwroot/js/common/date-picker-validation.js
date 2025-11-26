@@ -9,14 +9,16 @@
  */
 
 /**
- * Get today's date in YYYY-MM-DD format
- * Always returns current date, even after midnight
+ * Get today's date in YYYY-MM-DD format using Philippine timezone (UTC+8)
+ * Always returns current Philippine date, even after midnight
+ * ✅ FIX: Use Asia/Manila timezone to ensure consistency with server
  */
 function getTodayDateString() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    // Convert to Philippine timezone
+    const philippineDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const year = philippineDate.getFullYear();
+    const month = String(philippineDate.getMonth() + 1).padStart(2, '0');
+    const day = String(philippineDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
 

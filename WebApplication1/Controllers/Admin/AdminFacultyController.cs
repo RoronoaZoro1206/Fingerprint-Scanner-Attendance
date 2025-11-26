@@ -142,10 +142,13 @@ public class AdminFacultyController : Controller
 
     // POST: Faculty/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Fingerprint_Attendance_System.Models.Faculty faculty)
+    public async Task<IActionResult> Create([FromBody] Fingerprint_Attendance_System.Models.Faculty? faculty)
     {
         try
         {
+            if (faculty == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -181,10 +184,13 @@ public class AdminFacultyController : Controller
 
     // PUT: Faculty/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Fingerprint_Attendance_System.Models.Faculty faculty)
+    public async Task<IActionResult> Update([FromBody] Fingerprint_Attendance_System.Models.Faculty? faculty)
     {
         try
         {
+            if (faculty == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });

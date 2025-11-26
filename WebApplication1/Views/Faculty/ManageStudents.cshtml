@@ -1,0 +1,108 @@
+@{
+    ViewData["Title"] = "Manage Students";
+    ViewData["ActiveNav"] = "manage-students";
+    var classId = ViewBag.ClassId ?? 0;
+}
+
+<div class="page-header">
+    <div class="header-left">
+        <a href="@Url.Action("Index", "FacultyClass")" class="btn btn-outline-secondary btn-back">
+            <i data-lucide="arrow-left" class="icon-sm"></i>
+            Back to Classes
+        </a>
+        <h1 class="page-title">Manage Students</h1>
+    </div>
+</div>
+
+<!-- Class Info Card -->
+<div class="card mb-4" id="classInfoCard">
+    <div class="card-body">
+        <div class="class-info-header">
+            <div class="class-details">
+                <h2 class="class-code" id="classCode">Loading...</h2>
+                <p class="class-name" id="className"></p>
+                <p class="class-schedule" id="classSchedule"></p>
+            </div>
+            <div class="student-count-badge">
+                <span id="studentCount">0</span>
+                <span>Students</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students List Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i data-lucide="users" class="icon-sm me-2"></i>
+            Enrolled Students
+        </h3>
+        <div class="card-actions">
+            <div class="search-box">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="searchInput" class="form-control" placeholder="Search students...">
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="studentsContainer">
+            <div class="loading-container">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2 text-muted">Loading students...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Force Unenroll Confirmation Modal -->
+<div class="modal fade" id="forceUnenrollModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="mb-3">
+                    <div class="delete-icon-wrapper">
+                        <i data-lucide="user-x" class="delete-icon"></i>
+                    </div>
+                </div>
+                <h5 class="modal-title mb-2">Force Unenroll Student?</h5>
+                <p class="text-muted mb-2">You are about to remove <strong id="unenrollStudentName"></strong> from this class.</p>
+                <div class="alert alert-warning mb-3" style="text-align: left;">
+                    <i data-lucide="alert-triangle" class="icon-sm me-1"></i>
+                    <strong>Warning:</strong> This action will:
+                    <ul class="mb-0 mt-2">
+                        <li>Remove the student from this class immediately</li>
+                        <li>Block them from re-enrolling in this class</li>
+                        <li>This action cannot be undone by the student</li>
+                    </ul>
+                </div>
+                <div class="mb-3" style="text-align: left;">
+                    <label for="unenrollReason" class="form-label">Reason (optional)</label>
+                    <textarea class="form-control" id="unenrollReason" rows="2" placeholder="Enter reason for unenrollment..."></textarea>
+                </div>
+                <input type="hidden" id="unenrollEnrollId">
+                <input type="hidden" id="unenrollClassId">
+            </div>
+            <div class="modal-footer border-0 justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger px-4" id="btnConfirmForceUnenroll">
+                    <i data-lucide="user-x" class="icon-sm"></i>
+                    Force Unenroll
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Pass classId to JavaScript
+        const classId = @classId;
+    </script>
+    <script src="~/js/faculty/faculty_manage_students.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/faculty/faculty_manage_students.css" asp-append-version="true"/>

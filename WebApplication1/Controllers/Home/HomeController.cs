@@ -161,7 +161,6 @@ namespace Fingerprint_Attendance_System.Controllers.Home
         {
             var scanStartTime = DateTime.Now;
             int? matchedUserId = null;
-            bool scanWasSuccessful = false;
             string scanLogMessage = "";
             
             try
@@ -173,9 +172,8 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 {
                     _logger.LogWarning("Scanner not available");
                     
-                    // ✅ NEW: Log scanner unavailable event
-                    scanLogMessage = "Scanner not available - device not connected";
-                    await LogScanEventAsync(null, scanStartTime, false, scanLogMessage);
+                    // ✅ FIX: Do NOT log scanner unavailable events to prevent scan_logs flooding
+                    // This is a system state issue, not a user scan attempt
                     
                     return Json(new
                     {
@@ -193,9 +191,9 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 {
                     _logger.LogWarning($"Failed to capture fingerprint: {errorMessage}");
                     
-                    // ✅ NEW: Log capture failure
-                    scanLogMessage = $"Failed to capture fingerprint: {errorMessage ?? "No finger detected"}";
-                    await LogScanEventAsync(null, scanStartTime, false, scanLogMessage);
+                    // ✅ FIX: Do NOT log "no finger detected" events to prevent scan_logs flooding
+                    // Only log actual capture failures (not empty scanner polls)
+                    // This prevents the auto-scan loop from creating hundreds of log entries
                     
                     return Json(new
                     {
@@ -442,7 +440,7 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                         existingAttendance.Status = "completed";
                         existingAttendance.UpdatedAt = DateTime.Now;
                         
-                        var duration = currentTime - existingAttendance.TimeIn.Value;
+                        var duration = currentTime - (existingAttendance.TimeIn ?? currentTime);
                         var durationText = duration.TotalHours >= 1 
                             ? $"{(int)duration.TotalHours} hours and {duration.Minutes} minutes"
                             : $"{duration.Minutes} minutes and {duration.Seconds} seconds";
@@ -471,7 +469,6 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                         }
                         
                         // ✅ NEW: Log successful time out
-                        scanWasSuccessful = true;
                         scanLogMessage = $"TIME OUT successful for {activeClassInfo.CourseCode} - Duration: {durationText}";
                         await LogScanEventAsync(matchedUserId, scanStartTime, true, scanLogMessage);
                         
@@ -588,6 +585,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 // After successful attendance processing
                 if (processingResult.Success && attendanceResponse != null)
                 {
+                    // ✅ FIX: Log successful TIME IN to scan_logs for statistics
+                    scanLogMessage = $"TIME IN successful for {activeClassInfo.CourseCode} - {student.User?.UserFirstName} {student.User?.UserLastName}";
+                    await LogScanEventAsync(matchedUserId, scanStartTime, true, scanLogMessage);
+                    
                     // ✅ NEW: Broadcast real-time notification to all connected dashboards
                     await BroadcastAttendanceUpdateAsync(
                         student,
@@ -596,34 +597,32 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                     );
                     
                     _logger.LogInformation($"✅ Attendance recorded for {student.StudNumber}: {attendanceResponse.Action}");
-                    
-                    // ... existing success logic ...
                 }
 
                 return Json(new
                 {
                     success = true,
-                    message = attendanceResponse.Message,
-                    action = attendanceResponse.Action,
-                    timestamp = attendanceResponse.Timestamp,
+                    message = attendanceResponse?.Message ?? "Attendance recorded",
+                    action = attendanceResponse?.Action ?? "time_in",
+                    timestamp = attendanceResponse?.Timestamp ?? DateTime.Now,
                     student = new
                     {
                         studId = student.StudId,
                         studNumber = student.StudNumber,
-                        fullName = attendanceResponse.Student?.FullName ?? "Student",
-                        programName = attendanceResponse.Student?.ProgramName,
-                        sectionName = attendanceResponse.Student?.SectionName,
-                        yearLevel = attendanceResponse.Student?.YearLevel
+                        fullName = attendanceResponse?.Student?.FullName ?? "Student",
+                        programName = attendanceResponse?.Student?.ProgramName,
+                        sectionName = attendanceResponse?.Student?.SectionName,
+                        yearLevel = attendanceResponse?.Student?.YearLevel
                     },
                     currentClass = new
                     {
-                        courseCode = activeClassInfo.CourseCode,
-                        courseName = activeClassInfo.CourseName,
-                        facultyName = activeClassInfo.FacultyName,
-                        roomCode = activeClassInfo.RoomCode,
-                        schedule = activeClassInfo.Schedule
+                        courseCode = activeClassInfo?.CourseCode ?? "N/A",
+                        courseName = activeClassInfo?.CourseName ?? "N/A",
+                        facultyName = activeClassInfo?.FacultyName ?? "TBA",
+                        roomCode = activeClassInfo?.RoomCode ?? "TBA",
+                        schedule = activeClassInfo?.Schedule ?? "N/A"
                     },
-                    incompleteRecordsWarning = attendanceResponse.IncompleteRecordsWarning
+                    incompleteRecordsWarning = attendanceResponse?.IncompleteRecordsWarning
                 });
             }
             catch (Exception ex)
@@ -891,20 +890,29 @@ namespace Fingerprint_Attendance_System.Controllers.Home
                 // Filter today's scans
                 var todayScans = allScans.Where(log => log.ScanTime.Date == today).ToList();
                 
-                // Calculate statistics
-                int totalScans = todayScans.Count;
-                int successfulScans = todayScans.Count(log => log.ScanSuccess == true);
-                int failedScans = totalScans - successfulScans;
+                // ✅ FIX: Calculate success rate based on ALL meaningful scan attempts
+                // Include all scans where fingerprint was captured (regardless of outcome)
+                // This includes: Time In, Time Out, No class scheduled, Role restriction, Fingerprint not recognized
+                var meaningfulScans = todayScans.Where(log => 
+                    !string.IsNullOrEmpty(log.ScanLogMessage) &&
+                    !log.ScanLogMessage.Contains("no finger detected", StringComparison.OrdinalIgnoreCase) &&
+                    !log.ScanLogMessage.Contains("scanner unavailable", StringComparison.OrdinalIgnoreCase) &&
+                    !log.ScanLogMessage.Contains("capture failed", StringComparison.OrdinalIgnoreCase)
+                ).ToList();
                 
-                decimal successRate = totalScans > 0 
-                    ? Math.Round((decimal)successfulScans / totalScans * 100, 0) 
+                int totalMeaningfulScans = meaningfulScans.Count;
+                int successfulScans = meaningfulScans.Count(log => log.ScanSuccess == true);
+                
+                decimal successRate = totalMeaningfulScans > 0 
+                    ? Math.Round((decimal)successfulScans / totalMeaningfulScans * 100, 0) 
                     : 0;
 
+                // Today's scans shows total meaningful attendance-related scans
                 return Json(new
                 {
                     success = true,
                     successRate = (int)successRate,
-                    todayScans = totalScans
+                    todayScans = totalMeaningfulScans
                 });
             }
             catch (Exception ex)

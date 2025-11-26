@@ -96,10 +96,13 @@ public class AdminStudentIdPoolController : Controller
 
     // POST: StudentIdPool/Generate
     [HttpPost]
-    public async Task<IActionResult> Generate([FromBody] GenerateStudentIdsRequest request)
+    public async Task<IActionResult> Generate([FromBody] GenerateStudentIdsRequest? request)
     {
         try
         {
+            if (request == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -178,10 +181,13 @@ public class AdminStudentIdPoolController : Controller
 
     // PUT: StudentIdPool/UpdateRemarks
     [HttpPut]
-    public async Task<IActionResult> UpdateRemarks([FromBody] UpdateRemarksRequest request)
+    public async Task<IActionResult> UpdateRemarks([FromBody] UpdateRemarksRequest? request)
     {
         try
         {
+            if (request == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });

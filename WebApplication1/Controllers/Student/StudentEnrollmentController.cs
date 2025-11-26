@@ -16,7 +16,11 @@ public class StudentEnrollmentController : Controller
     private readonly IStudentRepository _studentRepository;
     private readonly IClassRepository _classRepository; // ? ADDED: For getting class details
     private readonly ICourseRepository _courseRepository; // ? ADDED: For getting course details
+    private readonly IEnrollmentBlockRepository _enrollmentBlockRepository; // ✅ NEW: For blocked classes
     private readonly UniversalAuditService _auditService; // ? ADDED: Universal audit service
+    
+    // ✅ CRITICAL FIX: Per-student enrollment locks to prevent race conditions
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SemaphoreSlim> _studentEnrollmentLocks = new();
 
     public StudentEnrollmentController(
         ILogger<StudentEnrollmentController> logger,
@@ -24,6 +28,7 @@ public class StudentEnrollmentController : Controller
         IStudentRepository studentRepository,
         IClassRepository classRepository, // ? ADDED: Inject class repository
         ICourseRepository courseRepository, // ? ADDED: Inject course repository
+        IEnrollmentBlockRepository enrollmentBlockRepository, // ✅ NEW: Inject enrollment block repository
         UniversalAuditService auditService) // ? ADDED: Inject universal audit service
     {
         _logger = logger;
@@ -31,6 +36,7 @@ public class StudentEnrollmentController : Controller
         _studentRepository = studentRepository;
         _classRepository = classRepository; // ? ADDED: Store class repository
         _courseRepository = courseRepository; // ? ADDED: Store course repository
+        _enrollmentBlockRepository = enrollmentBlockRepository; // ✅ NEW: Store enrollment block repository
         _auditService = auditService; // ? ADDED: Store audit service
     }
 
@@ -170,8 +176,12 @@ public class StudentEnrollmentController : Controller
                 studentInfo.StudId, 
                 studentInfo.ProgramId.Value);
 
-            var classList = availableClasses.ToList();
-            _logger.LogInformation($"GetAvailableClasses - Found {classList.Count} available classes for program {studentInfo.ProgramName}");
+            // ✅ NEW: Filter out blocked classes
+            var blockedClassIds = await _enrollmentBlockRepository.GetBlockedClassIdsForStudentAsync(studentInfo.StudId);
+            var blockedSet = new HashSet<int>(blockedClassIds);
+            
+            var classList = availableClasses.Where(c => !blockedSet.Contains(c.ClassId)).ToList();
+            _logger.LogInformation($"GetAvailableClasses - Found {classList.Count} available classes for program {studentInfo.ProgramName} (filtered {blockedSet.Count} blocked)");
             
             return Json(new { success = true, data = classList });
         }
@@ -183,10 +193,13 @@ public class StudentEnrollmentController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
+    public async Task<IActionResult> Enroll([FromBody] EnrollRequest? request)
     {
         try
         {
+            if (request == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             var userId = HttpContext.Session.GetInt32("UserId");
             if (!userId.HasValue) 
             {
@@ -209,153 +222,221 @@ public class StudentEnrollmentController : Controller
                 return Json(new { success = false, message = "Please complete your student profile with a program before enrolling." });
             }
 
-            // Check if already enrolled
-            var existingEnrollments = await _enrollmentRepository.GetByStudentIdAsync(studentInfo.StudId);
-            if (existingEnrollments.Any(e => e.ClassId == request.ClassId))
-            {
-                _logger.LogWarning($"Enroll - Student {studentInfo.StudId} already enrolled in class {request.ClassId}");
-                return Json(new { success = false, message = "You are already enrolled in this class" });
-            }
-
-            // Get new class schedule details
-            var newClass = await _classRepository.GetByIdAsync(request.ClassId);
-            if (newClass?.CourseId == null)
-            {
-                _logger.LogError($"Enroll - Class {request.ClassId} not found or has no course");
-                return Json(new { success = false, message = "Invalid class selection" });
-            }
-
-            var newCourse = await _courseRepository.GetByIdAsync(newClass.CourseId.Value);
-            var newSchedules = await _classRepository.GetClassSchedulesAsync(request.ClassId);
-
-            // ✅ CRITICAL CHANGE: BLOCK TBA schedules
-            if (!newSchedules.Any())
-            {
-                _logger.LogWarning($"Enroll - Class {request.ClassId} has TBA schedule, blocking enrollment");
-                
-                return Json(new 
-                { 
-                    success = false, 
-                    message = $"⚠️ TBA Schedule Not Allowed\n\n" +
-                             $"📚 Cannot enroll in '{newCourse?.CourseName ?? "this class"}' ({newCourse?.CourseCode ?? "N/A"}) " +
-                             $"because it has a TBA (To Be Announced) schedule.\n\n" +
-                             $"🔄 This restriction prevents future schedule conflicts. If an admin later assigns a specific time to this class, " +
-                             $"it may conflict with your existing enrolled classes.\n\n" +
-                             $"💡 Solution: Please wait for a class schedule to be assigned, or contact your academic advisor to request schedule information.",
-                    isTbaError = true  // ✅ NEW: Flag to trigger specific UI handling
-                });
-            }
-
-            // ✅ Schedule Conflict Detection (existing logic)
-            _logger.LogInformation($"Enroll - Checking schedule conflicts for student {studentInfo.StudId} enrolling in class {request.ClassId}");
+            // ✅ CRITICAL FIX: Acquire per-student lock to prevent race conditions
+            // This ensures only one enrollment request per student can be processed at a time
+            var studentLock = _studentEnrollmentLocks.GetOrAdd(studentInfo.StudId, _ => new SemaphoreSlim(1, 1));
             
-            // Get student's current enrollments with schedules
-            var studentSchedules = await _enrollmentRepository.GetStudentEnrollmentsWithSchedulesAsync(studentInfo.StudId);
-
-            // Check each new schedule against existing schedules
-            foreach (var newSched in newSchedules)
+            // Try to acquire lock with timeout (5 seconds)
+            if (!await studentLock.WaitAsync(TimeSpan.FromSeconds(5)))
             {
-                // Parse new schedule times (format: "HH:mm:ss" from database)
-                if (!TimeSpan.TryParse(newSched.StartTime, out var newStart) ||
-                    !TimeSpan.TryParse(newSched.EndTime, out var newEnd))
+                _logger.LogWarning($"Enroll - Student {studentInfo.StudId} has concurrent enrollment request, blocking");
+                return Json(new { success = false, message = "Please wait for your previous enrollment request to complete." });
+            }
+
+            try
+            {
+                _logger.LogInformation($"Enroll - Acquired lock for student {studentInfo.StudId}, processing enrollment for class {request.ClassId}");
+
+                // ✅ CRITICAL: Re-check enrollment AFTER acquiring lock to prevent race conditions
+                // This ensures we have the latest data after waiting for any concurrent requests
+                var existingEnrollments = await _enrollmentRepository.GetByStudentIdAsync(studentInfo.StudId);
+                if (existingEnrollments.Any(e => e.ClassId == request.ClassId))
                 {
-                    _logger.LogWarning($"Enroll - Could not parse new class schedule times: {newSched.StartTime} - {newSched.EndTime}");
-                    continue; // Skip this schedule if times can't be parsed
+                    _logger.LogWarning($"Enroll - Student {studentInfo.StudId} already enrolled in class {request.ClassId}");
+                    return Json(new { success = false, message = "You are already enrolled in this class" });
                 }
 
-                var newDay = newSched.DayOfWeek?.Trim();
-                if (string.IsNullOrEmpty(newDay))
+                // ✅ NEW: Check if student is blocked from this class
+                var isBlocked = await _enrollmentBlockRepository.IsStudentBlockedAsync(studentInfo.StudId, request.ClassId);
+                if (isBlocked)
                 {
-                    _logger.LogWarning("Enroll - New class schedule has empty day of week");
-                    continue; // Skip schedules with no day
+                    _logger.LogWarning($"Enroll - Student {studentInfo.StudId} is blocked from class {request.ClassId}");
+                    return Json(new { 
+                        success = false, 
+                        message = "You have been blocked from enrolling in this class. Please contact your faculty or academic advisor.",
+                        isBlocked = true
+                    });
                 }
 
-                // Check against all existing schedules
-                foreach (var existingSched in studentSchedules)
+                // Get new class schedule details
+                var newClass = await _classRepository.GetByIdAsync(request.ClassId);
+                if (newClass?.CourseId == null)
                 {
-                    var existingDay = existingSched.DayOfWeek?.Trim();
+                    _logger.LogError($"Enroll - Class {request.ClassId} not found or has no course");
+                    return Json(new { success = false, message = "Invalid class selection" });
+                }
+
+                var newCourse = await _courseRepository.GetByIdAsync(newClass.CourseId.Value);
+                var newSchedules = await _classRepository.GetClassSchedulesAsync(request.ClassId);
+
+                // ✅ CRITICAL CHANGE: BLOCK TBA schedules
+                if (!newSchedules.Any())
+                {
+                    _logger.LogWarning($"Enroll - Class {request.ClassId} has TBA schedule, blocking enrollment");
                     
-                    // Skip if days don't match
-                    if (string.IsNullOrEmpty(existingDay) || 
-                        !existingDay.Equals(newDay, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    // Parse existing schedule times (format: "HH:MM" from database)
-                    if (!TimeSpan.TryParse(existingSched.StartTime, out var existingStart) ||
-                        !TimeSpan.TryParse(existingSched.EndTime, out var existingEnd))
-                    {
-                        _logger.LogWarning($"Enroll - Could not parse existing schedule times: {existingSched.StartTime} - {existingSched.EndTime}");
-                        continue;
-                    }
-
-                    // ✅ CRITICAL: Time Overlap Detection Logic
-                    // Two time ranges overlap if: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
-                    bool hasTimeOverlap = (newStart < existingEnd) && (newEnd > existingStart);
-
-                    if (hasTimeOverlap)
-                    {
-                        // Format times for user-friendly display
-                        var newStartFormatted = newStart.ToString(@"hh\:mm");
-                        var newEndFormatted = newEnd.ToString(@"hh\:mm");
-                        var existingStartFormatted = existingStart.ToString(@"hh\:mm");
-                        var existingEndFormatted = existingEnd.ToString(@"hh\:mm");
-
-                        var conflictMessage = $"⚠️ Schedule Conflict Detected!\n\n" +
-                                            $"📚 You are already enrolled in '{existingSched.CourseName}' ({existingSched.CourseCode}) " +
-                                            $"on {existingDay} from {existingStartFormatted} to {existingEndFormatted}.\n\n" +
-                                            $"The new class '{newCourse?.CourseName}' is scheduled on {newDay} " +
-                                            $"from {newStartFormatted} to {newEndFormatted}, which overlaps with your existing schedule.\n\n" +
-                                            $"💡 Solution: Please choose a different class or contact your academic advisor.";
-
-                        _logger.LogWarning($"Enroll - Schedule conflict detected: {conflictMessage}");
-                        
-                        return Json(new 
-                        { 
-                            success = false, 
-                            message = conflictMessage,
-                            isConflict = true  // Flag to trigger specific UI handling
-                        });
-                    }
+                    return Json(new 
+                    { 
+                        success = false, 
+                        message = $"⚠️ TBA Schedule Not Allowed\n\n" +
+                                 $"📚 Cannot enroll in '{newCourse?.CourseName ?? "this class"}' ({newCourse?.CourseCode ?? "N/A"}) " +
+                                 $"because it has a TBA (To Be Announced) schedule.\n\n" +
+                                 $"🔄 This restriction prevents future schedule conflicts. If an admin later assigns a specific time to this class, " +
+                                 $"it may conflict with your existing enrolled classes.\n\n" +
+                                 $"💡 Solution: Please wait for a class schedule to be assigned, or contact your academic advisor to request schedule information.",
+                        isTbaError = true  // ✅ NEW: Flag to trigger specific UI handling
+                    });
                 }
-            }
 
-            // No conflicts found, proceed with enrollment
-            var enrollment = new Enrollment
-            {
-                StudId = studentInfo.StudId,
-                ClassId = request.ClassId,
-                EnrollAt = DateTime.Now
-            };
-
-            _logger.LogInformation($"Enroll - Attempting to enroll student {studentInfo.StudId} in class {request.ClassId}");
-            var result = await _enrollmentRepository.AddAsync(enrollment);
-
-            if (result)
-            {
-                // Log audit for student enrollment
-                var classDetail = await _classRepository.GetByIdAsync(request.ClassId);
-                if (classDetail?.CourseId != null)
+                // ✅ Schedule Conflict Detection - FRESH QUERY AFTER LOCK
+                _logger.LogInformation($"Enroll - Checking schedule conflicts for student {studentInfo.StudId} enrolling in class {request.ClassId}");
+                
+                // Get student's current enrollments with schedules (FRESH query after lock acquired)
+                var studentSchedules = (await _enrollmentRepository.GetStudentEnrollmentsWithSchedulesAsync(studentInfo.StudId)).ToList();
+                
+                _logger.LogInformation($"Enroll - Student has {studentSchedules.Count} existing schedule entries after lock");
+                foreach (var s in studentSchedules)
                 {
-                    var course = await _courseRepository.GetByIdAsync(classDetail.CourseId.Value);
-                    if (course != null)
+                    _logger.LogInformation($"  Existing: ClassId={s.ClassId}, {s.CourseCode} on '{s.DayOfWeek}' from '{s.StartTime}' to '{s.EndTime}'");
+                }
+
+                var newSchedulesList = newSchedules.ToList();
+                _logger.LogInformation($"Enroll - New class {request.ClassId} has {newSchedulesList.Count} schedule entries");
+                foreach (var s in newSchedulesList)
+                {
+                    _logger.LogInformation($"  New: SchedId={s.SchedId}, '{s.DayOfWeek}' from '{s.StartTime}' to '{s.EndTime}'");
+                }
+
+                // Check each new schedule against existing schedules
+                foreach (var newSched in newSchedulesList)
+                {
+                    // Parse new schedule times (format: "HH:mm:ss" from database)
+                    if (!TimeSpan.TryParse(newSched.StartTime, out var newStart) ||
+                        !TimeSpan.TryParse(newSched.EndTime, out var newEnd))
                     {
-                        await _auditService.LogEnrollmentActionAsync(
-                            course.CourseCode,
-                            course.CourseName,
-                            isEnrollment: true
-                        );
+                        _logger.LogWarning($"Enroll - Could not parse new class schedule times: '{newSched.StartTime}' - '{newSched.EndTime}'");
+                        continue;
+                    }
+
+                    var newDay = newSched.DayOfWeek?.Trim();
+                    if (string.IsNullOrEmpty(newDay))
+                    {
+                        _logger.LogWarning("Enroll - New class schedule has empty day of week");
+                        continue;
+                    }
+
+                    // ✅ CRITICAL FIX: Handle midnight crossing (e.g., 23:00 - 00:00)
+                    // If end time is less than start time, it means the class crosses midnight
+                    var newEndAdjusted = newEnd;
+                    if (newEnd <= newStart)
+                    {
+                        // Add 24 hours to end time to handle midnight crossing
+                        newEndAdjusted = newEnd.Add(TimeSpan.FromHours(24));
+                        _logger.LogInformation($"Enroll - New class crosses midnight, adjusted end: {newEnd} -> {newEndAdjusted}");
+                    }
+
+                    // Check against all existing schedules
+                    foreach (var existingSched in studentSchedules)
+                    {
+                        var existingDay = existingSched.DayOfWeek?.Trim();
                         
-                        _logger.LogInformation($"Enroll - Successfully enrolled student {studentInfo.StudId} in {course.CourseCode}");
+                        // Skip if days don't match (case-insensitive comparison)
+                        if (string.IsNullOrEmpty(existingDay) || 
+                            !existingDay.Equals(newDay, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        // Parse existing schedule times (format: "HH24:MI" from database)
+                        if (!TimeSpan.TryParse(existingSched.StartTime, out var existingStart) ||
+                            !TimeSpan.TryParse(existingSched.EndTime, out var existingEnd))
+                        {
+                            _logger.LogWarning($"Enroll - Could not parse existing schedule times: '{existingSched.StartTime}' - '{existingSched.EndTime}'");
+                            continue;
+                        }
+
+                        // ✅ CRITICAL FIX: Handle midnight crossing for existing schedule too
+                        var existingEndAdjusted = existingEnd;
+                        if (existingEnd <= existingStart)
+                        {
+                            existingEndAdjusted = existingEnd.Add(TimeSpan.FromHours(24));
+                            _logger.LogInformation($"Enroll - Existing class crosses midnight, adjusted end: {existingEnd} -> {existingEndAdjusted}");
+                        }
+
+                        // ✅ CRITICAL: Time Overlap Detection Logic (with midnight-adjusted times)
+                        // Two time ranges overlap if: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+                        bool hasTimeOverlap = (newStart < existingEndAdjusted) && (newEndAdjusted > existingStart);
+                        
+                        _logger.LogInformation($"Enroll - Overlap check: new={newDay} {newStart}-{newEndAdjusted} vs existing={existingDay} {existingStart}-{existingEndAdjusted} = {hasTimeOverlap}");
+
+                        if (hasTimeOverlap)
+                        {
+                            // Format times for user-friendly display (12-hour format with AM/PM)
+                            var newStartFormatted = DateTime.Today.Add(newStart).ToString("h:mm tt");
+                            var newEndFormatted = DateTime.Today.Add(newEnd).ToString("h:mm tt");
+                            var existingStartFormatted = DateTime.Today.Add(existingStart).ToString("h:mm tt");
+                            var existingEndFormatted = DateTime.Today.Add(existingEnd).ToString("h:mm tt");
+
+                            var conflictMessage = $"⚠️ Schedule Conflict Detected!\n\n" +
+                                                $"📚 You are already enrolled in '{existingSched.CourseName}' ({existingSched.CourseCode}) " +
+                                                $"on {existingDay} from {existingStartFormatted} to {existingEndFormatted}.\n\n" +
+                                                $"The new class '{newCourse?.CourseName}' is scheduled on {newDay} " +
+                                                $"from {newStartFormatted} to {newEndFormatted}, which overlaps with your existing schedule.\n\n" +
+                                                $"💡 Solution: Please choose a different class or contact your academic advisor.";
+
+                            _logger.LogWarning($"Enroll - SCHEDULE CONFLICT DETECTED! Blocking enrollment.");
+                            
+                            return Json(new 
+                            { 
+                                success = false, 
+                                message = conflictMessage,
+                                isConflict = true
+                            });
+                        }
                     }
                 }
 
-                return Json(new { success = true, message = "Successfully enrolled in class" });
-            }
+                // No conflicts found, proceed with enrollment
+                var enrollment = new Enrollment
+                {
+                    StudId = studentInfo.StudId,
+                    ClassId = request.ClassId,
+                    EnrollAt = DateTime.Now
+                };
 
-            _logger.LogError($"Enroll - Failed to add enrollment for student {studentInfo.StudId} in class {request.ClassId}");
-            return Json(new { success = false, message = "Failed to enroll in class. Please try again." });
+                _logger.LogInformation($"Enroll - Attempting to enroll student {studentInfo.StudId} in class {request.ClassId}");
+                var result = await _enrollmentRepository.AddAsync(enrollment);
+
+                if (result)
+                {
+                    // Log audit for student enrollment
+                    var classDetail = await _classRepository.GetByIdAsync(request.ClassId);
+                    if (classDetail?.CourseId != null)
+                    {
+                        var course = await _courseRepository.GetByIdAsync(classDetail.CourseId.Value);
+                        if (course != null)
+                        {
+                            await _auditService.LogEnrollmentActionAsync(
+                                course.CourseCode,
+                                course.CourseName,
+                                isEnrollment: true
+                            );
+                            
+                            _logger.LogInformation($"Enroll - Successfully enrolled student {studentInfo.StudId} in {course.CourseCode}");
+                        }
+                    }
+
+                    return Json(new { success = true, message = "Successfully enrolled in class" });
+                }
+
+                _logger.LogError($"Enroll - Failed to add enrollment for student {studentInfo.StudId} in class {request.ClassId}");
+                return Json(new { success = false, message = "Failed to enroll in class. Please try again." });
+            }
+            finally
+            {
+                // ✅ CRITICAL: Always release the lock
+                studentLock.Release();
+                _logger.LogInformation($"Enroll - Released lock for student {studentInfo.StudId}");
+            }
         }
         catch (Exception ex)
         {
@@ -365,10 +446,13 @@ public class StudentEnrollmentController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Unenroll([FromBody] UnenrollRequest request)
+    public async Task<IActionResult> Unenroll([FromBody] UnenrollRequest? request)
     {
         try
         {
+            if (request == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             _logger.LogInformation($"Attempting to unenroll: enrollId={request.EnrollId}");
             
             // ? ADDED: Get enrollment details before deletion for audit log
@@ -425,9 +509,49 @@ public class StudentEnrollmentController : Controller
         public int EnrollId { get; set; }
     }
 
+    /// <summary>
+    /// ✅ NEW: Get classes that the student has been blocked from (force-unenrolled by faculty)
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetBlockedClasses()
+    {
+        try
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue)
+            {
+                return Json(new { success = false, data = new List<object>(), message = "User not authenticated" });
+            }
+
+            var studentInfo = await _studentRepository.GetStudentInfoByUserIdAsync(userId.Value);
+            if (studentInfo == null)
+            {
+                return Json(new { success = false, data = new List<object>(), message = "Student profile not found" });
+            }
+
+            var blockedClasses = await _enrollmentBlockRepository.GetStudentBlockedClassesAsync(studentInfo.StudId);
+            
+            _logger.LogInformation($"GetBlockedClasses - Found {blockedClasses.Count()} blocked classes for student {studentInfo.StudId}");
+            
+            // Log details for debugging
+            foreach (var blocked in blockedClasses)
+            {
+                _logger.LogInformation($"GetBlockedClasses - BlockId={blocked.BlockId}, ClassId={blocked.ClassId}, CourseCode={blocked.CourseCode}, CourseName={blocked.CourseName}");
+            }
+            
+            return Json(new { success = true, data = blockedClasses });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting blocked classes");
+            return Json(new { success = false, data = new List<object>(), message = "Error loading blocked classes" });
+        }
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
+
 }

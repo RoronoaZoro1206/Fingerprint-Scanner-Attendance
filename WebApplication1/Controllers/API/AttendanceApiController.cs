@@ -329,10 +329,19 @@ namespace Fingerprint_Attendance_System.Controllers.Api
         [ProducesResponseType(typeof(ApiResponse<object>), 400)]
         public async Task<IActionResult> ResolveIncompleteRecord(
             int dailyAttendId,
-            [FromBody] ResolveIncompleteRequest request)
+            [FromBody] ResolveIncompleteRequest? request)
         {
             try
             {
+                if (request == null)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Invalid request body"
+                    });
+                }
+                
                 // TODO: Get admin user ID from session/token
                 var adminUserId = HttpContext.Session.GetInt32("UserId") ?? 0;
 

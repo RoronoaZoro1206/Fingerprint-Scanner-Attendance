@@ -9,23 +9,26 @@ namespace Fingerprint_Attendance_System.Services
     {
         private readonly ILogger<AttendanceBackgroundService> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly PhilippineTimeService _pht;
         private Timer? _timer;
 
         public AttendanceBackgroundService(
             ILogger<AttendanceBackgroundService> logger,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            PhilippineTimeService pht)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _pht = pht;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("? Attendance Background Service started");
 
-            // Calculate time until 11:59 PM today
-            var now = DateTime.Now;
-            var targetTime = DateTime.Today.AddHours(23).AddMinutes(59);
+            // Calculate time until 11:59 PM PHT (Philippine time)
+            var now = _pht.Now;
+            var targetTime = _pht.Today.AddHours(23).AddMinutes(59);
             
             if (now > targetTime)
             {

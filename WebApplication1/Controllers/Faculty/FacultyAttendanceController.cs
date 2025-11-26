@@ -168,7 +168,7 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                         courseCode = attendanceData.CourseCode,
                         courseName = attendanceData.CourseName,
                         date = attendanceData.Date,
-                        students = attendanceData.Students.Select(s => new
+                        students = (attendanceData.Students ?? new List<Models.DTOs.StudentAttendanceDto>()).Select(s => new
                         {
                             studId = s.StudId,
                             studentNumber = s.StudentNumber,
@@ -196,10 +196,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
         // PUT: FacultyAttendance/UpdateAttendance
         [HttpPut]
-        public async Task<IActionResult> UpdateAttendance([FromBody] UpdateAttendanceRequest request)
+        public async Task<IActionResult> UpdateAttendance([FromBody] UpdateAttendanceRequest? request)
         {
             try
             {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request body" });
+                
                 _logger.LogInformation($"🔍 UpdateAttendance called - ClassId: {request.ClassId}, StudId: {request.StudId}, Status: {request.Status}, Date: {request.Date}");
                 
                 var userId = HttpContext.Session.GetInt32("UserId");
@@ -369,10 +372,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
         // DELETE: FacultyAttendance/DeleteAttendance
         [HttpDelete]
-        public async Task<IActionResult> DeleteAttendance([FromBody] DeleteAttendanceRequest request)
+        public async Task<IActionResult> DeleteAttendance([FromBody] DeleteAttendanceRequest? request)
         {
             try
             {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request body" });
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (userId == null)
                 {
@@ -469,10 +475,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
 
         // POST: FacultyAttendance/MarkAllPresent
         [HttpPost]
-        public async Task<IActionResult> MarkAllPresent([FromBody] MarkAllPresentRequest request)
+        public async Task<IActionResult> MarkAllPresent([FromBody] MarkAllPresentRequest? request)
         {
             try
             {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request body" });
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (userId == null)
                 {
@@ -589,10 +598,13 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         // ✅ NEW: POST: FacultyAttendance/ProcessForgotTimeout
         // Allows faculty to manually check for students who forgot to time out
         [HttpPost]
-        public async Task<IActionResult> ProcessForgotTimeout([FromBody] ProcessForgotTimeoutRequest request)
+        public async Task<IActionResult> ProcessForgotTimeout([FromBody] ProcessForgotTimeoutRequest? request)
         {
             try
             {
+                if (request == null)
+                    return Json(new { success = false, message = "Invalid request body" });
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (userId == null)
                 {

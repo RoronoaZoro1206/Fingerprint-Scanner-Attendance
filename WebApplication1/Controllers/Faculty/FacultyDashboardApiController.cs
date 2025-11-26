@@ -457,27 +457,22 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
                     });
                 }
 
-                // ✅ CRITICAL FIX: Match on student and date only
+                // ✅ FIXED: Use attendance table's attend_status to properly count Present vs Late
                 var query = @"
-                    WITH faculty_students AS (
-                        SELECT DISTINCT e.stud_id
-                        FROM enrollment e
-                        INNER JOIN classes c ON e.class_id = c.class_id
-                        WHERE c.fac_id = @facId
-                    )
                     SELECT 
                         COUNT(DISTINCT CASE 
-                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NOT NULL 
-                            THEN dal.stud_id 
+                            WHEN a.attend_status = 'present'::attendance_status 
+                            THEN a.stud_id 
                         END) as on_time,
                         COUNT(DISTINCT CASE 
-                            WHEN dal.time_in IS NOT NULL AND dal.time_out IS NULL 
-                            THEN dal.stud_id 
+                            WHEN a.attend_status = 'late'::attendance_status 
+                            THEN a.stud_id 
                         END) as late
-                    FROM faculty_students fs
-                    LEFT JOIN daily_attendance_log dal 
-                        ON fs.stud_id = dal.stud_id 
-                        AND dal.attend_date >= CURRENT_DATE - INTERVAL '7 days';";
+                    FROM attendance a
+                    INNER JOIN classes c ON a.class_id = c.class_id
+                    WHERE c.fac_id = @facId
+                      AND a.attend_date >= CURRENT_DATE - INTERVAL '7 days'
+                      AND a.attend_status IN ('present'::attendance_status, 'late'::attendance_status);";
 
                 var parameters = new Dictionary<string, object> { { "@facId", faculty.FacId } };
                 var dt = await _db.ExecuteQueryAsync(query, parameters);

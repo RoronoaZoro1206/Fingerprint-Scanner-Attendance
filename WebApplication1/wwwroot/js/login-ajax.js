@@ -36,6 +36,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Set flag to trigger fingerprint prompt after redirect
                 sessionStorage.setItem('justLoggedIn', 'true');
 
+                // ✅ FIX: Mark as intentional navigation to prevent false auto-logout
+                // This prevents the auto-logout detection from firing during login redirect
+                sessionStorage.setItem('auto_logout_navigating', JSON.stringify({
+                    reason: 'login-redirect',
+                    timestamp: Date.now()
+                }));
+
                 // Redirect after a short delay
                 setTimeout(() => {
                     window.location.href = result.redirectUrl;

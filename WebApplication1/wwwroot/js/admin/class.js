@@ -348,6 +348,40 @@ function showEditModal(classId) {
 }
 
 /**
+ * ✅ NEW: Check for duplicate class (same course + faculty + term) on client-side
+ * This provides immediate feedback before server validation
+ */
+function checkDuplicateClass(courseId, facId, termId, excludeClassId = null) {
+    // Get current table data
+    let isDuplicate = false;
+    let duplicateInfo = null;
+    
+    classesTable.rows().every(function () {
+        const rowData = this.data();
+        
+        // Skip the current class being edited
+        if (excludeClassId && rowData.classId === excludeClassId) {
+            return;
+        }
+        
+        // Check if same course + faculty + term exists
+        if (rowData.courseId === parseInt(courseId) && 
+            rowData.facId === parseInt(facId) && 
+            rowData.termId === parseInt(termId)) {
+            isDuplicate = true;
+            duplicateInfo = {
+                courseName: rowData.courseName,
+                facultyName: rowData.facultyName,
+                termName: rowData.termName
+            };
+            return false; // Break the loop
+        }
+    });
+    
+    return { isDuplicate, duplicateInfo };
+}
+
+/**
  * Save New Class
  */
 function saveClass() {
@@ -368,6 +402,14 @@ function saveClass() {
         return;
     }
 
+    // ✅ NEW: Client-side duplicate check for immediate feedback
+    const duplicateCheck = checkDuplicateClass(courseId, facId, termId);
+    if (duplicateCheck.isDuplicate) {
+        const info = duplicateCheck.duplicateInfo;
+        Toast.error(`Duplicate class detected! "${info.courseName}" is already assigned to ${info.facultyName} for ${info.termName}. Each professor can only have one class per course per term.`);
+        return;
+    }
+
     const classData = {
         CourseId: parseInt(courseId),
         RoomId: parseInt(roomId),
@@ -384,8 +426,12 @@ function saveClass() {
             hideModal('addClassModal');
             classesTable.ajax.reload(null, false);
         },
-        function () {
-            // Error already handled by ajaxPost
+        function (xhr) {
+            // ✅ NEW: Handle duplicate error from server with specific message
+            if (xhr.responseJSON && xhr.responseJSON.isDuplicate) {
+                Toast.error(xhr.responseJSON.message);
+            }
+            // Other errors already handled by ajaxPost
         }
     );
 
@@ -403,6 +449,7 @@ function updateClass() {
         return;
     }
 
+    const classId = parseInt($('#editClassId').val());
     const courseId = $('#editCourseId').val();
     const roomId = $('#editRoomId').val();
     const facId = $('#editFacId').val();
@@ -413,8 +460,16 @@ function updateClass() {
         return;
     }
 
+    // ✅ NEW: Client-side duplicate check for immediate feedback (exclude current class)
+    const duplicateCheck = checkDuplicateClass(courseId, facId, termId, classId);
+    if (duplicateCheck.isDuplicate) {
+        const info = duplicateCheck.duplicateInfo;
+        Toast.error(`Duplicate class detected! "${info.courseName}" is already assigned to ${info.facultyName} for ${info.termName}. Each professor can only have one class per course per term.`);
+        return;
+    }
+
     const classData = {
-        ClassId: parseInt($('#editClassId').val()),
+        ClassId: classId,
         CourseId: parseInt(courseId),
         RoomId: parseInt(roomId),
         FacId: parseInt(facId),
@@ -430,8 +485,12 @@ function updateClass() {
             hideModal('editClassModal');
             classesTable.ajax.reload(null, false);
         },
-        function () {
-            // Error already handled by ajaxPut
+        function (xhr) {
+            // ✅ NEW: Handle duplicate error from server with specific message
+            if (xhr.responseJSON && xhr.responseJSON.isDuplicate) {
+                Toast.error(xhr.responseJSON.message);
+            }
+            // Other errors already handled by ajaxPut
         }
     );
 

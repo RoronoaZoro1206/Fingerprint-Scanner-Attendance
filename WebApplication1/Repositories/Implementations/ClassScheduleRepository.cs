@@ -183,8 +183,9 @@ public class ClassScheduleRepository : IClassScheduleRepository
     }
 
     /// <summary>
-    /// Gets all class schedules with course information in a single optimized query
+    /// Gets all class schedules with course and faculty information in a single optimized query
     /// Eliminates N+1 query problem by using JOINs instead of multiple repository calls
+    /// Now includes FacultyName to properly identify specific class instances (e.g., "Database Management Systems - Prof. Lawrence Ramirez")
     /// </summary>
     public async Task<IEnumerable<ClassScheduleDetailDto>> GetAllWithDetailsAsync()
     {
@@ -193,13 +194,16 @@ public class ClassScheduleRepository : IClassScheduleRepository
                 cs.sched_id,
                 cs.class_id,
                 COALESCE(co.course_name, 'N/A') as course_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'TBA') as faculty_name,
                 cs.sched_day_of_week,
                 TO_CHAR(cs.sched_start_time, 'HH24:MI') as sched_start_time,
                 TO_CHAR(cs.sched_end_time, 'HH24:MI') as sched_end_time
             FROM class_schedules cs
             INNER JOIN classes cl ON cs.class_id = cl.class_id
             LEFT JOIN courses co ON cl.course_id = co.course_id
-            ORDER BY cs.sched_id;";
+            LEFT JOIN faculty f ON cl.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            ORDER BY co.course_name, faculty_name, cs.sched_id;";
         
         var dt = await _db.ExecuteQueryAsync(query);
         
@@ -208,6 +212,7 @@ public class ClassScheduleRepository : IClassScheduleRepository
             SchedId = Convert.ToInt32(row["sched_id"]),
             ClassId = Convert.ToInt32(row["class_id"]),
             CourseName = row["course_name"]?.ToString() ?? "N/A",
+            FacultyName = row["faculty_name"]?.ToString() ?? "TBA",
             SchedDayOfWeek = row["sched_day_of_week"]?.ToString() ?? "",
             SchedStartTime = row["sched_start_time"]?.ToString() ?? "",
             SchedEndTime = row["sched_end_time"]?.ToString() ?? ""
@@ -294,6 +299,7 @@ public class ClassScheduleRepository : IClassScheduleRepository
     /// ✅ NEW: Gets only classes that have NO schedules assigned (TBA classes)
     /// This is used for the "Add Schedule" dropdown to show only classes that need scheduling
     /// Excludes any class that already has at least one schedule entry
+    /// Now includes FacultyName to properly identify specific class instances
     /// </summary>
     public async Task<IEnumerable<AvailableClassDto>> GetUnscheduledClassesAsync()
     {
@@ -301,16 +307,19 @@ public class ClassScheduleRepository : IClassScheduleRepository
             SELECT 
                 c.class_id,
                 COALESCE(co.course_code, 'N/A') as course_code,
-                COALESCE(co.course_name, 'N/A') as course_name
+                COALESCE(co.course_name, 'N/A') as course_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'TBA') as faculty_name
             FROM classes c
             LEFT JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
             WHERE NOT EXISTS (
                 -- Exclude classes that already have schedules
                 SELECT 1 
                 FROM class_schedules cs 
                 WHERE cs.class_id = c.class_id
             )
-            ORDER BY co.course_code;";
+            ORDER BY co.course_name, faculty_name;";
         
         var dt = await _db.ExecuteQueryAsync(query);
         
@@ -319,7 +328,7 @@ public class ClassScheduleRepository : IClassScheduleRepository
             ClassId = Convert.ToInt32(row["class_id"]),
             CourseCode = row["course_code"]?.ToString() ?? "N/A",
             CourseName = row["course_name"]?.ToString() ?? "N/A",
-            FacultyName = "", // Not needed for dropdown
+            FacultyName = row["faculty_name"]?.ToString() ?? "TBA",
             Schedule = "TBA", // These are all TBA classes
             RoomCode = "" // Not needed for dropdown
         });
@@ -414,5 +423,104 @@ public class ClassScheduleRepository : IClassScheduleRepository
         }
         
         return (false, string.Empty, string.Empty);
+    }
+
+    // ============================================================
+    // ✅ NEW: ROOM SCHEDULE CONFLICT VALIDATION
+    // ============================================================
+    
+    /// <summary>
+    /// Checks if a room has a schedule conflict for the proposed time slot
+    /// This prevents two different classes from being scheduled in the same room at the same time
+    /// Example: "Database Management Systems - Prof. A" and "Functional English - Prof. B" 
+    /// cannot both use Room IT 303 on Wednesday 23:00-23:10
+    /// </summary>
+    /// <param name="classId">The class being scheduled</param>
+    /// <param name="dayOfWeek">Day of week (e.g., "Monday")</param>
+    /// <param name="startTime">Proposed start time</param>
+    /// <param name="endTime">Proposed end time</param>
+    /// <param name="excludeSchedId">Schedule ID to exclude (for updates)</param>
+    /// <returns>Tuple with conflict status, conflicting course name, faculty name, and room code</returns>
+    public async Task<(bool HasConflict, string ConflictingCourseName, string ConflictingFacultyName, string RoomCode)> CheckRoomScheduleConflictAsync(
+        int classId,
+        string dayOfWeek,
+        TimeSpan startTime,
+        TimeSpan endTime,
+        int? excludeSchedId = null)
+    {
+        // First, check if the class has a room assigned
+        string roomCheckQuery = @"SELECT room_id FROM classes WHERE class_id = @classId;";
+        var roomCheckParams = new Dictionary<string, object> { { "@classId", classId } };
+        var roomCheckResult = await _db.ExecuteQueryAsync(roomCheckQuery, roomCheckParams);
+        
+        if (roomCheckResult.Rows.Count == 0 || roomCheckResult.Rows[0]["room_id"] == DBNull.Value)
+        {
+            // No room assigned to this class, no room conflict possible
+            return (false, string.Empty, string.Empty, string.Empty);
+        }
+
+        // Check for overlapping schedules in the same room
+        // Time overlap logic: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+        string query = @"
+            SELECT 
+                co.course_name,
+                COALESCE(CONCAT(u.user_first_name, ' ', u.user_last_name), 'TBA') as faculty_name,
+                COALESCE(r.room_code, 'Unknown Room') as room_code,
+                cs.sched_start_time,
+                cs.sched_end_time
+            FROM class_schedules cs
+            INNER JOIN classes c ON cs.class_id = c.class_id
+            INNER JOIN courses co ON c.course_id = co.course_id
+            LEFT JOIN rooms r ON c.room_id = r.room_id
+            LEFT JOIN faculty f ON c.fac_id = f.fac_id
+            LEFT JOIN users u ON f.user_id = u.user_id
+            WHERE c.room_id = (SELECT room_id FROM classes WHERE class_id = @classId)
+              AND c.room_id IS NOT NULL
+              AND TRIM(cs.sched_day_of_week) = TRIM(@dayOfWeek)
+              AND cs.sched_start_time < @endTime
+              AND cs.sched_end_time > @startTime
+              AND cs.class_id != @classId";
+        
+        // If updating an existing schedule, exclude it from conflict check
+        if (excludeSchedId.HasValue)
+        {
+            query += " AND cs.sched_id != @excludeSchedId";
+        }
+        
+        query += " LIMIT 1;";
+        
+        var parameters = new Dictionary<string, object>
+        {
+            { "@classId", classId },
+            { "@dayOfWeek", dayOfWeek },
+            { "@startTime", startTime },
+            { "@endTime", endTime }
+        };
+        
+        if (excludeSchedId.HasValue)
+        {
+            parameters.Add("@excludeSchedId", excludeSchedId.Value);
+        }
+        
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+        
+        if (dt.Rows.Count > 0)
+        {
+            var conflictingCourse = dt.Rows[0]["course_name"]?.ToString() ?? "Unknown Course";
+            var conflictingFaculty = dt.Rows[0]["faculty_name"]?.ToString() ?? "TBA";
+            var roomCode = dt.Rows[0]["room_code"]?.ToString() ?? "Unknown Room";
+            var conflictStart = (TimeSpan)dt.Rows[0]["sched_start_time"];
+            var conflictEnd = (TimeSpan)dt.Rows[0]["sched_end_time"];
+            
+            Console.WriteLine($"[CONFLICT] Room conflict detected:");
+            Console.WriteLine($"  - Room: {roomCode}");
+            Console.WriteLine($"  - Conflicting Class: {conflictingCourse} - {conflictingFaculty}");
+            Console.WriteLine($"  - Conflict Time: {conflictStart:hh\\:mm} - {conflictEnd:hh\\:mm}");
+            Console.WriteLine($"  - Proposed Time: {startTime:hh\\:mm} - {endTime:hh\\:mm}");
+            
+            return (true, conflictingCourse, conflictingFaculty, roomCode);
+        }
+        
+        return (false, string.Empty, string.Empty, string.Empty);
     }
 }

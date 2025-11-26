@@ -1,0 +1,20 @@
+@{
+    ViewData["Title"] = "Manage Students";
+    ViewData["ActiveNav"] = "manage-students";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Manage Students</h1>
+    <p class="page-subtitle text-muted">Select a class to manage its enrolled students</p>
+</div>
+
+<!-- Classes Grid -->
+<div id="classesContainer" class="classes-grid">
+    <!-- Classes will be loaded here via JavaScript -->
+</div>
+
+@section Scripts {
+    <script src="~/js/faculty/faculty_manage_students_index.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/faculty/faculty_class.css" asp-append-version="true"/>

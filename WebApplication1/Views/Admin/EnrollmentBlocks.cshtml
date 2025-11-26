@@ -1,0 +1,207 @@
+@{
+    ViewData["Title"] = "Enrollment Blocks";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Enrollment Blocks</h1>
+    <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-print" id="btnPrint">
+            <i data-lucide="printer" class="icon-sm"></i>
+            Print
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-outline dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i data-lucide="download" class="icon-sm"></i>
+                Export
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportExcel">
+                        <i data-lucide="file-spreadsheet" class="icon-sm"></i>
+                        Excel
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportCSV">
+                        <i data-lucide="file-text" class="icon-sm"></i>
+                        CSV
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" id="btnExportPDF">
+                        <i data-lucide="file" class="icon-sm"></i>
+                        PDF
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs mb-3">
+    <button class="btn btn-filter active" data-filter="active">
+        <i data-lucide="ban" class="icon-sm"></i>
+        Active Blocks
+    </button>
+    <button class="btn btn-filter" data-filter="lifted">
+        <i data-lucide="check-circle" class="icon-sm"></i>
+        Lifted Blocks
+    </button>
+    <button class="btn btn-filter" data-filter="all">
+        <i data-lucide="list" class="icon-sm"></i>
+        All
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="enrollmentBlocksTable" class="table table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Student #</th>
+                        <th>Class</th>
+                        <th>Blocked By</th>
+                        <th>Reason</th>
+                        <th>Blocked At</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- View Details Modal -->
+<div class="modal fade" id="viewBlockModal" tabindex="-1" aria-labelledby="viewBlockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewBlockModalLabel">
+                    <i data-lucide="info" class="icon-sm me-2"></i>
+                    Block Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <div class="detail-section-header">
+                            <i data-lucide="user" class="icon-sm"></i>
+                            <span>Student Information</span>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-row">
+                                <span class="detail-label">Name</span>
+                                <span class="detail-value" id="viewStudentName"></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Student #</span>
+                                <span class="detail-value" id="viewStudentNumber"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-header">
+                            <i data-lucide="book-open" class="icon-sm"></i>
+                            <span>Class Information</span>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-row">
+                                <span class="detail-label">Course</span>
+                                <span class="detail-value">
+                                    <span id="viewCourseCode" class="fw-medium"></span>
+                                    <span class="text-muted">-</span>
+                                    <span id="viewCourseName"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section mt-3">
+                    <div class="detail-section-header">
+                        <i data-lucide="shield-x" class="icon-sm"></i>
+                        <span>Block Information</span>
+                    </div>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <span class="detail-label">Blocked By</span>
+                            <span class="detail-value" id="viewBlockedBy"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Blocked At</span>
+                            <span class="detail-value" id="viewBlockedAt"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Reason</span>
+                        </div>
+                        <div class="reason-box" id="viewBlockReason"></div>
+                    </div>
+                </div>
+                
+                <div class="detail-section mt-3" id="unblockInfoSection" style="display: none;">
+                    <div class="detail-section-header text-success">
+                        <i data-lucide="shield-check" class="icon-sm"></i>
+                        <span>Unblock Information</span>
+                    </div>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <span class="detail-label">Unblocked By</span>
+                            <span class="detail-value" id="viewUnblockedBy"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Unblocked At</span>
+                            <span class="detail-value" id="viewUnblockedAt"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unblock Confirmation Modal -->
+<div class="modal fade" id="unblockModal" tabindex="-1" aria-labelledby="unblockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-0">
+                <div class="confirm-icon-wrapper success mb-3">
+                    <i data-lucide="user-check" class="confirm-icon"></i>
+                </div>
+                <h5 class="modal-title mb-2" id="unblockModalLabel">Lift Enrollment Block?</h5>
+                <p class="text-muted mb-2">This will allow the student to re-enroll in the class.</p>
+                <div class="confirm-details">
+                    <p class="mb-1"><strong id="unblockStudentName"></strong></p>
+                    <p class="text-primary mb-0"><small id="unblockClassName"></small></p>
+                </div>
+                <input type="hidden" id="unblockBlockId">
+            </div>
+            <div class="modal-footer border-0 justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success px-4" id="btnConfirmUnblock">
+                    <i data-lucide="check" class="icon-sm"></i>
+                    Lift Block
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin/enrollment_blocks.js" asp-append-version="true"></script>
+}
+
+<link rel="stylesheet" href="~/css/admin/enrollment_blocks.css" asp-append-version="true"/>

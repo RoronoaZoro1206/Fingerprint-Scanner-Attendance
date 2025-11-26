@@ -3,6 +3,7 @@ using Fingerprint_Attendance_System.Models.Enums;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Services; // ? For AuthenticationAuditService
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting; // ✅ NEW: For Rate Limiting
 
 namespace Fingerprint_Attendance_System.Controllers.Auth;
 
@@ -12,6 +13,7 @@ public class AuthController : Controller
     private readonly IStudentRepository _studentRepository;
     private readonly IStudentIdPoolRepository _studentIdPoolRepository;
     private readonly AuthenticationAuditService _authAuditService; // ? NEW: Authentication audit service
+    private readonly SessionHeartbeatService _heartbeatService; // ✅ NEW: Session heartbeat tracking
     private readonly ILogger<AuthController> _logger;
 
     // BCrypt work factor constant (recommended: 12 for 2024)
@@ -22,12 +24,14 @@ public class AuthController : Controller
         IStudentRepository studentRepository, 
         IStudentIdPoolRepository studentIdPoolRepository,
         AuthenticationAuditService authAuditService, // ? NEW: Inject authentication audit service
+        SessionHeartbeatService heartbeatService, // ✅ NEW: Inject session heartbeat service
         ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
         _studentRepository = studentRepository;
         _studentIdPoolRepository = studentIdPoolRepository;
         _authAuditService = authAuditService; // ? NEW: Store authentication audit service
+        _heartbeatService = heartbeatService; // ✅ NEW: Store session heartbeat service
         _logger = logger;
     }
 
@@ -38,6 +42,7 @@ public class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("login")] // ✅ NEW: Rate limiting - 5 attempts per 1 minute
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid)
@@ -198,6 +203,9 @@ public class AuthController : Controller
             // Log logout for all authenticated users
             if (userId.HasValue && !string.IsNullOrEmpty(userEmail))
             {
+                // ✅ Remove all sessions for this user from heartbeat tracking
+                _heartbeatService.RemoveUserSessions(userId.Value);
+                
                 // Get user from database to get accurate role information
                 var user = await _userRepository.GetByIdAsync(userId.Value);
                 
@@ -327,6 +335,88 @@ public class AuthController : Controller
         public string SessionDuration { get; set; } = "Unknown";
         public string LastActivityTime { get; set; } = "Unknown";
         public string BrowserInfo { get; set; } = "Unknown";
+    }
+    
+    /// <summary>
+    /// Heartbeat endpoint - receives periodic heartbeats from active tabs
+    /// Server tracks active sessions and detects closed tabs when heartbeats stop
+    /// </summary>
+    [HttpPost]
+    public IActionResult Heartbeat([FromBody] HeartbeatRequest? request)
+    {
+        if (request == null || string.IsNullOrEmpty(request.TabId) || request.UserId <= 0)
+        {
+            return BadRequest(new { success = false, message = "Invalid heartbeat data" });
+        }
+        
+        // Validate email is not empty for proper session tracking
+        if (string.IsNullOrWhiteSpace(request.UserEmail))
+        {
+            return BadRequest(new { success = false, message = "User email is required" });
+        }
+        
+        // Record the heartbeat in the session tracking service
+        _heartbeatService.RecordHeartbeat(
+            request.TabId,
+            request.UserId,
+            request.UserEmail,
+            request.BrowserInfo ?? "Unknown"
+        );
+        
+        return Ok(new { success = true, timestamp = DateTime.UtcNow });
+    }
+    
+    /// <summary>
+    /// Called when user explicitly logs out - removes session from heartbeat tracking
+    /// </summary>
+    [HttpPost]
+    public IActionResult RemoveSession([FromBody] RemoveSessionRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.TabId))
+        {
+            _heartbeatService.RemoveSession(request.TabId);
+        }
+        return Ok(new { success = true });
+    }
+    
+    public class HeartbeatRequest
+    {
+        public string TabId { get; set; } = string.Empty;
+        public int UserId { get; set; }
+        public string UserEmail { get; set; } = string.Empty;
+        public long Timestamp { get; set; }
+        public string BrowserInfo { get; set; } = string.Empty;
+    }
+    
+    public class RemoveSessionRequest
+    {
+        public string TabId { get; set; } = string.Empty;
+    }
+    
+    /// <summary>
+    /// Cancel Auto Logout - Called when user returns to page after visibility hidden
+    /// This prevents false positives from tab switching
+    /// </summary>
+    [HttpPost]
+    public IActionResult CancelAutoLogout([FromBody] CancelAutoLogoutRequest request)
+    {
+        _logger.LogInformation($"🚫 Cancel auto logout received - User: {request.UserEmail}, LogoutId: {request.LogoutId}, Reason: {request.Reason}");
+        
+        // In a more sophisticated implementation, you could:
+        // 1. Store pending logouts in a cache/database with the logoutId
+        // 2. Cancel them here before they're processed
+        // For now, we just acknowledge the cancel - the client handles the logic
+        
+        return Ok(new { success = true, message = "Logout cancelled" });
+    }
+    
+    public class CancelAutoLogoutRequest
+    {
+        public int UserId { get; set; }
+        public string UserEmail { get; set; } = string.Empty;
+        public string LogoutId { get; set; } = string.Empty;
+        public string TabId { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
     }
     
     [HttpGet]

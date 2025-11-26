@@ -168,6 +168,13 @@ fingerprintScanner.classList.add('success');
      // Store login flag for fingerprint registration prompt
  sessionStorage.setItem('justLoggedIn', 'true');
 
+     // ✅ FIX: Mark as intentional navigation to prevent false auto-logout
+     // This prevents the auto-logout detection from firing during login redirect
+     sessionStorage.setItem('auto_logout_navigating', JSON.stringify({
+         reason: 'fingerprint-login-redirect',
+         timestamp: Date.now()
+     }));
+
      // Add smooth progress bar
       const progressBar = document.createElement('div');
          progressBar.className = 'redirect-progress';

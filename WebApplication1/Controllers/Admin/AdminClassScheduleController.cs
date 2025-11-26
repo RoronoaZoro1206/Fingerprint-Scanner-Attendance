@@ -82,11 +82,16 @@ public class AdminClassScheduleController : Controller
             // ✅ CHANGED: Use new method to get only unscheduled (TBA) classes
             var classes = await _classScheduleRepository.GetUnscheduledClassesAsync();
             
-            // Format response with PascalCase
+            // Format response with PascalCase - now includes FacultyName for proper class identification
             var classList = classes.Select(c => new
             {
                 ClassId = c.ClassId,
-                CourseName = c.CourseName
+                CourseName = c.CourseName,
+                FacultyName = c.FacultyName,
+                // Display name combines course and faculty for unique identification
+                DisplayName = c.FacultyName != "TBA" 
+                    ? $"{c.CourseName} - {c.FacultyName}" 
+                    : c.CourseName
             });
             
             _logger.LogInformation($"Returning {classList.Count()} unscheduled classes for dropdown");
@@ -100,10 +105,13 @@ public class AdminClassScheduleController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ClassScheduleDto dto)
+    public async Task<IActionResult> Create([FromBody] ClassScheduleDto? dto)
     {
         try
         {
+            if (dto == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid data provided" });
 
@@ -169,7 +177,7 @@ public class AdminClassScheduleController : Controller
                 });
             }
 
-            // ✅ NEW STEP 1.5: Check for faculty schedule conflicts
+            // ✅ STEP 1.5: Check for faculty AND room schedule conflicts
             var classId = scheduleDtos[0].ClassId;
             foreach (var dto in scheduleDtos)
             {
@@ -179,20 +187,42 @@ public class AdminClassScheduleController : Controller
                     continue; // Skip validation for invalid times (will be caught later)
                 }
 
-                var (hasConflict, conflictingCourse, facultyName) = await _classScheduleRepository
+                // Check faculty conflict first
+                var (hasFacultyConflict, conflictingCourse, facultyName) = await _classScheduleRepository
                     .CheckFacultyScheduleConflictAsync(classId, dto.SchedDayOfWeek, startTime, endTime);
 
-                if (hasConflict)
+                if (hasFacultyConflict)
                 {
                     _logger.LogWarning($"Faculty conflict detected for {dto.SchedDayOfWeek} at {dto.SchedStartTime}-{dto.SchedEndTime}");
                     return Json(new
                     {
                         success = false,
+                        conflictType = "faculty",
                         message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
                                  $"{facultyName} is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
                                  $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
                                  $"Please choose a different time or assign a different faculty member.",
-                        facultyName = facultyName  // ✅ NEW: Pass faculty name to frontend
+                        facultyName = facultyName
+                    });
+                }
+
+                // ✅ NEW: Check room conflict
+                var (hasRoomConflict, roomConflictCourse, roomConflictFaculty, roomCode) = await _classScheduleRepository
+                    .CheckRoomScheduleConflictAsync(classId, dto.SchedDayOfWeek, startTime, endTime);
+
+                if (hasRoomConflict)
+                {
+                    _logger.LogWarning($"Room conflict detected for {dto.SchedDayOfWeek} at {dto.SchedStartTime}-{dto.SchedEndTime} in room {roomCode}");
+                    return Json(new
+                    {
+                        success = false,
+                        conflictType = "room",
+                        message = $"❌ Room Schedule Conflict Detected!\n\n" +
+                                 $"Room '{roomCode}' is already booked for '{roomConflictCourse} - {roomConflictFaculty}' on {dto.SchedDayOfWeek} " +
+                                 $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
+                                 $"Please choose a different time or assign a different room to this class.",
+                        roomCode = roomCode,
+                        conflictingClass = $"{roomConflictCourse} - {roomConflictFaculty}"
                     });
                 }
             }
@@ -287,10 +317,13 @@ public class AdminClassScheduleController : Controller
     }
 
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] ClassScheduleUpdateDto dto)
+    public async Task<IActionResult> Update([FromBody] ClassScheduleUpdateDto? dto)
     {
         try
         {
+            if (dto == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid data provided" });
 
@@ -300,21 +333,42 @@ public class AdminClassScheduleController : Controller
             if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
                 return Json(new { success = false, message = "Invalid end time format" });
 
-            // ✅ NEW: Check for faculty schedule conflicts (exclude current schedule ID)
-            var (hasConflict, conflictingCourse, facultyName) = await _classScheduleRepository
+            // ✅ Check for faculty schedule conflicts (exclude current schedule ID)
+            var (hasFacultyConflict, conflictingCourse, facultyName) = await _classScheduleRepository
                 .CheckFacultyScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
 
-            if (hasConflict)
+            if (hasFacultyConflict)
             {
                 _logger.LogWarning($"Faculty conflict detected when updating schedule {dto.SchedId}");
                 return Json(new
                 {
                     success = false,
+                    conflictType = "faculty",
                     message = $"❌ Faculty Schedule Conflict Detected!\n\n" +
                              $"{facultyName} is already teaching '{conflictingCourse}' on {dto.SchedDayOfWeek} " +
                              $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
                              $"Please choose a different time or assign a different faculty member.",
-                    facultyName = facultyName  // ✅ NEW: Pass faculty name to frontend
+                    facultyName = facultyName
+                });
+            }
+
+            // ✅ NEW: Check for room schedule conflicts (exclude current schedule ID)
+            var (hasRoomConflict, roomConflictCourse, roomConflictFaculty, roomCode) = await _classScheduleRepository
+                .CheckRoomScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
+
+            if (hasRoomConflict)
+            {
+                _logger.LogWarning($"Room conflict detected when updating schedule {dto.SchedId} in room {roomCode}");
+                return Json(new
+                {
+                    success = false,
+                    conflictType = "room",
+                    message = $"❌ Room Schedule Conflict Detected!\n\n" +
+                             $"Room '{roomCode}' is already booked for '{roomConflictCourse} - {roomConflictFaculty}' on {dto.SchedDayOfWeek} " +
+                             $"during this time slot ({dto.SchedStartTime} - {dto.SchedEndTime}).\n\n" +
+                             $"Please choose a different time or assign a different room to this class.",
+                    roomCode = roomCode,
+                    conflictingClass = $"{roomConflictCourse} - {roomConflictFaculty}"
                 });
             }
 
@@ -376,6 +430,48 @@ public class AdminClassScheduleController : Controller
         {
             _logger.LogError(ex, "Error deleting schedule");
             return Json(new { success = false, message = "An error occurred while deleting schedule" });
+        }
+    }
+
+    [HttpDelete]
+    public async Task<IActionResult> DeleteByClass(int id)
+    {
+        try
+        {
+            var cls = await _classRepository.GetByIdAsync(id);
+            var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+            
+            // Get all schedules for this class
+            var schedules = await _classScheduleRepository.GetByClassIdAsync(id);
+            var scheduleCount = schedules.Count();
+            
+            if (scheduleCount == 0)
+            {
+                return Json(new { success = false, message = "No schedules found for this class" });
+            }
+            
+            // Delete all schedules for this class
+            int deletedCount = 0;
+            foreach (var schedule in schedules)
+            {
+                var result = await _classScheduleRepository.DeleteAsync(schedule.SchedId);
+                if (result) deletedCount++;
+            }
+            
+            if (deletedCount > 0)
+            {
+                await _auditService.LogActionAsync(
+                    "Deleted All Class Schedules", 
+                    $"Deleted {deletedCount} schedule(s) for {course?.CourseName ?? "Unknown"}");
+                return Json(new { success = true, message = $"Successfully deleted {deletedCount} schedule(s)" });
+            }
+            
+            return Json(new { success = false, message = "Failed to delete schedules" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting class schedules");
+            return Json(new { success = false, message = "An error occurred while deleting schedules" });
         }
     }
 

@@ -63,5 +63,23 @@ namespace Fingerprint_Attendance_System.Controllers.Faculty
         {
             return View();
         }
+        
+        /// <summary>
+        /// Manage Students Index - shows class selection for student management
+        /// Similar to FacultyClass/Index but navigates to ManageStudents when a class is selected
+        /// </summary>
+        public IActionResult ManageStudentsIndex()
+        {
+            return View();
+        }
+        
+        /// <summary>
+        /// Manage Students page - dedicated view for managing enrolled students in a class
+        /// </summary>
+        public IActionResult ManageStudents(int classId)
+        {
+            ViewBag.ClassId = classId;
+            return View();
+        }
     }
 }

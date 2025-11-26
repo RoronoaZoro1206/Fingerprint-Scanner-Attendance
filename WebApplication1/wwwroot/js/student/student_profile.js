@@ -62,14 +62,12 @@ function displayProfile(data) {
     }
 
     // ✅ FIX: Properly handle profile image with correct default path
-    if (data.userProfileImage) {
-        // Check if it's a user-specific image or template
-        const imagePath = data.userProfileImage.includes('/') 
-            ? `/images/profile/${data.userProfileImage}?v=${Date.now()}` 
-            : `/images/profile/${data.userProfileImage}?v=${Date.now()}`;
+    if (data.userProfileImage && data.userProfileImage !== 'default_profile.png' && data.userProfileImage !== 'templates/default_profile.png') {
+        // User has a custom profile image
+        const imagePath = `/images/profile/${data.userProfileImage}?v=${Date.now()}`;
         $('#profileImage').attr('src', imagePath);
     } else {
-        // No profile image - use default from templates folder
+        // No profile image or using default - use default from templates folder
         $('#profileImage').attr('src', '/images/profile/templates/default_profile.png');
     }
 

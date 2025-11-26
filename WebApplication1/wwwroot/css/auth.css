@@ -71,13 +71,33 @@
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+/* Register form - uniform spacing */
+.register-form .form-group {
+    margin-bottom: 0;
+}
+
+/* Form row for side-by-side fields (First Name / Last Name) */
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+/* Register card - slightly wider for more fields */
+.register-card {
+    max-width: 480px;
 }
 
 .form-label {

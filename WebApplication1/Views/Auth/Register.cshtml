@@ -43,8 +43,10 @@
                 <div class="form-group">
                     <label class="form-label" asp-for="Password">Password</label>
                     <div class="password-input-container">
-                        <input type="text" class="form-input" placeholder="Create a password" asp-for="Password" required />
-                        <button type="button" class="password-toggle" id="togglePassword"></button>
+                        <input type="password" id="password" class="form-input" placeholder="Create a password" asp-for="Password" required />
+                        <button type="button" class="password-toggle" id="togglePassword" aria-label="Toggle password visibility">
+                            <i data-lucide="eye"></i>
+                        </button>
                     </div>
                     <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
@@ -52,8 +54,8 @@
                 <div class="form-group">
                     <label class="form-label" asp-for="ConfirmPassword">Confirm Password</label>
                     <div class="password-input-container">
-                        <input type="password" class="form-input" placeholder="Confirm your password" asp-for="ConfirmPassword" required />
-                        <button type="button" class="password-toggle" id="toggleConfirmPassword">
+                        <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm your password" asp-for="ConfirmPassword" required />
+                        <button type="button" class="password-toggle" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility">
                             <i data-lucide="eye"></i>
                         </button>
                     </div>

@@ -102,10 +102,13 @@ public class AdminProgramController : Controller
 
     // POST: Program/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ProgramModel program)
+    public async Task<IActionResult> Create([FromBody] ProgramModel? program)
     {
         try
         {
+            if (program == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -132,10 +135,13 @@ public class AdminProgramController : Controller
 
     // PUT: Program/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] ProgramModel program)
+    public async Task<IActionResult> Update([FromBody] ProgramModel? program)
     {
         try
         {
+            if (program == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });

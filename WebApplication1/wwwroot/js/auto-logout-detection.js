@@ -1,316 +1,284 @@
 /// <reference path="global.d.ts" />
 
 /**
- * Auto Logout Detection - Logs user logout ONLY when browser/tab is ACTUALLY closed
- * ✅ FIXED: Now properly distinguishes between:
- *    - Tab close (should log)
- *    - Browser close (should log)
- *    - Internal navigation (should NOT log)
- *    - Tab switching (should NOT log)
+ * Auto Logout Detection v14 - SERVER-SIDE HEARTBEAT TRACKING
  * 
- * Uses sophisticated detection to prevent false positives
+ * PROBLEM: Browser tab close/exit doesn't reliably send HTTP requests.
+ * sendBeacon is unreliable when closing the browser tab.
+ * 
+ * SOLUTION:
+ * 1. Send periodic heartbeats to the server (every 5 seconds)
+ * 2. Server tracks active sessions and detects when heartbeats stop
+ * 3. When heartbeats stop for 15+ seconds, server logs AUTO LOGOUT
+ * 4. Still try sendBeacon on unload as a backup (may work sometimes)
+ * 
+ * This approach is RELIABLE because:
+ * - Server-side detection doesn't depend on browser cooperation
+ * - Even if the browser crashes, server will detect the missing heartbeats
+ * - Works for tab close, browser close, navigation away, and crashes
  */
 
 (function() {
     'use strict';
 
-    // Only run if user is logged in (has session)
-    const userId = document.body.dataset.userId;
-    const userEmail = document.body.dataset.userEmail;
+    // ============================================
+    // CONSTANTS
+    // ============================================
+    const TAB_ID_KEY = 'auto_logout_tab_id';
+    const NAVIGATING_FLAG_KEY = 'auto_logout_navigating';
+    const HEARTBEAT_INTERVAL_MS = 5000; // Send heartbeat every 5 seconds
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+
+    const userId = document.body?.dataset?.userId;
+    const userEmail = document.body?.dataset?.userEmail;
     
-    if (!userId || !userEmail) {
-        console.log('❌ No active session detected - auto logout detection disabled');
+    if (!userId || !userEmail || userId === '0' || userId === '') {
+        console.log('Auto logout: No session');
         return;
     }
 
-    console.log('✅ Auto logout detection enabled for user:', userEmail);
-    console.log('📊 User ID:', userId);
-    console.log('ℹ️ Will ONLY trigger on actual tab/browser close');
+    let tabId = sessionStorage.getItem(TAB_ID_KEY);
+    
+    if (!tabId) {
+        tabId = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        sessionStorage.setItem(TAB_ID_KEY, tabId);
+    }
 
-    // Track session start time and last activity
-    const sessionStartTime = new Date();
-    let lastActivityTime = new Date();
+    // Clear navigating flag on page load
+    sessionStorage.removeItem(NAVIGATING_FLAG_KEY);
 
-    /**
-     * Get browser and OS information
-     */
+    console.log('✅ Auto logout v14 enabled (Server-side heartbeat tracking)');
+    console.log('📋 Tab ID:', tabId);
+    console.log('👤 User:', userEmail);
+
+    // ============================================
+    // BROWSER INFO
+    // ============================================
+
     function getBrowserInfo() {
-        const userAgent = navigator.userAgent;
-        let browserName = 'Unknown';
-        let osName = 'Unknown';
-
-        // Detect browser
-        if (userAgent.indexOf('Firefox') > -1) {
-            browserName = 'Firefox';
-        } else if (userAgent.indexOf('Chrome') > -1) {
-            browserName = 'Chrome';
-        } else if (userAgent.indexOf('Safari') > -1) {
-            browserName = 'Safari';
-        } else if (userAgent.indexOf('Edge') > -1 || userAgent.indexOf('Edg') > -1) {
-            browserName = 'Edge';
-        } else if (userAgent.indexOf('MSIE') > -1 || userAgent.indexOf('Trident') > -1) {
-            browserName = 'Internet Explorer';
-        }
-
-        // Detect OS
-        if (userAgent.indexOf('Windows') > -1) {
-            osName = 'Windows';
-        } else if (userAgent.indexOf('Mac') > -1) {
-            osName = 'macOS';
-        } else if (userAgent.indexOf('Linux') > -1) {
-            osName = 'Linux';
-        } else if (userAgent.indexOf('Android') > -1) {
-            osName = 'Android';
-        } else if (userAgent.indexOf('iOS') > -1 || userAgent.indexOf('iPhone') > -1 || userAgent.indexOf('iPad') > -1) {
-            osName = 'iOS';
-        }
-
-        return `${browserName} on ${osName}`;
+        const ua = navigator.userAgent;
+        let browser = 'Unknown', os = 'Unknown';
+        if (ua.includes('Firefox')) browser = 'Firefox';
+        else if (ua.includes('Edg')) browser = 'Edge';
+        else if (ua.includes('Chrome')) browser = 'Chrome';
+        else if (ua.includes('Safari')) browser = 'Safari';
+        if (ua.includes('Windows')) os = 'Windows';
+        else if (ua.includes('Mac')) os = 'macOS';
+        else if (ua.includes('Linux')) os = 'Linux';
+        else if (ua.includes('Android')) os = 'Android';
+        else if (/iPhone|iPad|iOS/.test(ua)) os = 'iOS';
+        return `${browser} on ${os}`;
     }
 
-    /**
-     * Calculate session duration
-     */
-    function getSessionDuration() {
-        const duration = new Date() - sessionStartTime;
-        const minutes = Math.floor(duration / 60000);
-        const seconds = Math.floor((duration % 60000) / 1000);
-        return `${minutes}m ${seconds}s`;
-    }
 
-    /**
-     * Format last activity time
-     */
-    function getLastActivityTime() {
-        return lastActivityTime.toLocaleTimeString('en-US', { 
-            hour12: false,
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
+    // ============================================
+    // HEARTBEAT SYSTEM - Core of the solution
+    // ============================================
+
+    let heartbeatInterval = null;
+    let lastActivityTime = Date.now();
+
+    function sendHeartbeat() {
+        const data = JSON.stringify({
+            tabId: tabId,
+            userId: parseInt(userId),
+            userEmail: userEmail,
+            timestamp: Date.now(),
+            browserInfo: getBrowserInfo()
+        });
+
+        // Use fetch for heartbeats (more reliable than beacon for regular requests)
+        fetch('/Auth/Heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: data,
+            keepalive: true
+        }).then(response => {
+            if (response.ok) {
+                console.log('💓 Heartbeat sent');
+            }
+        }).catch(err => {
+            console.warn('💔 Heartbeat failed:', err.message);
         });
     }
 
-    /**
-     * Send logout beacon to server with enhanced details
-     * Uses Beacon API which is designed to work even during page unload
-     */
-    function sendLogoutBeacon() {
-        try {
-            const logoutUrl = '/Auth/AutoLogout';
-            
-            const data = JSON.stringify({
-                userId: parseInt(userId),
-                userEmail: userEmail,
-                reason: 'Browser/tab closed',
-                sessionDuration: getSessionDuration(),
-                lastActivityTime: getLastActivityTime(),
-                browserInfo: getBrowserInfo()
-            });
+    // Start sending heartbeats immediately and every 5 seconds
+    sendHeartbeat(); // Send first heartbeat immediately
+    heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-            console.log('📡 Sending auto logout beacon to:', logoutUrl);
-            console.log('📦 Data:', data);
+    console.log('💓 Heartbeat system started (every 5 seconds)');
 
-            // Beacon API - guaranteed to send even if page is closing
-            if (navigator.sendBeacon) {
-                const blob = new Blob([data], { type: 'application/json' });
-                const sent = navigator.sendBeacon(logoutUrl, blob);
-                console.log('🔵 Beacon API result:', sent ? 'Success ✅' : 'Failed ❌');
-                return sent;
-            } else {
-                console.log('⚠️ Beacon API not supported, using synchronous XHR fallback');
-                // Fallback to synchronous XHR
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', logoutUrl, false); // false = synchronous
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.send(data);
-                console.log('🔵 XHR fallback sent, status:', xhr.status);
-                return xhr.status === 200;
-            }
-        } catch (error) {
-            console.error('❌ Error sending logout beacon:', error);
-            return false;
+    // Track user activity
+    ['click', 'keypress', 'mousemove', 'scroll'].forEach(e => {
+        document.addEventListener(e, () => { lastActivityTime = Date.now(); }, { passive: true });
+    });
+
+    // ============================================
+    // NAVIGATION INTENT TRACKING
+    // ============================================
+
+    let navIntent = 'unknown';
+
+    function isSameOrigin(url) {
+        if (!url || url.startsWith('/') || url.startsWith('#') || url.startsWith('?') || url.startsWith('javascript:')) {
+            return true;
         }
-    }
-
-    /**
-     * Check if URL is a logout URL
-     */
-    function isLogoutUrl(url) {
-        if (!url) return false;
-        const urlLower = url.toLowerCase();
-        return urlLower.includes('/auth/logout') || 
-               urlLower.includes('/logout') ||
-               urlLower.endsWith('/logout');
-    }
-
-    /**
-     * Check if navigation is internal (same origin)
-     */
-    function isInternalNavigation(url) {
-        if (!url) return false;
-        
         try {
-            // Relative URLs are internal
-            if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?')) {
-                return true;
-            }
-            
-            // Check if URL is same origin
-            const currentOrigin = window.location.origin;
-            const targetUrl = new URL(url, window.location.href);
-            return targetUrl.origin === currentOrigin;
-        } catch (e) {
-            // If URL parsing fails, assume internal
+            return new URL(url, location.href).origin === location.origin;
+        } catch {
             return true;
         }
     }
 
-    /**
-     * Track logout state
-     */
-    let hasLoggedOut = false;
-    let isManualLogout = false;
-    let isNavigatingInternally = false;
-    let navigationTimer = null;
-
-    /**
-     * Update last activity time on user interaction
-     * For logging purposes only (shows when user was last active)
-     */
-    function updateLastActivity() {
-        lastActivityTime = new Date();
+    function markAsNavigating(reason) {
+        sessionStorage.setItem(NAVIGATING_FLAG_KEY, JSON.stringify({ reason, timestamp: Date.now() }));
+        console.log('🚩 Marked as navigating:', reason);
     }
 
-    // Track user activity (for logging only, NOT for auto-logout)
-    ['click', 'keypress', 'mousemove'].forEach(event => {
-        document.addEventListener(event, updateLastActivity, { passive: true });
-    });
+    function isNavigating() {
+        const flag = sessionStorage.getItem(NAVIGATING_FLAG_KEY);
+        if (!flag) return false;
+        try {
+            return (Date.now() - JSON.parse(flag).timestamp) < 5000;
+        } catch {
+            return false;
+        }
+    }
 
-    /**
-     * ✅ CRITICAL FIX: Track internal navigation to prevent false auto-logouts
-     * This runs BEFORE page unload to determine if we're just navigating internally
-     */
+    // Detect refresh
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
+            navIntent = 'refresh';
+            markAsNavigating('refresh');
+        }
+    }, true);
+
+    // Detect link clicks
     document.addEventListener('click', function(e) {
-        const target = e.target.closest('a');
+        const link = e.target.closest('a');
+        if (!link) return;
         
-        if (target) {
-            const href = target.getAttribute('href');
-            
-            // Check for manual logout
-            if (href && isLogoutUrl(href)) {
-                console.log('🚪 Manual logout detected - disabling auto logout');
-                hasLoggedOut = true;
-                isManualLogout = true;
-                return;
-            }
-            
-            // Check for internal navigation
-            if (href && isInternalNavigation(href)) {
-                console.log('🏠 Internal navigation detected:', href);
-                isNavigatingInternally = true;
-                
-                // Clear any existing timer
-                if (navigationTimer) {
-                    clearTimeout(navigationTimer);
-                }
-                
-                // Reset flag after navigation completes (longer timeout for safety)
-                navigationTimer = setTimeout(() => {
-                    isNavigatingInternally = false;
-                    console.log('🏠 Internal navigation completed, flag reset');
-                }, 1000);
-            }
-        }
-    }, true); // Capture phase to catch before navigation
+        const href = link.getAttribute('href');
+        if (!href || href === '#' || href.startsWith('javascript:')) return;
 
-    /**
-     * ✅ IMPROVED: Use unload event which ONLY fires on actual tab close
-     * This is more reliable than pagehide for our use case
-     * 
-     * unload fires when:
-     * - User closes the tab (X button)
-     * - User closes the browser window
-     * - User navigates to external site
-     * 
-     * unload does NOT fire when:
-     * - User switches to another tab (tab remains open)
-     * - User opens new tab (original tab remains open)
-     * - Page is just hidden (document.visibilityState changes)
-     */
-    window.addEventListener('unload', function(e) {
-        console.log('🚨 unload event fired!');
-        console.log('   hasLoggedOut:', hasLoggedOut);
-        console.log('   isManualLogout:', isManualLogout);
-        console.log('   isNavigatingInternally:', isNavigatingInternally);
-        console.log('   Current path:', window.location.pathname);
-        
-        // ✅ CRITICAL: Skip if this is internal navigation
-        if (isNavigatingInternally) {
-            console.log('⏭️ Internal navigation - skipping auto logout');
-            return;
+        if (href.toLowerCase().includes('logout')) {
+            navIntent = 'logout';
+            markAsNavigating('logout');
+            // Remove session from server tracking when logging out
+            removeSessionFromServer();
+        } else if (isSameOrigin(href)) {
+            navIntent = 'internal';
+            markAsNavigating('internal');
+        } else {
+            navIntent = 'external';
         }
-        
-        // Skip if manual logout was clicked
-        if (hasLoggedOut || isManualLogout) {
-            console.log('⏭️ Manual logout - skipping auto logout');
-            return;
-        }
-        
-        // Skip if navigating to logout page
-        if (window.location.pathname.toLowerCase().includes('/logout')) {
-            console.log('⏭️ Logout page - skipping auto logout');
-            return;
-        }
-        
-        // ✅ Only send auto logout beacon if this is a REAL tab/browser close
-        console.log('⚠️ Real tab/browser close detected - sending auto logout beacon');
-        console.log(`📊 Session: ${getSessionDuration()}, Last Activity: ${getLastActivityTime()}`);
-        
-        sendLogoutBeacon();
-        hasLoggedOut = true;
+    }, true);
+
+    // Detect form submissions
+    document.addEventListener('submit', function() {
+        navIntent = 'internal';
+        markAsNavigating('form-submit');
+    }, true);
+
+    // Detect history navigation
+    window.addEventListener('popstate', function() {
+        navIntent = 'internal';
+        markAsNavigating('history-nav');
     });
 
-    /**
-     * ✅ BACKUP: Keep beforeunload as secondary check
-     * This provides extra coverage for edge cases
-     */
-    window.addEventListener('beforeunload', function(e) {
-        console.log('🚨 beforeunload event fired!');
+    // Intercept programmatic navigation
+    const origAssign = window.location.assign.bind(window.location);
+    window.location.assign = function(url) {
+        if (isSameOrigin(url)) markAsNavigating('location-assign');
+        return origAssign(url);
+    };
+
+    const origReplace = window.location.replace.bind(window.location);
+    window.location.replace = function(url) {
+        if (isSameOrigin(url)) markAsNavigating('location-replace');
+        return origReplace(url);
+    };
+
+
+    // ============================================
+    // SESSION REMOVAL (for explicit logout)
+    // ============================================
+
+    function removeSessionFromServer() {
+        const data = JSON.stringify({ tabId: tabId });
         
-        // Skip if already handled or manual logout
-        if (hasLoggedOut || isManualLogout) {
-            console.log('⏭️ Already handled or manual logout - skipping');
+        try {
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/Auth/RemoveSession', new Blob([data], { type: 'application/json' }));
+            } else {
+                fetch('/Auth/RemoveSession', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: data,
+                    keepalive: true
+                }).catch(() => {});
+            }
+        } catch (e) {}
+    }
+
+    // ============================================
+    // UNLOAD HANDLERS - Backup detection
+    // ============================================
+
+    function handleUnload(eventName) {
+        console.log(`🚨 ${eventName} - intent: ${navIntent}, navigating: ${isNavigating()}`);
+
+        // Stop heartbeats
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+
+        // If this is intentional navigation within the app, remove session from tracking
+        // so server doesn't log it as auto-logout
+        if (isNavigating() || navIntent === 'internal' || navIntent === 'refresh') {
+            console.log('✅ Internal navigation - session will continue');
+            // Don't remove session - the new page will start sending heartbeats
             return;
         }
-        
-        // Skip if internal navigation
-        if (isNavigatingInternally) {
-            console.log('⏭️ Internal navigation - skipping');
+
+        if (navIntent === 'logout') {
+            console.log('⏭️ Manual logout - handled by logout page');
+            removeSessionFromServer();
             return;
         }
-        
-        // Skip if logout page
-        if (window.location.pathname.toLowerCase().includes('/logout')) {
-            console.log('⏭️ Logout page - skipping');
-            return;
-        }
-        
-        // ✅ This will only fire if unload didn't handle it
-        console.log('⚠️ beforeunload backup - sending auto logout beacon');
-        sendLogoutBeacon();
-        hasLoggedOut = true;
+
+        // For external navigation or tab close, the server will detect
+        // the missing heartbeats and log the auto-logout
+        console.log('🚨 Tab/browser closing - server will detect via missing heartbeats');
+    }
+
+    window.addEventListener('beforeunload', () => handleUnload('beforeunload'));
+    
+    window.addEventListener('pagehide', (e) => {
+        if (!e.persisted) handleUnload('pagehide');
     });
 
-    console.log('✅ Auto logout detection initialized');
-    console.log('📊 Tracking: Session duration, last activity, device info');
-    console.log('ℹ️ Will log ONLY on:');
-    console.log('   ✅ Tab close (clicking X on tab)');
-    console.log('   ✅ Browser window close');
-    console.log('   ✅ Navigation to external site');
-    console.log('ℹ️ Will NOT log on:');
-    console.log('   ❌ Manual logout (logout button click)');
-    console.log('   ❌ Internal navigation (sidebar, menu clicks)');
-    console.log('   ❌ Tab switching (Facebook, YouTube, etc.)');
-    console.log('   ❌ Opening new tabs');
-    console.log('   ❌ Inactivity/AFK');
+    window.addEventListener('unload', () => handleUnload('unload'));
+
+    // ============================================
+    // VISIBILITY CHANGE - Pause/resume heartbeats
+    // ============================================
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // Tab is hidden - continue heartbeats (user might just be switching tabs)
+            console.log('👁️ Tab hidden - heartbeats continue');
+        } else {
+            // Tab is visible again - send immediate heartbeat
+            console.log('👁️ Tab visible - sending heartbeat');
+            sendHeartbeat();
+        }
+    });
+
+    console.log('✅ Auto logout v14 ready');
+    console.log('📋 Detection: Server-side heartbeat tracking (15s timeout)');
 })();

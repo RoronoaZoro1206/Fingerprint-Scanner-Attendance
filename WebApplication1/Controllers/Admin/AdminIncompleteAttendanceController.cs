@@ -60,10 +60,13 @@ namespace Fingerprint_Attendance_System.Controllers.Admin
         /// Manually resolve an incomplete record
         /// </summary>
         [HttpPost("ResolveRecord")]
-        public async Task<IActionResult> ResolveRecord([FromBody] ResolveRecordRequest request)
+        public async Task<IActionResult> ResolveRecord([FromBody] ResolveRecordRequest? request)
         {
             try
             {
+                if (request == null)
+                    return BadRequest(new { success = false, message = "Invalid request body" });
+                
                 var userId = HttpContext.Session.GetInt32("UserId");
                 if (!userId.HasValue)
                 {

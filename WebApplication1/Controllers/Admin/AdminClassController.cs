@@ -181,10 +181,13 @@ public class AdminClassController : Controller
 
     // POST: Class/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Class cls)
+    public async Task<IActionResult> Create([FromBody] Class? cls)
     {
         try
         {
+            if (cls == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -235,6 +238,25 @@ public class AdminClassController : Controller
                         cls.FacId = faculty.FacId;
                     }
                 }
+            }
+
+            // ✅ NEW: Check for duplicate class (same course + faculty + term)
+            var duplicateClass = await _classRepository.GetDuplicateClassAsync(cls.CourseId, cls.FacId, cls.TermId);
+            if (duplicateClass != null)
+            {
+                // Get details for a helpful error message
+                var course = cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                var term = cls.TermId.HasValue ? await _academicTermRepository.GetByIdAsync(cls.TermId.Value) : null;
+                
+                _logger.LogWarning($"Duplicate class detected: Course={course?.CourseName}, FacId={cls.FacId}, Term={term?.TermName}");
+                
+                return Json(new { 
+                    success = false, 
+                    message = $"A class for '{course?.CourseName ?? "this course"}' with the same professor already exists for '{term?.TermName ?? "this term"}'. " +
+                              "Each professor can only have one class per course per term. " +
+                              "If you need multiple sections, please assign different professors or use different terms.",
+                    isDuplicate = true
+                });
             }
 
             cls.ClassCreatedAt = DateTime.Now;
@@ -260,10 +282,13 @@ public class AdminClassController : Controller
 
     // PUT: Class/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Class cls)
+    public async Task<IActionResult> Update([FromBody] Class? cls)
     {
         try
         {
+            if (cls == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -314,6 +339,24 @@ public class AdminClassController : Controller
                         cls.FacId = faculty.FacId;
                     }
                 }
+            }
+
+            // ✅ NEW: Check for duplicate class (same course + faculty + term), excluding current class
+            var duplicateClass = await _classRepository.GetDuplicateClassAsync(cls.CourseId, cls.FacId, cls.TermId, cls.ClassId);
+            if (duplicateClass != null)
+            {
+                // Get details for a helpful error message
+                var course = cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
+                var term = cls.TermId.HasValue ? await _academicTermRepository.GetByIdAsync(cls.TermId.Value) : null;
+                
+                _logger.LogWarning($"Duplicate class detected on update: Course={course?.CourseName}, FacId={cls.FacId}, Term={term?.TermName}");
+                
+                return Json(new { 
+                    success = false, 
+                    message = $"A class for '{course?.CourseName ?? "this course"}' with the same professor already exists for '{term?.TermName ?? "this term"}'. " +
+                              "Each professor can only have one class per course per term.",
+                    isDuplicate = true
+                });
             }
 
             cls.ClassUpdatedAt = DateTime.Now;

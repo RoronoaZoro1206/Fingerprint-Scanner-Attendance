@@ -17,19 +17,22 @@ namespace Fingerprint_Attendance_System.Services
         private readonly IEnrollmentRepository _enrollmentRepo;
         private readonly IAttendanceRepository _attendanceRepo;
         private readonly ILogger<AbsenceDetectionService> _logger;
+        private readonly PhilippineTimeService _pht;
 
         public AbsenceDetectionService(
             IDailyAttendanceLogRepository dailyAttendanceRepo,
             IClassScheduleRepository classScheduleRepo,
             IEnrollmentRepository enrollmentRepo,
             IAttendanceRepository attendanceRepo,
-            ILogger<AbsenceDetectionService> logger)
+            ILogger<AbsenceDetectionService> logger,
+            PhilippineTimeService pht)
         {
             _dailyAttendanceRepo = dailyAttendanceRepo;
             _classScheduleRepo = classScheduleRepo;
             _enrollmentRepo = enrollmentRepo;
             _attendanceRepo = attendanceRepo;
             _logger = logger;
+            _pht = pht;
         }
 
         /// <summary>
@@ -132,22 +135,22 @@ namespace Fingerprint_Attendance_System.Services
                         }
                         
                         var classEndTime = todaySchedule.SchedEndTime;
-                        var currentTime = DateTime.Now.TimeOfDay;
+                        var currentTime = _pht.TimeOfDay; // Use PHT for schedule comparison
                         
-                        // Only process if class has ended
-                        bool classHasEnded = date.Date < DateTime.Today || 
-                                           (date.Date == DateTime.Today && currentTime > classEndTime);
+                        // Only process if class has ended (using PHT)
+                        bool classHasEnded = date.Date < _pht.Today || 
+                                           (date.Date == _pht.Today && currentTime > classEndTime);
                         
                         if (!classHasEnded)
                         {
                             // ✅ CRITICAL FIX: Convert TimeSpan to DateTime before formatting with AM/PM
-                            var classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+                            var classEndTimeFormatted = _pht.Today.Add(classEndTime).ToString("hh:mm tt");
                             _logger.LogDebug($"Class {classId} hasn't ended yet (ends at {classEndTimeFormatted})");
                             continue; // Class still in progress or future
                         }
                         
                         // ✅ CRITICAL FIX: Convert TimeSpan to DateTime before formatting with AM/PM
-                        var classEndTimeFormattedLog = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+                        var classEndTimeFormattedLog = _pht.Today.Add(classEndTime).ToString("hh:mm tt");
                         _logger.LogInformation($"Processing Class {classId} - Ended at {classEndTimeFormattedLog}");
                         
                         var processed = await ProcessClassForgotTimeoutAsync(classId, date, classEndTime);
@@ -220,7 +223,7 @@ namespace Fingerprint_Attendance_System.Services
                     }
                     
                     // ✅ At this point: Student has TimeIn but NO TimeOut (NULL)
-                    string classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
+                    string classEndTimeFormatted = _pht.Today.Add(classEndTime).ToString("hh:mm tt");
                     string studentTimeInFormatted = dailyRecord.TimeIn.Value.ToString("hh:mm tt");
                     
                     _logger.LogWarning($"⚠️ Student {enrollment.StudId} forgot to time out for Class {classId}. TimeIn: {studentTimeInFormatted}, TimeOut: NULL, Class ended: {classEndTimeFormatted}");
@@ -474,21 +477,21 @@ namespace Fingerprint_Attendance_System.Services
                 }
                 
                 var classEndTime = todaySchedule.SchedEndTime;
-                var currentTime = DateTime.Now.TimeOfDay;
+                var currentTime = _pht.TimeOfDay; // Use PHT for schedule comparison
                 
-                // Check if class has ended
-                bool classHasEnded = date.Date < DateTime.Today || 
-                                   (date.Date == DateTime.Today && currentTime > classEndTime);
+                // Check if class has ended (using PHT)
+                bool classHasEnded = date.Date < _pht.Today || 
+                                   (date.Date == _pht.Today && currentTime > classEndTime);
                 
                 if (!classHasEnded)
                 {
-                    var classEndTimeFormatted = DateTime.Today.Add(classEndTime).ToString("hh:mm tt");
-                    var currentTimeFormatted = DateTime.Today.Add(currentTime).ToString("hh:mm tt");
+                    var classEndTimeFormatted = _pht.Today.Add(classEndTime).ToString("hh:mm tt");
+                    var currentTimeFormatted = _pht.Today.Add(currentTime).ToString("hh:mm tt");
                     _logger.LogWarning($"Class {classId} hasn't ended yet. Current: {currentTimeFormatted}, Ends: {classEndTimeFormatted}");
                     return (0, 0, $"Class hasn't ended yet. Current time: {currentTimeFormatted}, Class ends: {classEndTimeFormatted}");
                 }
                 
-                _logger.LogInformation($"Processing Class {classId} - Ended at {DateTime.Today.Add(classEndTime):hh:mm tt}");
+                _logger.LogInformation($"Processing Class {classId} - Ended at {_pht.Today.Add(classEndTime):hh:mm tt}");
                 
                 var (forgotCount, validCount) = await ProcessClassForgotTimeoutAsync(classId, date, classEndTime);
                 
@@ -513,11 +516,11 @@ namespace Fingerprint_Attendance_System.Services
         /// </summary>
         public async Task ProcessAbsencesForTodayAsync()
         {
-            // Process students who never timed in
-            await ProcessAbsencesForDateAsync(DateTime.Today);
+            // Process students who never timed in (using PHT date)
+            await ProcessAbsencesForDateAsync(_pht.Today);
             
             // ✅ NEW: Process students who forgot to time out
-            await ProcessForgotTimeoutAbsencesAsync(DateTime.Today);
+            await ProcessForgotTimeoutAbsencesAsync(_pht.Today);
         }
     }
 }

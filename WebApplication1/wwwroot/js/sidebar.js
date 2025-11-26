@@ -16,7 +16,33 @@ document.addEventListener('DOMContentLoaded', function () {
             link.classList.remove('active');
         });
 
-        // Find the best matching link
+        // Special handling for Faculty module navigation
+        // ManageStudents page should highlight "Manage Students" not "My Classes"
+        const isManageStudentsPage = currentPath.includes('/faculty/managestudents');
+        const isManageStudentsIndexPage = currentPath.includes('/faculty/managestudentsindex');
+        
+        if (isManageStudentsPage || isManageStudentsIndexPage) {
+            // Activate links with data-nav-key="manage-students"
+            sidebarLinks.forEach(link => {
+                if (link.getAttribute('data-nav-key') === 'manage-students') {
+                    link.classList.add('active');
+                }
+            });
+            return;
+        }
+
+        // For FacultyClass/Index, only highlight "My Classes"
+        const isFacultyClassPage = currentPath.includes('/facultyclass');
+        if (isFacultyClassPage) {
+            sidebarLinks.forEach(link => {
+                if (link.getAttribute('data-nav-key') === 'my-classes') {
+                    link.classList.add('active');
+                }
+            });
+            return;
+        }
+
+        // Find the best matching link for other pages
         let bestMatch = null;
         let bestMatchLength = 0;
 

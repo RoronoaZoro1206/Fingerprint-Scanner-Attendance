@@ -122,10 +122,16 @@ return Json(new { success = false, message = "Failed to fetch user" });
 
     // POST: User/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] User user)
+    public async Task<IActionResult> Create([FromBody] User? user)
     {
         try
         {
+            // ✅ FIX: Add explicit null check for request body
+            if (user == null)
+            {
+                return Json(new { success = false, message = "Invalid request body" });
+            }
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -211,117 +217,158 @@ return Json(new { success = false, message = "Failed to fetch user" });
 
     // PUT: User/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] User user)
+    public async Task<IActionResult> Update([FromBody] UpdateUserRequest? request)
     {
         try
-     {
-      if (!ModelState.IsValid)
-       {
-    return Json(new { success = false, message = "Invalid data provided" });
-     }
-
- // Get existing user to preserve password if not changed
-            var existingUser = await _userRepository.GetByIdAsync(user.UserId);
-        if (existingUser == null)
         {
-     return Json(new { success = false, message = "User not found" });
-      }
-
-        // Check if email is being changed and if new email already exists
-            if (existingUser.UserEmail != user.UserEmail)
+            // ✅ FIX: Add explicit null check for request body
+            if (request == null)
             {
-   var emailExists = await _userRepository.EmailExistsAsync(user.UserEmail);
-       if (emailExists)
-    {
-        return Json(new { success = false, message = "This email address is already registered." });
-  }
+                return Json(new { success = false, message = "Invalid request body" });
+            }
+            
+            // ✅ FIX: Manual validation instead of ModelState (since we use DTO without [Required] on password)
+            if (string.IsNullOrWhiteSpace(request.UserFirstName) || 
+                string.IsNullOrWhiteSpace(request.UserLastName) || 
+                string.IsNullOrWhiteSpace(request.UserEmail) ||
+                request.RoleId < 1 || request.RoleId > 3)
+            {
+                return Json(new { success = false, message = "Please fill in all required fields" });
+            }
+
+            // Get existing user to preserve password if not changed
+            var existingUser = await _userRepository.GetByIdAsync(request.UserId);
+            if (existingUser == null)
+            {
+                return Json(new { success = false, message = "User not found" });
+            }
+
+            // Check if email is being changed and if new email already exists
+            if (existingUser.UserEmail != request.UserEmail)
+            {
+                var emailExists = await _userRepository.EmailExistsAsync(request.UserEmail);
+                if (emailExists)
+                {
+                    return Json(new { success = false, message = "This email address is already registered." });
+                }
             }
 
             // Check if role changed to/from admin
-            var roleChanged = existingUser.RoleId != user.RoleId;
-var wasAdmin = existingUser.RoleId == 1;
-  var isNowAdmin = user.RoleId == 1;
+            var roleChanged = existingUser.RoleId != request.RoleId;
+            var wasAdmin = existingUser.RoleId == 1;
+            var isNowAdmin = request.RoleId == 1;
 
-     // If password is provided, hash it; otherwise keep existing
-          if (!string.IsNullOrEmpty(user.UserPassword))
-     {
-                user.UserPassword = BCrypt.Net.BCrypt.HashPassword(user.UserPassword, BCRYPT_WORK_FACTOR);
-    _logger.LogInformation("Updating password for user {Email} with BCrypt work factor: {WorkFactor}",
-        user.UserEmail, BCRYPT_WORK_FACTOR);
-  }
- else
+            // Map DTO to User entity
+            var user = new User
             {
-    user.UserPassword = existingUser.UserPassword;
-}
+                UserId = request.UserId,
+                UserFirstName = request.UserFirstName,
+                UserMiddleName = request.UserMiddleName,
+                UserLastName = request.UserLastName,
+                UserEmail = request.UserEmail,
+                UserPhone = request.UserPhone,
+                UserGender = request.UserGender,
+                UserAddress = request.UserAddress,
+                RoleId = request.RoleId,
+                IsActive = request.IsActive,
+                UserCreatedAt = existingUser.UserCreatedAt,
+                UserUpdatedAt = DateTime.Now
+            };
 
-            user.UserUpdatedAt = DateTime.Now;
-   user.UserCreatedAt = existingUser.UserCreatedAt;
+            // Parse birthdate if provided
+            if (!string.IsNullOrEmpty(request.UserBirthdate))
+            {
+                if (DateTime.TryParse(request.UserBirthdate, out var birthdate))
+                {
+                    user.UserBirthdate = birthdate;
+                }
+            }
+            else
+            {
+                user.UserBirthdate = existingUser.UserBirthdate;
+            }
+
+            // If password is provided, hash it; otherwise keep existing
+            if (!string.IsNullOrEmpty(request.UserPassword))
+            {
+                user.UserPassword = BCrypt.Net.BCrypt.HashPassword(request.UserPassword, BCRYPT_WORK_FACTOR);
+                _logger.LogInformation("Updating password for user {Email} with BCrypt work factor: {WorkFactor}",
+                    user.UserEmail, BCRYPT_WORK_FACTOR);
+            }
+            else
+            {
+                user.UserPassword = existingUser.UserPassword;
+            }
             
             // ✅ Preserve profile image if not changed
-            if (string.IsNullOrEmpty(user.UserProfileImage))
+            if (string.IsNullOrEmpty(request.UserProfileImage))
             {
                 user.UserProfileImage = existingUser.UserProfileImage;
             }
+            else
+            {
+                user.UserProfileImage = request.UserProfileImage;
+            }
 
-        var result = await _userRepository.UpdateAsync(user);
+            var result = await _userRepository.UpdateAsync(user);
 
             if (result)
             {
-    // Handle administration record based on role change
-    if (roleChanged)
-      {
-           if (isNowAdmin && !wasAdmin)
-       {
-           // User promoted to admin - create administration record
-     var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
-  if (existingAdmin == null)
-           {
-      var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
-   var administration = new Administration
-    {
-             UserId = user.UserId,
-   AdminCode = adminCode,
-          AdminCreatedAt = DateTime.Now
-   };
+                // Handle administration record based on role change
+                if (roleChanged)
+                {
+                    if (isNowAdmin && !wasAdmin)
+                    {
+                        // User promoted to admin - create administration record
+                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+                        if (existingAdmin == null)
+                        {
+                            var adminCode = await _administrationRepository.GenerateNextAdminCodeAsync();
+                            var administration = new Administration
+                            {
+                                UserId = user.UserId,
+                                AdminCode = adminCode,
+                                AdminCreatedAt = DateTime.Now
+                            };
 
-   await _administrationRepository.AddAsync(administration);
+                            await _administrationRepository.AddAsync(administration);
       
-      // ? LOG AUDIT: User promoted to Admin
-        await _auditService.LogActionAsync(
-"User Promoted to Admin",
-       $"User {user.UserEmail} promoted to admin with code {adminCode}");
-  }
-            }
-     else if (wasAdmin && !isNowAdmin)
-  {
-   // User demoted from admin
-       var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
-     if (existingAdmin != null)
-               {
-    // ? LOG AUDIT: Admin demoted
-         await _auditService.LogActionAsync(
-         "Admin Demoted to User",
-      $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
-    }
-       }
+                            // LOG AUDIT: User promoted to Admin
+                            await _auditService.LogActionAsync(
+                                "User Promoted to Admin",
+                                $"User {user.UserEmail} promoted to admin with code {adminCode}");
+                        }
+                    }
+                    else if (wasAdmin && !isNowAdmin)
+                    {
+                        // User demoted from admin
+                        var existingAdmin = await _administrationRepository.GetByUserIdAsync(user.UserId);
+                        if (existingAdmin != null)
+                        {
+                            // LOG AUDIT: Admin demoted
+                            await _auditService.LogActionAsync(
+                                "Admin Demoted to User",
+                                $"User {user.UserEmail} demoted from admin (code: {existingAdmin.AdminCode})");
+                        }
+                    }
                 }
-         else
-    {
-  // ? LOG AUDIT: Regular user update
-              var roleName = user.RoleId == 1 ? "Admin" : (user.RoleId == 2 ? "Faculty" : "Student");
-await _auditService.LogActionAsync(
-     $"Updated {roleName} User",
-              $"Updated {roleName.ToLower()} user: {user.UserEmail} (ID: {user.UserId})");
-}
+                else
+                {
+                    // LOG AUDIT: Regular user update
+                    var roleName = user.RoleId == 1 ? "Admin" : (user.RoleId == 2 ? "Faculty" : "Student");
+                    await _auditService.LogActionAsync(
+                        $"Updated {roleName} User",
+                        $"Updated {roleName.ToLower()} user: {user.UserEmail} (ID: {user.UserId})");
+                }
 
-             return Json(new { success = true, message = "User updated successfully" });
-  }
-   return Json(new { success = false, message = "Failed to update user" });
+                return Json(new { success = true, message = "User updated successfully" });
+            }
+            return Json(new { success = false, message = "Failed to update user" });
         }
         catch (Exception ex)
         {
-          _logger.LogError(ex, "Error updating user");
-  return Json(new { success = false, message = "An error occurred while updating user" });
+            _logger.LogError(ex, "Error updating user");
+            return Json(new { success = false, message = "An error occurred while updating user" });
         }
     }
 
@@ -562,6 +609,26 @@ await _auditService.LogActionAsync(
     {
         public int UserId { get; set; }
         public string ImageName { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DTO for updating user - password is optional
+    /// </summary>
+    public class UpdateUserRequest
+    {
+        public int UserId { get; set; }
+        public string UserFirstName { get; set; } = string.Empty;
+        public string? UserMiddleName { get; set; }
+        public string UserLastName { get; set; } = string.Empty;
+        public string UserEmail { get; set; } = string.Empty;
+        public string? UserPhone { get; set; }
+        public string? UserGender { get; set; }
+        public string? UserBirthdate { get; set; }
+        public string? UserAddress { get; set; }
+        public int RoleId { get; set; }
+        public string? UserPassword { get; set; } // Optional for updates
+        public bool IsActive { get; set; }
+        public string? UserProfileImage { get; set; }
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

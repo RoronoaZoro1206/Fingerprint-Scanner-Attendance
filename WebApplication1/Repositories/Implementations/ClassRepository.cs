@@ -406,4 +406,133 @@ public class ClassRepository : IClassRepository
             EndTime = row["end_time"]?.ToString() ?? ""
         });
     }
+
+    /// <summary>
+    /// ✅ NEW: Check for duplicate class (same course + faculty + term)
+    /// A class is considered duplicate if the same professor teaches the same course in the same term.
+    /// Different rooms don't make it unique - it's still the same class assignment.
+    /// </summary>
+    /// <param name="courseId">Course ID</param>
+    /// <param name="facId">Faculty ID</param>
+    /// <param name="termId">Academic Term ID</param>
+    /// <param name="excludeClassId">Class ID to exclude (for update operations)</param>
+    /// <returns>Existing duplicate class if found, null otherwise</returns>
+    public async Task<Class?> GetDuplicateClassAsync(int? courseId, int? facId, int? termId, int? excludeClassId = null)
+    {
+        // Build dynamic query based on which fields are provided
+        var conditions = new List<string>();
+        var parameters = new Dictionary<string, object>();
+
+        // Course matching
+        if (courseId.HasValue)
+        {
+            conditions.Add("course_id = @courseId");
+            parameters.Add("@courseId", courseId.Value);
+        }
+        else
+        {
+            conditions.Add("course_id IS NULL");
+        }
+
+        // Faculty matching
+        if (facId.HasValue)
+        {
+            conditions.Add("fac_id = @facId");
+            parameters.Add("@facId", facId.Value);
+        }
+        else
+        {
+            conditions.Add("fac_id IS NULL");
+        }
+
+        // Term matching
+        if (termId.HasValue)
+        {
+            conditions.Add("term_id = @termId");
+            parameters.Add("@termId", termId.Value);
+        }
+        else
+        {
+            conditions.Add("term_id IS NULL");
+        }
+
+        // Exclude current class (for update operations)
+        if (excludeClassId.HasValue)
+        {
+            conditions.Add("class_id != @excludeClassId");
+            parameters.Add("@excludeClassId", excludeClassId.Value);
+        }
+
+        string query = $@"
+            SELECT 
+                class_id, course_id, room_id, fac_id, term_id, 
+                class_created_at, class_updated_at
+            FROM classes
+            WHERE {string.Join(" AND ", conditions)}
+            LIMIT 1;";
+
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        if (dt.Rows.Count == 0) return null;
+
+        var row = dt.Rows[0];
+        return new Class
+        {
+            ClassId = Convert.ToInt32(row["class_id"]),
+            CourseId = row["course_id"] == DBNull.Value ? null : Convert.ToInt32(row["course_id"]),
+            RoomId = row["room_id"] == DBNull.Value ? null : Convert.ToInt32(row["room_id"]),
+            FacId = row["fac_id"] == DBNull.Value ? null : Convert.ToInt32(row["fac_id"]),
+            TermId = row["term_id"] == DBNull.Value ? null : Convert.ToInt32(row["term_id"]),
+            ClassCreatedAt = Convert.ToDateTime(row["class_created_at"]),
+            ClassUpdatedAt = Convert.ToDateTime(row["class_updated_at"])
+        };
+    }
+
+    /// <summary>
+    /// ✅ NEW: Get enrolled students for a class (for faculty student management)
+    /// </summary>
+    public async Task<IEnumerable<EnrolledStudentDto>> GetEnrolledStudentsForClassAsync(int classId)
+    {
+        string query = @"
+            SELECT 
+                e.enroll_id,
+                s.stud_id,
+                COALESCE(NULLIF(TRIM(s.stud_number), ''), 'N/A') as stud_number,
+                CASE 
+                    WHEN TRIM(COALESCE(u.user_first_name, '')) = '' AND TRIM(COALESCE(u.user_last_name, '')) = '' 
+                    THEN 'Unknown Student'
+                    WHEN TRIM(COALESCE(u.user_first_name, '')) = '' 
+                    THEN TRIM(u.user_last_name)
+                    WHEN TRIM(COALESCE(u.user_last_name, '')) = '' 
+                    THEN TRIM(u.user_first_name)
+                    ELSE TRIM(u.user_first_name) || ' ' || TRIM(u.user_last_name)
+                END as full_name,
+                COALESCE(NULLIF(TRIM(u.user_email), ''), 'N/A') as user_email,
+                COALESCE(NULLIF(TRIM(p.program_name), ''), 'N/A') as program_name,
+                COALESCE(s.stud_year_level, 0) as year_level,
+                e.enroll_at,
+                COALESCE(NULLIF(TRIM(u.user_profile_image), ''), 'templates/default_profile.png') as profile_image
+            FROM enrollment e
+            INNER JOIN students s ON e.stud_id = s.stud_id
+            INNER JOIN users u ON s.user_id = u.user_id
+            LEFT JOIN programs p ON s.program_id = p.program_id
+            WHERE e.class_id = @classId
+            ORDER BY u.user_last_name, u.user_first_name;";
+
+        var parameters = new Dictionary<string, object> { { "@classId", classId } };
+        var dt = await _db.ExecuteQueryAsync(query, parameters);
+
+        return dt.AsEnumerable().Select(row => new EnrolledStudentDto
+        {
+            EnrollId = Convert.ToInt32(row["enroll_id"]),
+            StudId = Convert.ToInt32(row["stud_id"]),
+            StudNumber = row["stud_number"]?.ToString() ?? "N/A",
+            FullName = row["full_name"]?.ToString() ?? "Unknown Student",
+            Email = row["user_email"]?.ToString() ?? "N/A",
+            ProgramName = row["program_name"]?.ToString() ?? "N/A",
+            YearLevel = row["year_level"] != DBNull.Value ? Convert.ToInt32(row["year_level"]) : 0,
+            EnrolledAt = row["enroll_at"] != DBNull.Value ? Convert.ToDateTime(row["enroll_at"]) : DateTime.MinValue,
+            ProfileImage = row["profile_image"]?.ToString() ?? "templates/default_profile.png"
+        });
+    }
 }

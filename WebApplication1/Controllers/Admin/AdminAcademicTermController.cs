@@ -94,10 +94,13 @@ public class AdminAcademicTermController : Controller
 
     // POST: AcademicTerm/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] AcademicTerm term)
+    public async Task<IActionResult> Create([FromBody] AcademicTerm? term)
     {
         try
         {
+            if (term == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -135,10 +138,13 @@ public class AdminAcademicTermController : Controller
 
     // PUT: AcademicTerm/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] AcademicTerm term)
+    public async Task<IActionResult> Update([FromBody] AcademicTerm? term)
     {
         try
         {
+            if (term == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });

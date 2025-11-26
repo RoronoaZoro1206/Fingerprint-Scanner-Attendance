@@ -2,6 +2,8 @@ using Fingerprint_Attendance_System.Models;
 using Fingerprint_Attendance_System.Models.DTOs;
 using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Exceptions;
+using Fingerprint_Attendance_System.Services.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace Fingerprint_Attendance_System.Services
 {
@@ -12,46 +14,53 @@ namespace Fingerprint_Attendance_System.Services
     /// </summary>
     public class AttendanceProcessingService
     {
-        private readonly FingerprintService _fingerprintService;
-        private readonly IFingerprintTemplateRepository _fingerprintRepo;
+        private readonly IFingerprintService _fingerprintService;
+        private readonly IFingerprintMatchingService _matchingService;
         private readonly IStudentRepository _studentRepo;
         private readonly IEnrollmentRepository _enrollmentRepo;
-        private readonly IClassScheduleRepository _scheduleRepo; // ✅ NEW: Schedule validation
+        private readonly IClassScheduleRepository _scheduleRepo;
         private readonly DailyAttendanceService _dailyAttendanceService;
         private readonly MissedTimeOutService _missedTimeOutService;
         private readonly LateDetectionService _lateDetectionService;
         private readonly AbsenceDetectionService _absenceService;
+        private readonly AttendanceSettings _settings; // ✅ NEW: Use configurable settings
         private readonly ILogger<AttendanceProcessingService> _logger;
+        private readonly PhilippineTimeService _pht;
 
         public AttendanceProcessingService(
-            FingerprintService fingerprintService,
-            IFingerprintTemplateRepository fingerprintRepo,
+            IFingerprintService fingerprintService,
+            IFingerprintMatchingService matchingService,
             IStudentRepository studentRepo,
             IEnrollmentRepository enrollmentRepo,
-            IClassScheduleRepository scheduleRepo, // ✅ NEW: Inject schedule repository
+            IClassScheduleRepository scheduleRepo,
             DailyAttendanceService dailyAttendanceService,
             MissedTimeOutService missedTimeOutService,
             LateDetectionService lateDetectionService,
             AbsenceDetectionService absenceService,
-            ILogger<AttendanceProcessingService> logger)
+            IOptions<AttendanceSettings> settings,
+            ILogger<AttendanceProcessingService> logger,
+            PhilippineTimeService pht)
         {
             _fingerprintService = fingerprintService;
-            _fingerprintRepo = fingerprintRepo;
+            _matchingService = matchingService;
             _studentRepo = studentRepo;
             _enrollmentRepo = enrollmentRepo;
-            _scheduleRepo = scheduleRepo; // ✅ NEW: Store schedule repository
+            _scheduleRepo = scheduleRepo;
             _dailyAttendanceService = dailyAttendanceService;
             _missedTimeOutService = missedTimeOutService;
             _lateDetectionService = lateDetectionService;
             _absenceService = absenceService;
+            _settings = settings.Value; // ✅ NEW: Store settings
             _logger = logger;
+            _pht = pht;
         }
 
         /// <summary>
         /// MAIN ORCHESTRATION METHOD
         /// Complete attendance recording pipeline with all validations
         /// </summary>
-        public async Task<AttendanceProcessingResult> ProcessAttendanceAsync()
+        /// <param name="cancellationToken">Cancellation token for graceful shutdown</param>
+        public async Task<AttendanceProcessingResult> ProcessAttendanceAsync(CancellationToken cancellationToken = default)
         {
             var result = new AttendanceProcessingResult
             {
@@ -60,49 +69,57 @@ namespace Fingerprint_Attendance_System.Services
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 _logger.LogInformation("=== Attendance Processing Pipeline Started ===");
 
                 // STEP 1: Validate Scanner
-                result.ScannerStatus = await ValidateScannerAsync();
+                cancellationToken.ThrowIfCancellationRequested();
+                result.ScannerStatus = await ValidateScannerAsync(cancellationToken);
                 if (!result.ScannerStatus.IsAvailable)
                 {
                     throw new ScannerNotAvailableException(result.ScannerStatus.Message);
                 }
 
                 // STEP 2: Capture Fingerprint
-                result.CaptureResult = await CaptureFingerprintAsync();
+                cancellationToken.ThrowIfCancellationRequested();
+                result.CaptureResult = await CaptureFingerprintAsync(cancellationToken);
                 if (!result.CaptureResult.Success)
                 {
                     throw new Exception(result.CaptureResult.ErrorMessage);
                 }
 
                 // STEP 3: Match Fingerprint
-                result.Student = await MatchFingerprintAsync(result.CaptureResult.Template!);
+                cancellationToken.ThrowIfCancellationRequested();
+                result.Student = await MatchFingerprintAsync(result.CaptureResult.Template!, cancellationToken);
                 if (result.Student == null)
                 {
                     throw new FingerprintNotRecognizedException();
                 }
 
                 // STEP 4: Validate Enrollment
-                result.EnrollmentStatus = await ValidateEnrollmentAsync(result.Student.StudId);
+                cancellationToken.ThrowIfCancellationRequested();
+                result.EnrollmentStatus = await ValidateEnrollmentAsync(result.Student.StudId, cancellationToken);
                 if (!result.EnrollmentStatus.IsEnrolled)
                 {
                     throw new NoScheduleException(result.Student.StudId);
                 }
 
                 // ✅ NEW STEP 5: Validate Schedule (Only for Time In)
-                result.ScheduleStatus = await ValidateScheduleAsync(result.Student.StudId);
+                cancellationToken.ThrowIfCancellationRequested();
+                result.ScheduleStatus = await ValidateScheduleAsync(result.Student.StudId, cancellationToken);
                 if (!result.ScheduleStatus.HasScheduledClass)
                 {
                     throw new NoScheduleException(result.Student.StudId, result.ScheduleStatus.Message);
                 }
 
                 // STEP 6: Check Incomplete Records
+                cancellationToken.ThrowIfCancellationRequested();
                 result.IncompleteCheck = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
                     result.Student.StudId,
-                    DateTime.Today);
+                    _pht.Today); // Use PHT date
 
                 // STEP 7: Process Attendance (Time In/Out)
+                cancellationToken.ThrowIfCancellationRequested();
                 result.AttendanceResponse = await _dailyAttendanceService.ProcessAttendanceScanAsync(result.Student);
 
                 // STEP 8: Add incomplete warning if needed
@@ -170,7 +187,7 @@ namespace Fingerprint_Attendance_System.Services
                 // STEP 6: Check Incomplete Records
                 result.IncompleteCheck = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
                     student.StudId,
-                    DateTime.Today);
+                    _pht.Today); // Use PHT date
 
                 // STEP 7: Process Attendance (Time In/Out)
                 result.AttendanceResponse = await _dailyAttendanceService.ProcessAttendanceScanAsync(student);
@@ -233,7 +250,7 @@ namespace Fingerprint_Attendance_System.Services
                 // STEP 5: Check Incomplete Records
                 result.IncompleteCheck = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
                     student.StudId,
-                    DateTime.Today);
+                    _pht.Today); // Use PHT date
 
                 // STEP 6: Process Attendance (Time In/Out) with classId
                 result.AttendanceResponse = await _dailyAttendanceService.ProcessAttendanceScanAsync(student, classId);
@@ -269,8 +286,10 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// Validate scanner availability and connectivity
         /// </summary>
-        private async Task<ScannerStatusDto> ValidateScannerAsync()
+        /// <param name="cancellationToken">Cancellation token</param>
+        private async Task<ScannerStatusDto> ValidateScannerAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Task.CompletedTask; // Async placeholder
 
             var status = _fingerprintService.GetStatus();
@@ -310,12 +329,16 @@ namespace Fingerprint_Attendance_System.Services
         /// <summary>
         /// Capture fingerprint with timeout protection
         /// </summary>
-        private async Task<FingerprintCaptureResult> CaptureFingerprintAsync()
+        /// <param name="cancellationToken">Cancellation token</param>
+        private async Task<FingerprintCaptureResult> CaptureFingerprintAsync(CancellationToken cancellationToken = default)
         {
-            const int TIMEOUT_SECONDS = 10;
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            // ✅ Use configurable timeout from settings
+            int timeoutSeconds = _settings.CaptureTimeoutSeconds;
 
-            var captureTask = Task.Run(() => _fingerprintService.CaptureFingerprintWithImage());
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(TIMEOUT_SECONDS));
+            var captureTask = Task.Run(() => _fingerprintService.CaptureFingerprintWithImage(), cancellationToken);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(timeoutSeconds), cancellationToken);
 
             var completedTask = await Task.WhenAny(captureTask, timeoutTask);
 
@@ -324,7 +347,7 @@ namespace Fingerprint_Attendance_System.Services
                 return new FingerprintCaptureResult
                 {
                     Success = false,
-                    ErrorMessage = $"Capture timeout after {TIMEOUT_SECONDS} seconds. Please try again."
+                    ErrorMessage = $"Capture timeout after {timeoutSeconds} seconds. Please try again."
                 };
             }
 
@@ -352,50 +375,33 @@ namespace Fingerprint_Attendance_System.Services
 
         /// <summary>
         /// Match captured fingerprint against database
+        /// ✅ REFACTORED: Uses FingerprintMatchingService to eliminate duplicate code
         /// </summary>
-        private async Task<Student?> MatchFingerprintAsync(byte[] capturedTemplate)
+        /// <param name="capturedTemplate">Captured fingerprint template</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        private async Task<Student?> MatchFingerprintAsync(byte[] capturedTemplate, CancellationToken cancellationToken = default)
         {
-            const int MATCH_THRESHOLD = 50;
-
-            var allTemplates = await _fingerprintRepo.GetAllAsync();
-            _logger.LogInformation($"Comparing against {allTemplates.Count()} registered fingerprints");
-
-            foreach (var template in allTemplates)
+            // ✅ Use shared FingerprintMatchingService instead of duplicate logic
+            var matchResult = await _matchingService.MatchAndValidateFingerprintAsync(capturedTemplate, requireStudentRole: true, cancellationToken);
+            
+            if (matchResult.Success && matchResult.Student != null)
             {
-                try
-                {
-                    int score = _fingerprintService.GetMatchScore(capturedTemplate, template.FtempData);
-
-                    if (score >= MATCH_THRESHOLD)
-                    {
-                        _logger.LogInformation($"Match found - User ID: {template.UserId}, Score: {score}");
-
-                        var user = await _fingerprintRepo.GetUserByTemplateAsync(template.UserId);
-                        if (user?.RoleId == 3) // Student role
-                        {
-                            var student = await _studentRepo.GetByUserIdAsync(user.UserId);
-                            if (student != null)
-                            {
-                                return student;
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, $"Error matching template for User ID: {template.UserId}");
-                    continue;
-                }
+                _logger.LogInformation($"Match found via shared service - Student: {matchResult.Student.StudNumber}, Score: {matchResult.MatchScore}");
+                return matchResult.Student;
             }
-
+            
+            _logger.LogWarning($"No match found. Best score: {matchResult.MatchScore} (threshold: {_settings.FingerprintMatchThreshold})");
             return null;
         }
 
         /// <summary>
         /// Validate student has active enrollments
         /// </summary>
-        private async Task<EnrollmentStatusDto> ValidateEnrollmentAsync(int studId)
+        /// <param name="studId">Student ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        private async Task<EnrollmentStatusDto> ValidateEnrollmentAsync(int studId, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var enrollments = await _enrollmentRepo.GetByStudentIdAsync(studId);
             var enrollmentsList = enrollments.ToList();
 
@@ -411,11 +417,14 @@ namespace Fingerprint_Attendance_System.Services
         /// This ensures students can only time in when they have an actual class
         /// CRITICAL FIX: Proper time boundary handling for edge cases like 12:03 PM
         /// </summary>
-        private async Task<ScheduleStatusDto> ValidateScheduleAsync(int studId)
+        /// <param name="studId">Student ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        private async Task<ScheduleStatusDto> ValidateScheduleAsync(int studId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var currentTime = DateTime.Now;
+                cancellationToken.ThrowIfCancellationRequested();
+                var currentTime = _pht.Now; // Use PHT for schedule validation
                 var currentDay = currentTime.ToString("dddd"); // e.g., "Monday", "Saturday"
                 var currentTimeOnly = currentTime.TimeOfDay;
 
@@ -527,7 +536,7 @@ namespace Fingerprint_Attendance_System.Services
                                 {
                                     HasScheduledClass = true,
                                     ClassId = classId,
-                                    DayOfWeek = schedule.SchedDayOfWeek,
+                                    DayOfWeek = schedule.SchedDayOfWeek ?? string.Empty,
                                     StartTime = schedule.SchedStartTime,
                                     EndTime = schedule.SchedEndTime
                                 };

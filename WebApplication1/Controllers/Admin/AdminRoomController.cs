@@ -75,11 +75,14 @@ public class AdminRoomController : Controller
 
     // POST: Room/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Room room)
+    public async Task<IActionResult> Create([FromBody] Room? room)
     {
         try
         {
-            _logger.LogInformation("Attempting to create room with code: {RoomCode}", room?.RoomCode);
+            if (room == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
+            _logger.LogInformation("Attempting to create room with code: {RoomCode}", room.RoomCode);
             
             if (!ModelState.IsValid)
             {
@@ -110,10 +113,13 @@ public class AdminRoomController : Controller
 
     // PUT: Room/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Room room)
+    public async Task<IActionResult> Update([FromBody] Room? room)
     {
         try
         {
+            if (room == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             _logger.LogInformation("Attempting to update room - ID: {RoomId}, Code: {RoomCode}", room?.RoomId, room?.RoomCode);
             
             if (!ModelState.IsValid)

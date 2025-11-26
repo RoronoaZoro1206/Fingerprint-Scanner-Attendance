@@ -170,7 +170,7 @@ namespace Fingerprint_Attendance_System.Services
 
         /// <summary>
         /// Process attendance for a single class
-        /// Determines if student is Present or Late based on Time In
+        /// ✅ UPDATED: Always marks student as Present - Late status is only applied manually by faculty
         /// </summary>
         private async Task ProcessClassAttendanceAsync(
             DailyAttendanceLog dailyRecord,
@@ -179,30 +179,14 @@ namespace Fingerprint_Attendance_System.Services
         {
             try
             {
-                // Combine date with class start time for comparison
-                var classStartDateTime = dailyRecord.AttendDate.Date + classSchedule.StartTime;
-
                 _logger.LogInformation($"Checking class: {classSchedule.CourseCode} - Start Time: {classSchedule.StartTime}, Time In: {timeIn.TimeOfDay}");
 
-                // Determine attendance status
-                AttendanceStatus status;
-                string remark;
-
-                if (timeIn.TimeOfDay <= classSchedule.StartTime)
-                {
-                    // Student arrived on time or early
-                    status = AttendanceStatus.Present;
-                    remark = $"On time (Arrived: {timeIn:HH:mm:ss})";
-                    _logger.LogInformation($"? PRESENT - Student arrived before/at start time");
-                }
-                else
-                {
-                    // Student arrived after class start time
-                    status = AttendanceStatus.Late;
-                    var minutesLate = (int)(timeIn.TimeOfDay - classSchedule.StartTime).TotalMinutes;
-                    remark = $"Late by {minutesLate} minute(s) (Arrived: {timeIn:HH:mm:ss}, Class started: {classSchedule.StartTime})";
-                    _logger.LogWarning($"?? LATE - Student arrived {minutesLate} minute(s) after start time");
-                }
+                // ✅ UPDATED: Always mark as Present - Late status is only applied manually by faculty
+                // The system no longer automatically determines Late status based on arrival time
+                AttendanceStatus status = AttendanceStatus.Present;
+                string remark = $"Arrived at {timeIn:HH:mm:ss}";
+                
+                _logger.LogInformation($"✅ PRESENT - Student attendance recorded (Late status can only be set by faculty)");
 
                 // Check if attendance record already exists for this class/date
                 var existingRecord = await _attendanceRepo.GetByClassStudentDateAsync(

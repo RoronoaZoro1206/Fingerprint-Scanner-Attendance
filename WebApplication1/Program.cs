@@ -5,6 +5,8 @@ using Fingerprint_Attendance_System.Repositories.Interfaces;
 using Fingerprint_Attendance_System.Services;
 using Fingerprint_Attendance_System.Middleware; // ? NEW: For GlobalExceptionHandlerMiddleware
 using Fingerprint_Attendance_System.Hubs; // ✅ NEW: For SignalR AttendanceHub
+using System.Threading.RateLimiting; // ✅ NEW: For Rate Limiting
+using Microsoft.AspNetCore.RateLimiting; // ✅ NEW: For Rate Limiting
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,6 +82,7 @@ builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassScheduleRepository, ClassScheduleRepository>();
 builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
+builder.Services.AddScoped<IEnrollmentBlockRepository, EnrollmentBlockRepository>(); // ✅ NEW: Enrollment blocks for force-unenroll
 builder.Services.AddScoped<IFingerprintTemplateRepository, FingerprintTemplateRepository>();
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<IScanLogRepository, ScanLogRepository>();
@@ -95,6 +98,11 @@ builder.Services.AddScoped<IAttendanceNotificationRepository, AttendanceNotifica
 
 // ? NEW: Add Authentication Audit Service
 builder.Services.AddScoped<AuthenticationAuditService>();
+
+// ✅ NEW: Session Heartbeat Tracking for Auto-Logout Detection
+// This service tracks active sessions via heartbeats and detects when tabs/browsers are closed
+builder.Services.AddSingleton<SessionHeartbeatService>();
+builder.Services.AddHostedService<SessionCleanupBackgroundService>();
 
 // Add SuperAdminInitializer service
 builder.Services.AddScoped<SuperAdminInitializer>();
@@ -153,8 +161,69 @@ builder.Services.AddSwaggerGen(c =>
     // c.IncludeXmlComments(xmlPath);
 });
 
+// ============================================================
+// ✅ PHILIPPINE TIMEZONE SERVICE (CRITICAL FOR ATTENDANCE)
+// Ensures all datetime operations use PHT (UTC+8) regardless of server timezone
+// ============================================================
+builder.Services.AddSingleton<PhilippineTimeService>();
+
 // Add FingerprintService as Singleton (shared across requests for device management)
+// Register both concrete type and interface for DI flexibility
 builder.Services.AddSingleton<FingerprintService>();
+builder.Services.AddSingleton<Fingerprint_Attendance_System.Services.Interfaces.IFingerprintService>(
+    sp => sp.GetRequiredService<FingerprintService>());
+
+// ============================================================
+// ✅ NEW: ATTENDANCE SETTINGS & FINGERPRINT MATCHING SERVICE
+// Eliminates hardcoded magic numbers and duplicate code
+// ============================================================
+builder.Services.Configure<AttendanceSettings>(
+    builder.Configuration.GetSection(AttendanceSettings.SectionName));
+builder.Services.AddScoped<FingerprintMatchingService>();
+builder.Services.AddScoped<Fingerprint_Attendance_System.Services.Interfaces.IFingerprintMatchingService>(
+    sp => sp.GetRequiredService<FingerprintMatchingService>());
+
+// ============================================================
+// ✅ NEW: HEALTH CHECKS FOR MONITORING
+// Supports Kubernetes/Docker probes, load balancers, and dashboards
+// ============================================================
+builder.Services.AddHealthChecks()
+    .AddCheck<FingerprintScannerHealthCheck>("scanner", tags: new[] { "scanner", "device" })
+    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "database", "db" });
+
+// ============================================================
+// ✅ NEW: RATE LIMITING FOR BRUTE FORCE PROTECTION
+// ============================================================
+builder.Services.AddRateLimiter(options =>
+{
+    // Rate limiter for login endpoints - 5 attempts per 1 minute window
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0; // No queuing - reject immediately when limit reached
+    });
+    
+    // Custom response when rate limit is exceeded
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+        
+        var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
+            ? retryAfterValue.TotalSeconds
+            : 60;
+        
+        context.HttpContext.Response.Headers.RetryAfter = retryAfter.ToString();
+        
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            errors = new[] { $"Too many login attempts. Please wait {retryAfter:F0} seconds before trying again." }
+        }, cancellationToken);
+    };
+});
 
 var app = builder.Build();
 
@@ -162,6 +231,18 @@ var app = builder.Build();
 // ADD GLOBAL EXCEPTION HANDLER MIDDLEWARE
 // ============================================================
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// ============================================================
+// ✅ NEW: ADD REQUEST/RESPONSE LOGGING MIDDLEWARE
+// Provides audit trail, performance metrics, and debugging capabilities
+// ============================================================
+app.UseMiddleware<RequestResponseLoggingMiddleware>(new RequestLoggingOptions
+{
+    LogRequestBody = true,
+    LogResponseBody = false, // Set to true for detailed debugging
+    SlowRequestThresholdMs = 1000,
+    MaxBodyLogSize = 4096
+});
 
 // Initialize super admin account
 using (var scope = app.Services.CreateScope())
@@ -191,6 +272,9 @@ app.UseSession();
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// ✅ NEW: Enable Rate Limiting middleware
+app.UseRateLimiter();
+
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -199,6 +283,33 @@ app.MapStaticAssets();
 // ✅ STEP 3: MAP SIGNALR HUB ENDPOINT
 // ============================================================
 app.MapHub<AttendanceHub>("/attendanceHub");
+
+// ============================================================
+// ✅ NEW: MAP HEALTH CHECK ENDPOINTS
+// Supports Kubernetes probes, load balancers, and monitoring
+// ============================================================
+app.MapHealthChecks("/health/checks", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = new
+        {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            duration = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds,
+                data = e.Value.Data
+            })
+        };
+        await context.Response.WriteAsJsonAsync(result);
+    }
+});
 
 // CRITICAL FIX: Map API controller routes FIRST (attribute-based routing)
 // This ensures /api/* routes are handled by API controllers, not MVC convention routing

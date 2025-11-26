@@ -24,6 +24,7 @@ namespace Fingerprint_Attendance_System.Services
         private readonly LateDetectionService _lateDetectionService;
         private readonly MissedTimeOutService _missedTimeOutService;
         private readonly ILogger<DailyAttendanceService> _logger;
+        private readonly PhilippineTimeService _pht;
 
         public DailyAttendanceService(
             IDailyAttendanceLogRepository dailyAttendanceRepo,
@@ -39,7 +40,8 @@ namespace Fingerprint_Attendance_System.Services
             IRoomRepository roomRepo, // ✅ NEW
             LateDetectionService lateDetectionService,
             MissedTimeOutService missedTimeOutService,
-            ILogger<DailyAttendanceService> logger)
+            ILogger<DailyAttendanceService> logger,
+            PhilippineTimeService pht)
         {
             _dailyAttendanceRepo = dailyAttendanceRepo;
             _studentRepo = studentRepo;
@@ -55,6 +57,7 @@ namespace Fingerprint_Attendance_System.Services
             _lateDetectionService = lateDetectionService;
             _missedTimeOutService = missedTimeOutService;
             _logger = logger;
+            _pht = pht;
         }
 
         /// <summary>
@@ -114,8 +117,8 @@ namespace Fingerprint_Attendance_System.Services
             {
                 _logger.LogInformation($"=== Processing Attendance Scan for Student: {student.StudNumber} ===");
                 
-                var today = DateTime.Today;
-                var now = DateTime.Now;
+                var today = _pht.Today; // Use PHT date
+                var now = _pht.Now; // Use PHT time
 
                 // ✅ NEW: Check for incomplete previous day records using MissedTimeOutService
                 var incompleteResult = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
@@ -171,8 +174,8 @@ namespace Fingerprint_Attendance_System.Services
             {
                 _logger.LogInformation($"=== Processing Attendance Scan for Student: {student.StudNumber}, Class: {classId} ===");
                 
-                var today = DateTime.Today;
-                var now = DateTime.Now;
+                var today = _pht.Today; // Use PHT date
+                var now = _pht.Now; // Use PHT time
 
                 // Check for incomplete previous day records
                 var incompleteResult = await _missedTimeOutService.CheckAndFlagIncompleteRecordsAsync(
@@ -566,7 +569,7 @@ namespace Fingerprint_Attendance_System.Services
         {
             try
             {
-                var today = DateTime.Today;
+                var today = _pht.Today; // Use PHT date
                 var allRecords = await GetAllRecordsByDateAsync(today);
                 var recordsList = allRecords.ToList();
 

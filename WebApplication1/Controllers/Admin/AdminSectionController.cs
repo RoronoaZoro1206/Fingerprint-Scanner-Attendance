@@ -119,10 +119,13 @@ public class AdminSectionController : Controller
 
     // POST: Section/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Section section)
+    public async Task<IActionResult> Create([FromBody] Section? section)
     {
         try
         {
+            if (section == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -149,10 +152,13 @@ public class AdminSectionController : Controller
 
     // PUT: Section/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Section section)
+    public async Task<IActionResult> Update([FromBody] Section? section)
     {
         try
         {
+            if (section == null)
+                return Json(new { success = false, message = "Invalid request body" });
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });

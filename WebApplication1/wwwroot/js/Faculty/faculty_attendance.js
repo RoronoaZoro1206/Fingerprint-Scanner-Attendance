@@ -12,8 +12,13 @@ $(document).ready(async function () {
     // Initialize icons
     initializeLucideIcons();
 
-    // Set default date to today and prevent future dates
-    const today = new Date().toISOString().split('T')[0];
+    // ✅ FIX: Use Philippine timezone (UTC+8) for date picker
+    // This ensures the date matches the server-side Philippine time
+    const philippineDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    // Format as YYYY-MM-DD without using toISOString (which converts back to UTC)
+    const today = philippineDate.getFullYear() + '-' + 
+                  String(philippineDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(philippineDate.getDate()).padStart(2, '0');
     $('#dateSelect').val(today);
     $('#dateSelect').attr('max', today);
     selectedDate = today;
@@ -190,8 +195,11 @@ function loadAttendanceForDate() {
         return;
     }
 
-    // Enable/disable Mark All Present button based on if date is today
-    const today = new Date().toISOString().split('T')[0];
+    // ✅ FIX: Use Philippine timezone for "today" comparison
+    const philippineDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const today = philippineDate.getFullYear() + '-' + 
+                  String(philippineDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(philippineDate.getDate()).padStart(2, '0');
     const isToday = selectedDate === today;
     $('#btnMarkAllPresent').prop('disabled', !isToday);
     $('#btnProcessForgotTimeout').prop('disabled', false);

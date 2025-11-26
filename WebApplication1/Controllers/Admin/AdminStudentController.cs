@@ -222,10 +222,16 @@ public class AdminStudentController : Controller
 
     // POST: Student/Create
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Models.Student student)
+    public async Task<IActionResult> Create([FromBody] Models.Student? student)
     {
         try
         {
+            // ✅ FIX: Add explicit null check for request body
+            if (student == null)
+            {
+                return Json(new { success = false, message = "Invalid request body" });
+            }
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -264,7 +270,9 @@ public class AdminStudentController : Controller
                 }
 
                 var user = await _userRepository.GetByIdAsync(student.UserId);
-                var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+                var userName = user?.UserFirstName != null && user?.UserLastName != null 
+                    ? $"{user.UserFirstName} {user.UserLastName}".Trim() 
+                    : "Unknown User";
                 await _auditService.LogActionAsync(
                     "Created Student", 
                     $"Created student record for: {userName} (Student Number: {student.StudNumber}, Pool ID: {poolEntry.PoolId})");
@@ -281,10 +289,16 @@ public class AdminStudentController : Controller
 
     // PUT: Student/Update
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Models.Student student)
+    public async Task<IActionResult> Update([FromBody] Models.Student? student)
     {
         try
         {
+            // ✅ FIX: Add explicit null check for request body
+            if (student == null)
+            {
+                return Json(new { success = false, message = "Invalid request body" });
+            }
+            
             if (!ModelState.IsValid)
             {
                 return Json(new { success = false, message = "Invalid data provided" });
@@ -366,8 +380,10 @@ public class AdminStudentController : Controller
                 return Json(new { success = false, message = "Student not found" });
             }
 
-            var user = student != null ? await _userRepository.GetByIdAsync(student.UserId) : null;
-            var userName = user != null ? $"{user.UserFirstName} {user.UserLastName}".Trim() : "Unknown";
+            var user = await _userRepository.GetByIdAsync(student.UserId);
+            var userName = user?.UserFirstName != null && user?.UserLastName != null 
+                ? $"{user.UserFirstName} {user.UserLastName}".Trim() 
+                : "Unknown User";
             string studentNumber = student.StudNumber;
 
             // ✅ FIX: Return student ID back to pool when student is deleted
