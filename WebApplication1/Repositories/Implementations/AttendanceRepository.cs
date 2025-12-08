@@ -118,9 +118,11 @@ public class AttendanceRepository : IAttendanceRepository
     /// <summary>
     /// Gets class attendance with all student details in a single optimized query
     /// ✅ CRITICAL FIX: Properly filter attendance and daily_attendance_log by class_id
+    /// ✅ FIX: Includes is_invalidated flag and invalidation_reason for faculty to see history
     /// - Ensures only records for the SELECTED class are shown
     /// - Prevents mixing data from different classes on the same date
     /// - Shows ALL enrolled students regardless of attendance status
+    /// - Shows invalidated records with visual indicator for audit trail
     /// Eliminates N+1 query problem by using JOINs and aggregation
     /// Verifies faculty ownership of the class
     /// </summary>
@@ -134,7 +136,7 @@ public class AttendanceRepository : IAttendanceRepository
                 WHERE class_id = @classId AND fac_id = @facId
             ),
             -- ✅ CRITICAL FIX: Get all enrolled students with their CLASS-SPECIFIC attendance
-            -- Priority: attendance.attend_status (class-specific) > daily log status
+            -- ✅ FIX: Include is_invalidated to show invalidated records with indicator
             student_attendance AS (
                 SELECT 
                     s.stud_id,
@@ -154,7 +156,11 @@ public class AttendanceRepository : IAttendanceRepository
                             ELSE 'absent'
                         END
                     ) as status,
-                    a.attend_id
+                    a.attend_id,
+                    -- ✅ NEW: Include invalidation info for faculty visibility
+                    COALESCE(a.is_invalidated, FALSE) as is_invalidated,
+                    a.invalidation_reason,
+                    a.attend_remark
                 FROM enrollment e
                 INNER JOIN students s ON e.stud_id = s.stud_id
                 INNER JOIN users u ON s.user_id = u.user_id
@@ -169,7 +175,7 @@ public class AttendanceRepository : IAttendanceRepository
                     AND dal.attend_date = @date
                     AND (dal.class_id = @classId OR dal.class_id IS NULL)  -- ✅ FILTER BY SELECTED CLASS
                 WHERE e.class_id = @classId
-                ORDER BY s.stud_number
+                ORDER BY COALESCE(a.is_invalidated, FALSE), s.stud_number  -- Show active first, then invalidated
             )
             -- Combine course info with student attendance
             SELECT 
@@ -183,7 +189,10 @@ public class AttendanceRepository : IAttendanceRepository
                 sa.time_in,
                 sa.time_out,
                 sa.status,
-                sa.attend_id
+                sa.attend_id,
+                sa.is_invalidated,
+                sa.invalidation_reason,
+                sa.attend_remark
             FROM class_check cc
             INNER JOIN courses co ON cc.course_id = co.course_id
             CROSS JOIN student_attendance sa;";
@@ -220,6 +229,11 @@ public class AttendanceRepository : IAttendanceRepository
                 ? Convert.ToDateTime(row["time_out"]).ToString("hh:mm:ss tt") 
                 : null;
             
+            // ✅ NEW: Include invalidation info
+            var isInvalidated = row["is_invalidated"] != DBNull.Value && Convert.ToBoolean(row["is_invalidated"]);
+            var invalidationReason = row["invalidation_reason"]?.ToString();
+            var remark = row["attend_remark"]?.ToString();
+            
             result.Students.Add(new StudentAttendanceDto
             {
                 StudId = Convert.ToInt32(row["stud_id"]),
@@ -228,8 +242,11 @@ public class AttendanceRepository : IAttendanceRepository
                 ProfileImage = row["user_profile_image"]?.ToString() ?? "default_profile.png",
                 TimeIn = timeIn,
                 TimeOut = timeOut,
-                Status = row["status"]?.ToString() ?? "absent",  // ✅ Use actual status from query
-                AttendId = row["attend_id"] != DBNull.Value ? Convert.ToInt32(row["attend_id"]) : null
+                Status = row["status"]?.ToString() ?? "absent",
+                AttendId = row["attend_id"] != DBNull.Value ? Convert.ToInt32(row["attend_id"]) : null,
+                IsInvalidated = isInvalidated,
+                InvalidationReason = invalidationReason,
+                Remark = remark
             });
         }
         
@@ -370,6 +387,9 @@ public class AttendanceRepository : IAttendanceRepository
                 INNER JOIN class_schedules cs ON e.class_id = cs.class_id
                 CROSS JOIN today_day_of_week dow
                 WHERE TRIM(cs.sched_day_of_week) = TRIM(dow.day_name)
+                  AND rd.attend_date >= COALESCE((SELECT start_date FROM first_attendance_date), CURRENT_DATE)
+                ORDER BY rd.attend_date DESC
+                LIMIT @limit
             ),
             -- Get students with actual attendance records today
             students_with_attendance_today AS (
@@ -467,53 +487,54 @@ public class AttendanceRepository : IAttendanceRepository
 
     /// <summary>
     /// Gets complete student attendance data with statistics and recent records in a single optimized query
-    /// Eliminates N+1 query problem by using JOINs and CTEs
-    /// Returns both aggregated statistics and detailed attendance records
-    /// ✅ CRITICAL FIX: Changed JOIN logic to match by stud_id, class_id, and attend_date
-    /// This ensures Time In/Time Out are retrieved even when daily_attend_id link is missing
+    /// ✅ FIX: Changed to query daily_attendance_log directly instead of attendance table
+    /// ✅ FIX: Filters out invalidated records (from schedule changes) - students see only valid attendance
     /// </summary>
     public async Task<StudentAttendanceDataDto> GetStudentAttendanceDataAsync(int studId, int limit = 20)
     {
         string query = @"
-            -- Calculate attendance statistics based on class-level attendance
-            WITH attendance_sessions AS (
+            -- ✅ FIX: Query directly from daily_attendance_log which has the actual time_in/time_out
+            -- Filter out invalidated records so students only see valid attendance
+            WITH active_attendance AS (
                 SELECT 
-                    a.attend_date,
-                    a.class_id,
-                    a.attend_status
-                FROM attendance a
-                WHERE a.stud_id = @studId
+                    dal.daily_attend_id,
+                    dal.stud_id,
+                    dal.class_id,
+                    dal.attend_date,
+                    dal.time_in,
+                    dal.time_out,
+                    dal.status,
+                    dal.is_invalidated,
+                    COALESCE(co.course_code, 'N/A') as course_code,
+                    -- Determine attendance status from attendance table or derive from time_in
+                    COALESCE(
+                        a.attend_status::text,
+                        CASE 
+                            WHEN dal.time_in IS NOT NULL THEN 'present'
+                            ELSE 'absent'
+                        END
+                    ) as attend_status
+                FROM daily_attendance_log dal
+                LEFT JOIN classes c ON dal.class_id = c.class_id
+                LEFT JOIN courses co ON c.course_id = co.course_id
+                LEFT JOIN attendance a 
+                    ON a.stud_id = dal.stud_id 
+                    AND a.class_id = dal.class_id 
+                    AND a.attend_date = dal.attend_date
+                    AND COALESCE(a.is_invalidated, FALSE) = FALSE
+                WHERE dal.stud_id = @studId
+                  AND COALESCE(dal.is_invalidated, FALSE) = FALSE  -- ✅ Exclude invalidated records
+                  AND dal.attend_date >= CURRENT_DATE - INTERVAL '30 days'
             ),
+            -- Calculate statistics from active (non-invalidated) records
             stats AS (
                 SELECT 
                     COUNT(CASE WHEN attend_status = 'present' THEN 1 END) as classes_attended,
                     COUNT(CASE WHEN attend_status = 'late' THEN 1 END) as late_arrivals,
                     COUNT(CASE WHEN attend_status = 'absent' THEN 1 END) as absences,
                     COUNT(*) as total_sessions
-                FROM attendance_sessions
-            ),
-            -- ✅ CRITICAL FIX: Match daily_attendance_log by stud_id, class_id, and date
-            -- This retrieves Time In and Time Out even when daily_attend_id is NULL
-            recent_attendance AS (
-                SELECT DISTINCT ON (a.attend_date, a.class_id)
-                    a.attend_date,
-                    a.class_id,
-                    COALESCE(co.course_code, 'N/A') as course_code,
-                    a.attend_status::text as status,
-                    dal.time_in,
-                    dal.time_out,
-                    a.attend_scan_time
-                FROM attendance a
-                INNER JOIN classes c ON a.class_id = c.class_id
-                LEFT JOIN courses co ON c.course_id = co.course_id
-                -- ✅ FIX: Match by student, date, and class (not by daily_attend_id)
-                LEFT JOIN daily_attendance_log dal 
-                    ON a.stud_id = dal.stud_id 
-                    AND a.attend_date = dal.attend_date
-                    AND (dal.class_id IS NULL OR dal.class_id = a.class_id)
-                WHERE a.stud_id = @studId
-                  AND a.attend_date >= CURRENT_DATE - INTERVAL '30 days'
-                ORDER BY a.attend_date DESC, a.class_id, a.attend_scan_time DESC
+                FROM active_attendance
+                WHERE time_in IS NOT NULL  -- Only count records with actual attendance
             )
             -- Combine statistics and records
             SELECT 
@@ -539,18 +560,20 @@ public class AttendanceRepository : IAttendanceRepository
                 NULL::bigint as late_arrivals,
                 NULL::bigint as absences,
                 NULL::numeric as attendance_rate,
-                ra.attend_date,
-                ra.course_code,
-                COALESCE(ra.status, 'pending') as status,
-                ra.time_in,
-                ra.time_out
-            FROM recent_attendance ra
-            ORDER BY record_type, attend_date DESC;";
+                aa.attend_date,
+                aa.course_code,
+                aa.attend_status as status,
+                aa.time_in,
+                aa.time_out
+            FROM active_attendance aa
+            WHERE aa.time_in IS NOT NULL  -- Only show records with actual time in
+            ORDER BY record_type, attend_date DESC
+            LIMIT @limit;";
 
         var parameters = new Dictionary<string, object> 
         { 
             { "@studId", studId },
-            { "@limit", limit }
+            { "@limit", limit + 1 }  // +1 to account for STATS row
         };
 
         var dt = await _db.ExecuteQueryAsync(query, parameters);
@@ -577,7 +600,7 @@ public class AttendanceRepository : IAttendanceRepository
             }
             else if (recordType == "RECORD")
             {
-                // ✅ Format Time In and Time Out from daily_attendance_log
+                // Format Time In and Time Out
                 string? timeInFormatted = null;
                 string? timeOutFormatted = null;
                 
@@ -599,7 +622,7 @@ public class AttendanceRepository : IAttendanceRepository
                         ? Convert.ToDateTime(row["attend_date"]).ToString("yyyy-MM-dd") 
                         : string.Empty,
                     CourseCode = row["course_code"]?.ToString() ?? "N/A",
-                    Status = row["status"]?.ToString() ?? "pending",
+                    Status = row["status"]?.ToString() ?? "present",
                     TimeIn = timeInFormatted ?? "-",
                     TimeOut = timeOutFormatted ?? "-"
                 });
@@ -627,6 +650,8 @@ public class AttendanceRepository : IAttendanceRepository
             WHERE class_id = @classId 
               AND stud_id = @studId 
               AND attend_date = @date
+              AND COALESCE(is_invalidated, FALSE) = FALSE
+            ORDER BY attend_scan_time DESC
             LIMIT 1;";
         
         var parameters = new Dictionary<string, object>

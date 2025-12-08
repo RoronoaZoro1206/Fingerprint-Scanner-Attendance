@@ -209,6 +209,7 @@ function loadAttendanceForDate() {
 
 /**
  * Initialize DataTable
+ * ✅ ENHANCED: Shows invalidated records with visual indicator for schedule changes
  */
 function initializeDataTable(classId, date) {
     // Destroy existing table if it exists
@@ -224,7 +225,7 @@ function initializeDataTable(classId, date) {
         ajax: {
             url: `/FacultyAttendance/GetClassAttendance?classId=${classId}&date=${date}`,
             dataSrc: function (json) {
-                console.log('✅ DataTables AJAX response:', json); // Enhanced debug log
+                console.log('✅ DataTables AJAX response:', json);
                 
                 if (!json) {
                     console.error('❌ Response is null or undefined');
@@ -250,7 +251,6 @@ function initializeDataTable(classId, date) {
                 $('#classTitle').text(`${json.data.courseCode || 'Class'} - Attendance`);
                 $('#classSubtitle').text(`${json.data.date || date}`);
                 
-                // ✅ FIX: Handle both 'students' (camelCase) and 'Students' (PascalCase)
                 const studentsArray = json.data.students || json.data.Students || [];
                 
                 console.log(`✅ Found ${studentsArray.length} students in response`);
@@ -271,13 +271,11 @@ function initializeDataTable(classId, date) {
                     responseText: xhr.responseText
                 });
                 
-                // Parse error message from response
                 let errorMessage = 'Failed to load attendance data';
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
                     errorMessage = errorResponse.message || errorMessage;
                 } catch (e) {
-                    // If response is not JSON, use status text
                     if (xhr.statusText) {
                         errorMessage = xhr.statusText;
                     }
@@ -290,66 +288,94 @@ function initializeDataTable(classId, date) {
         columns: [
             {
                 data: 'studentNumber',
-                width: '15%',
+                width: '12%',
                 defaultContent: '-',
-                render: function (data) {
+                render: function (data, type, row) {
+                    // ✅ NEW: Show invalidated indicator for schedule change records
+                    if (row.isInvalidated) {
+                        return `<span class="text-muted" style="opacity: 0.6;">${data || '-'}</span>`;
+                    }
                     return data || '-';
                 }
             },
             {
                 data: 'name',
-                width: '25%',
+                width: '22%',
                 defaultContent: '-',
                 render: function (data, type, row) {
                     if (!data) return '-';
                     
-                    // ✅ FIX: Update default profile image path to templates folder
                     const profileImage = row.profileImage && row.profileImage !== 'default_profile.png' && row.profileImage !== 'templates/default_profile.png'
                         ? `/images/profile/${row.profileImage}`
                         : '/images/profile/templates/default_profile.png';
+                    
+                    // ✅ NEW: Show invalidated styling
+                    const opacity = row.isInvalidated ? 'opacity: 0.6;' : '';
+                    const strikethrough = row.isInvalidated ? 'text-decoration: line-through;' : '';
+                    
                     return `
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; ${opacity}">
                             <img src="${profileImage}" 
                                  alt="${data}" 
                                  class="student-profile-img"
                                  onerror="this.src='/images/profile/templates/default_profile.png'">
-                            <span>${data}</span>
+                            <span style="${strikethrough}">${data}</span>
                         </div>
                     `;
                 }
             },
             {
                 data: 'timeIn',
-                width: '15%',
+                width: '13%',
                 defaultContent: '-',
-                render: function (data) {
+                render: function (data, type, row) {
+                    // ✅ NEW: Show invalidated styling for time
+                    if (row.isInvalidated) {
+                        return `<span class="text-muted" style="opacity: 0.6; text-decoration: line-through;">${data || '-'}</span>`;
+                    }
                     return data || '-';
                 }
             },
             {
                 data: 'timeOut',
-                width: '15%',
+                width: '13%',
                 defaultContent: '-',
-                render: function (data) {
+                render: function (data, type, row) {
+                    // ✅ NEW: Show invalidated styling for time
+                    if (row.isInvalidated) {
+                        return `<span class="text-muted" style="opacity: 0.6; text-decoration: line-through;">${data || '-'}</span>`;
+                    }
                     return data || '-';
                 }
             },
             {
                 data: 'status',
-                width: '15%',
+                width: '18%',
                 defaultContent: 'absent',
-                render: function (data) {
+                render: function (data, type, row) {
                     if (!data) data = 'absent';
                     
                     const statusLower = data.toLowerCase();
                     const icon = getStatusIcon(statusLower);
                     const displayStatus = data.charAt(0).toUpperCase() + data.slice(1).toLowerCase();
+                    
+                    // ✅ NEW: Show "Invalidated" badge for schedule change records
+                    if (row.isInvalidated) {
+                        const reason = row.invalidationReason || 'Schedule changed';
+                        return `
+                            <span class="status-badge invalidated" title="${reason}" style="background: #6b7280; opacity: 0.7;">
+                                <i data-lucide="clock-arrow-up" class="status-icon" style="width: 14px; height: 14px;"></i>
+                                Old Schedule
+                            </span>
+                        `;
+                    }
+                    
                     return `<span class="status-badge ${statusLower}">${icon}${displayStatus}</span>`;
                 }
             },
             {
                 data: null,
-                width: '15%',
+                width: '12%',
                 orderable: false,
                 searchable: false,
                 defaultContent: '',
@@ -359,7 +385,17 @@ function initializeDataTable(classId, date) {
                         return '';
                     }
                     
-                    // Escape quotes in name for onclick attribute
+                    // ✅ NEW: Hide action buttons for invalidated records (read-only history)
+                    if (row.isInvalidated) {
+                        return `
+                            <div class="action-buttons" style="opacity: 0.5;">
+                                <span class="text-muted small" title="${row.invalidationReason || 'Schedule changed'}">
+                                    <i data-lucide="info" class="icon-sm"></i>
+                                </span>
+                            </div>
+                        `;
+                    }
+                    
                     const escapedName = (row.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const status = row.status || 'Absent';
                     
@@ -377,8 +413,17 @@ function initializeDataTable(classId, date) {
             }
         ],
         order: [[0, 'asc']],
+        // ✅ NEW: Row callback to style invalidated rows
+        rowCallback: function(row, data) {
+            if (data.isInvalidated) {
+                $(row).addClass('invalidated-row');
+                $(row).css({
+                    'background-color': '#f3f4f6',
+                    'opacity': '0.8'
+                });
+            }
+        },
         drawCallback: function() {
-            // Reinitialize Lucide icons after table is drawn
             initializeLucideIcons();
         },
         ...commonDataTableConfig,

@@ -167,6 +167,7 @@ namespace Fingerprint_Attendance_System.Services
         /// MAIN LOGIC: Process attendance scan and determine action (Time In/Time Out/Already Completed)
         /// This is the core three-case toggle implementation
         /// ✅ NEW OVERLOAD: Accepts pre-validated classId from HomeController
+        /// ✅ FIX: Uses GetActiveByStudentClassAndDateAsync to ignore invalidated records
         /// </summary>
         public async Task<AttendanceScanResponseDto> ProcessAttendanceScanAsync(Student student, int classId)
         {
@@ -182,15 +183,16 @@ namespace Fingerprint_Attendance_System.Services
                     student.StudId, 
                     today);
 
-                // Query today's attendance record FOR THIS SPECIFIC CLASS
-                var todayRecord = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(student.StudId, classId, today);
+                // ✅ FIX: Query today's ACTIVE (non-invalidated) attendance record FOR THIS SPECIFIC CLASS
+                // This allows re-attendance after schedule changes have invalidated old records
+                var todayRecord = await _dailyAttendanceRepo.GetActiveByStudentClassAndDateAsync(student.StudId, classId, today);
 
                 // Determine which case applies
                 AttendanceScanResponseDto response;
                 
                 if (todayRecord == null)
                 {
-                    // CASE 1: No record exists → TIME IN
+                    // CASE 1: No ACTIVE record exists → TIME IN
                     response = await ProcessTimeInAsync(student, classId, today, now);
                 }
                 else if (todayRecord.TimeIn != null && todayRecord.TimeOut == null)

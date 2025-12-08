@@ -330,8 +330,10 @@ namespace Fingerprint_Attendance_System.Controllers.Home
 
                 _logger.LogInformation($"✅ Active class found: {activeClassInfo.CourseCode} - {activeClassInfo.CourseName} (Class ID: {activeClassInfo.ClassId})");
 
-                // ✅ STEP 5: CHECK FOR EXISTING ATTENDANCE FOR THIS CLASS TODAY
-                var existingAttendance = await _dailyAttendanceRepo.GetByStudentClassAndDateAsync(
+                // ✅ STEP 5: CHECK FOR EXISTING ACTIVE ATTENDANCE FOR THIS CLASS TODAY
+                // ✅ FIX: Use GetActiveByStudentClassAndDateAsync to exclude invalidated records
+                // This allows re-attendance after admin changes schedule time
+                var existingAttendance = await _dailyAttendanceRepo.GetActiveByStudentClassAndDateAsync(
                     student.StudId, 
                     activeClassInfo.ClassId, 
                     currentTime.Date
