@@ -16,12 +16,6 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         Task<DailyAttendanceLog?> GetByStudentClassAndDateAsync(int studId, int classId, DateTime date);
 
         /// <summary>
-        /// ✅ NEW: Get ACTIVE (non-invalidated) attendance record by student, class, and date
-        /// Used for attendance validation - ignores invalidated records from schedule changes
-        /// </summary>
-        Task<DailyAttendanceLog?> GetActiveByStudentClassAndDateAsync(int studId, int classId, DateTime date);
-
-        /// <summary>
         /// Get daily attendance record by ID
         /// </summary>
         Task<DailyAttendanceLog?> GetByIdAsync(int dailyAttendId);
@@ -57,26 +51,5 @@ namespace Fingerprint_Attendance_System.Repositories.Interfaces
         /// Save changes (for consistency with EF Core pattern)
         /// </summary>
         Task SaveChangesAsync();
-
-        /// <summary>
-        /// ✅ NEW: Invalidate attendance records when schedule time changes
-        /// Marks old attendance as invalidated so students can re-attend for new time slot
-        /// </summary>
-        /// <param name="classId">Class ID</param>
-        /// <param name="schedId">Schedule ID that was changed</param>
-        /// <param name="oldStartTime">Original start time</param>
-        /// <param name="oldEndTime">Original end time</param>
-        /// <param name="newStartTime">New start time</param>
-        /// <param name="newEndTime">New end time</param>
-        /// <param name="dayOfWeek">Day of week</param>
-        /// <returns>Tuple with counts of invalidated records</returns>
-        Task<(int DailyCount, int AttendanceCount, string Details)> InvalidateAttendanceOnScheduleChangeAsync(
-            int classId,
-            int schedId,
-            TimeSpan oldStartTime,
-            TimeSpan oldEndTime,
-            TimeSpan newStartTime,
-            TimeSpan newEndTime,
-            string dayOfWeek);
     }
 }

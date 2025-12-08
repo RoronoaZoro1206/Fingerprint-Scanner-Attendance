@@ -15,7 +15,6 @@ public class AdminClassScheduleController : Controller
     private readonly IClassScheduleRepository _classScheduleRepository;
     private readonly IClassRepository _classRepository;
     private readonly ICourseRepository _courseRepository;
-    private readonly IDailyAttendanceLogRepository _dailyAttendanceLogRepository;
     private readonly AdminAuditService _auditService;
 
     public AdminClassScheduleController(
@@ -23,14 +22,12 @@ public class AdminClassScheduleController : Controller
         IClassScheduleRepository classScheduleRepository,
         IClassRepository classRepository,
         ICourseRepository courseRepository,
-        IDailyAttendanceLogRepository dailyAttendanceLogRepository,
         AdminAuditService auditService)
     {
         _logger = logger;
         _classScheduleRepository = classScheduleRepository;
         _classRepository = classRepository;
         _courseRepository = courseRepository;
-        _dailyAttendanceLogRepository = dailyAttendanceLogRepository;
         _auditService = auditService;
     }
 
@@ -230,66 +227,13 @@ public class AdminClassScheduleController : Controller
                 }
             }
 
-            // ✅ STEP 2: GET and STORE existing schedules BEFORE deleting (for invalidation)
-            var existingSchedules = (await _classScheduleRepository.GetByClassIdAsync(classId)).ToList();
-            int totalInvalidatedRecords = 0;
+            // ✅ STEP 2: DELETE all existing schedules for this class (if editing)
+            // This prevents conflicts with existing records
+            var existingSchedules = await _classScheduleRepository.GetByClassIdAsync(classId);
             
-            // ✅ NEW STEP 2.5: Invalidate attendance if schedules are changing
             if (existingSchedules.Any())
             {
-                _logger.LogInformation($"Found {existingSchedules.Count} existing schedules for ClassId={classId}. Checking for time changes to invalidate attendance.");
-                
-                // Invalidate attendance for each existing schedule being replaced
-                foreach (var existingSched in existingSchedules)
-                {
-                    // Find if there's a matching new schedule for the same day
-                    var newSchedForSameDay = scheduleDtos.FirstOrDefault(s => 
-                        s.SchedDayOfWeek.Equals(existingSched.SchedDayOfWeek, StringComparison.OrdinalIgnoreCase));
-                    
-                    // Check if times are different (or schedule for this day is being removed)
-                    bool needsInvalidation = false;
-                    TimeSpan newStartTime = TimeSpan.Zero;
-                    TimeSpan newEndTime = TimeSpan.Zero;
-                    
-                    if (newSchedForSameDay == null)
-                    {
-                        // Schedule for this day is being removed - invalidate
-                        needsInvalidation = true;
-                        _logger.LogInformation($"Schedule for {existingSched.SchedDayOfWeek} is being removed. Invalidating attendance.");
-                    }
-                    else if (TimeSpan.TryParse(newSchedForSameDay.SchedStartTime, out newStartTime) &&
-                             TimeSpan.TryParse(newSchedForSameDay.SchedEndTime, out newEndTime))
-                    {
-                        // Check if times are different
-                        if (existingSched.SchedStartTime != newStartTime || existingSched.SchedEndTime != newEndTime)
-                        {
-                            needsInvalidation = true;
-                            _logger.LogInformation($"Schedule for {existingSched.SchedDayOfWeek} times changed: " +
-                                $"{existingSched.SchedStartTime:hh\\:mm}-{existingSched.SchedEndTime:hh\\:mm} → " +
-                                $"{newStartTime:hh\\:mm}-{newEndTime:hh\\:mm}. Invalidating attendance.");
-                        }
-                    }
-                    
-                    if (needsInvalidation)
-                    {
-                        // Use the new times if available, otherwise use old times (for removed schedules)
-                        var (dailyCount, attendCount, details) = await _dailyAttendanceLogRepository
-                            .InvalidateAttendanceOnScheduleChangeAsync(
-                                classId,
-                                existingSched.SchedId,
-                                existingSched.SchedStartTime,
-                                existingSched.SchedEndTime,
-                                newStartTime != TimeSpan.Zero ? newStartTime : existingSched.SchedStartTime,
-                                newEndTime != TimeSpan.Zero ? newEndTime : existingSched.SchedEndTime,
-                                existingSched.SchedDayOfWeek);
-                        
-                        totalInvalidatedRecords += dailyCount + attendCount;
-                        _logger.LogInformation($"✅ {details}");
-                    }
-                }
-                
-                // Now delete all existing schedules
-                _logger.LogInformation($"Deleting {existingSchedules.Count} existing schedules for ClassId={classId}");
+                _logger.LogInformation($"Deleting {existingSchedules.Count()} existing schedules for ClassId={classId}");
                 foreach (var existingSched in existingSchedules)
                 {
                     await _classScheduleRepository.DeleteAsync(existingSched.SchedId);
@@ -344,31 +288,14 @@ public class AdminClassScheduleController : Controller
                 var cls = await _classRepository.GetByIdAsync(classId);
                 var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
                 
-                // Build audit message with invalidation info
-                var auditMessage = $"Created {successCount} class schedule(s) for {course?.CourseName ?? "Unknown"}";
-                if (totalInvalidatedRecords > 0)
-                {
-                    auditMessage += $" | Invalidated {totalInvalidatedRecords} attendance records to allow re-attendance";
-                }
-                
-                await _auditService.LogActionAsync("Created Multiple Class Schedules", auditMessage);
-                
-                // Build success message
-                var successMessage = $"✅ Successfully saved {successCount} schedule(s)";
-                if (failCount > 0)
-                {
-                    successMessage += $". {failCount} failed.";
-                }
-                if (totalInvalidatedRecords > 0)
-                {
-                    successMessage += $"\n\n🔄 {totalInvalidatedRecords} student attendance record(s) were reset. " +
-                                     "Students can now time in again for the new schedule.";
-                }
+                await _auditService.LogActionAsync(
+                    "Created Multiple Class Schedules", 
+                    $"Created {successCount} class schedule(s) for {course?.CourseName ?? "Unknown"}");
                     
                 return Json(new { 
                     success = true, 
-                    message = successMessage,
-                    invalidatedRecords = totalInvalidatedRecords
+                    message = $"✅ Successfully saved {successCount} schedule(s)" + 
+                             (failCount > 0 ? $". {failCount} failed." : "")
                 });
             }
             
@@ -406,19 +333,7 @@ public class AdminClassScheduleController : Controller
             if (!TimeSpan.TryParse(dto.SchedEndTime, out var endTime))
                 return Json(new { success = false, message = "Invalid end time format" });
 
-            // ✅ STEP 1: Get the EXISTING schedule to compare times
-            var existingSchedule = await _classScheduleRepository.GetByIdAsync(dto.SchedId);
-            if (existingSchedule == null)
-            {
-                return Json(new { success = false, message = "Schedule not found" });
-            }
-
-            // ✅ STEP 2: Check if time has changed (this triggers attendance invalidation)
-            bool timeChanged = existingSchedule.SchedStartTime != startTime || 
-                              existingSchedule.SchedEndTime != endTime;
-            bool dayChanged = !existingSchedule.SchedDayOfWeek.Equals(dto.SchedDayOfWeek, StringComparison.OrdinalIgnoreCase);
-
-            // Check for faculty schedule conflicts (exclude current schedule ID)
+            // ✅ Check for faculty schedule conflicts (exclude current schedule ID)
             var (hasFacultyConflict, conflictingCourse, facultyName) = await _classScheduleRepository
                 .CheckFacultyScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
 
@@ -437,7 +352,7 @@ public class AdminClassScheduleController : Controller
                 });
             }
 
-            // Check for room schedule conflicts (exclude current schedule ID)
+            // ✅ NEW: Check for room schedule conflicts (exclude current schedule ID)
             var (hasRoomConflict, roomConflictCourse, roomConflictFaculty, roomCode) = await _classScheduleRepository
                 .CheckRoomScheduleConflictAsync(dto.ClassId, dto.SchedDayOfWeek, startTime, endTime, dto.SchedId);
 
@@ -457,31 +372,6 @@ public class AdminClassScheduleController : Controller
                 });
             }
 
-            // ✅ STEP 3: If time or day changed, invalidate today's attendance records
-            int invalidatedDailyCount = 0;
-            int invalidatedAttendanceCount = 0;
-            
-            if (timeChanged || dayChanged)
-            {
-                _logger.LogInformation($"Schedule time/day changed for SchedId {dto.SchedId}. Invalidating today's attendance records.");
-                
-                var (dailyCount, attendCount, details) = await _dailyAttendanceLogRepository
-                    .InvalidateAttendanceOnScheduleChangeAsync(
-                        dto.ClassId,
-                        dto.SchedId,
-                        existingSchedule.SchedStartTime,
-                        existingSchedule.SchedEndTime,
-                        startTime,
-                        endTime,
-                        dto.SchedDayOfWeek);
-                
-                invalidatedDailyCount = dailyCount;
-                invalidatedAttendanceCount = attendCount;
-                
-                _logger.LogInformation($"✅ {details}");
-            }
-
-            // ✅ STEP 4: Update the schedule
             var schedule = new ClassSchedule
             {
                 SchedId = dto.SchedId,
@@ -496,29 +386,10 @@ public class AdminClassScheduleController : Controller
             {
                 var cls = await _classRepository.GetByIdAsync(dto.ClassId);
                 var course = cls != null && cls.CourseId.HasValue ? await _courseRepository.GetByIdAsync(cls.CourseId.Value) : null;
-                
-                // Build audit message with invalidation info if applicable
-                var auditMessage = $"Updated schedule for {course?.CourseName ?? "Unknown"} on {dto.SchedDayOfWeek} ({dto.SchedStartTime}-{dto.SchedEndTime})";
-                if (invalidatedDailyCount > 0 || invalidatedAttendanceCount > 0)
-                {
-                    auditMessage += $" | Invalidated {invalidatedDailyCount} daily + {invalidatedAttendanceCount} attendance records to allow re-attendance";
-                }
-                
-                await _auditService.LogActionAsync("Updated Class Schedule", auditMessage);
-                
-                // Build success message
-                var successMessage = "Schedule updated successfully";
-                if (invalidatedDailyCount > 0 || invalidatedAttendanceCount > 0)
-                {
-                    successMessage += $"\n\n🔄 {invalidatedDailyCount + invalidatedAttendanceCount} student attendance record(s) were reset. " +
-                                     "Students can now time in again for the new schedule.";
-                }
-                
-                return Json(new { 
-                    success = true, 
-                    message = successMessage,
-                    invalidatedRecords = invalidatedDailyCount + invalidatedAttendanceCount
-                });
+                await _auditService.LogActionAsync(
+                    "Updated Class Schedule", 
+                    $"Updated schedule for {course?.CourseName ?? "Unknown"} on {dto.SchedDayOfWeek} ({dto.SchedStartTime}-{dto.SchedEndTime})");
+                return Json(new { success = true, message = "Schedule updated successfully" });
             }
             
             return Json(new { success = false, message = "Failed to update schedule" });
