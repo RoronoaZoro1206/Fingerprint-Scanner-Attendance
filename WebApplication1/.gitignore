@@ -3,6 +3,6 @@ bin/
 obj/
 .idea/
 wwwroot/lib/
-/packages/
+/packages/              
 riderModule.iml
 /_ReSharper.Caches/
