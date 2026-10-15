@@ -8,6 +8,7 @@
         <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
         <!-- ✅ ADDED: Disable SQL validation -->
         <NoWarn>$(NoWarn);SQL71502;SQL71501;SQL70001;SQL80001</NoWarn>
+        <Platforms>AnyCPU;x86</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
